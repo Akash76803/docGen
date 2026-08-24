@@ -2252,3 +2252,32 @@ body { background: var(--bg-primary); color: var(--text-primary); }
 .card-toolbar-check{display:inline-flex!important;align-items:center;gap:5px;margin:0!important;font-size:12px;white-space:nowrap}
 .card-toolbar-check input{width:auto!important;margin:0}
 .canvas-zoom-controls button.active{background:var(--primary,#2563eb);color:#fff;border-color:transparent}
+
+/* Starter template + decorative vector pack */
+.card-starter-template-list{display:flex;flex-direction:column;gap:7px;max-height:280px;overflow:auto;padding-right:2px}
+.card-starter-template-button{text-align:left;display:flex!important;flex-direction:column;align-items:flex-start!important;gap:3px;padding:9px 10px!important}
+.card-starter-template-button strong{font-size:12px}.card-starter-template-button span{font-size:10px;line-height:1.25;color:var(--text-muted,#64748b)}
+.card-decorative-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:280px;overflow:auto}
+.card-decorative-grid button{min-width:0;display:flex;flex-direction:column;gap:5px;align-items:center;padding:7px!important;font-size:10px;line-height:1.15;text-align:center}
+.card-decorative-thumb{width:54px;height:38px;display:grid;place-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}
+.card-decorative-thumb img,.card-svg-visual img{width:100%;height:100%;object-fit:contain;display:block}
+.card-svg-visual{width:100%;height:100%;overflow:hidden;color:#475569}
+
+/* Phase 6.1.3A Fix1 — left toolbox UX: core element tools must never be pushed below libraries */
+.card-artboard-panel{overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable}
+.card-elements-primary{position:sticky;top:0;z-index:30;background:var(--bg-secondary);box-shadow:0 6px 12px color-mix(in srgb,#000 12%,transparent);border-bottom:1px solid color-mix(in srgb,var(--accent-primary) 28%,var(--glass-border))}
+.card-elements-primary .card-tool-grid button{min-height:46px}
+.card-library-section{border-bottom:1px solid var(--glass-border);background:var(--bg-secondary)}
+.card-library-section>summary{min-height:38px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;user-select:none;list-style:none;font-size:11px;font-weight:800;color:var(--text-primary)}
+.card-library-section>summary::-webkit-details-marker{display:none}
+.card-library-section>summary:before{content:'›';font-size:14px;color:var(--text-secondary);transform:rotate(0deg);transition:transform .15s ease}
+.card-library-section[open]>summary:before{transform:rotate(90deg)}
+.card-library-section>summary span{flex:1;min-width:0}
+.card-library-section>summary small{font-size:9px;color:var(--accent-primary);font-weight:750;white-space:nowrap}
+.card-library-body{padding:0 9px 9px}
+.card-starter-template-list{max-height:220px}
+.card-decorative-grid{max-height:220px}
+.artboard-list{flex:0 0 auto;max-height:190px}
+.card-layers-panel{flex:0 0 auto;min-height:160px}
+.card-layer-list{max-height:220px}
+@media(max-height:820px){.card-starter-template-list,.card-decorative-grid{max-height:160px}.artboard-list{max-height:140px}.card-layer-list{max-height:160px}.card-elements-primary{padding-top:8px;padding-bottom:8px}}

@@ -6,6 +6,7 @@ import type {
   ImageDesignElement,
   ShapeDesignElement,
   TextDesignElement,
+  SvgDesignElement,
 } from '@document-tool/contracts';
 
 export interface ElementFactoryOptions {
@@ -62,6 +63,19 @@ export function createImageElement(assetId:string, options:ElementFactoryOptions
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
     assetId,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,
     stroke:{color:'#000000',widthMm:0,style:'NONE'},
+  };
+}
+
+
+export function createSvgElement(assetId:string, options:ElementFactoryOptions):SvgDesignElement {
+  return {
+    id:options.id,
+    type:'SVG',
+    name:options.name??'Vector Asset',
+    position:{xMm:options.xMm??12,yMm:options.yMm??12},
+    size:{widthMm:options.widthMm??30,heightMm:options.heightMm??30},
+    rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
+    assetId,preserveVector:true,
   };
 }
 

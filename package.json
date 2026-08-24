@@ -50,7 +50,9 @@
     "test:card-alignment": "vitest run packages/design-engine/test/phase611-alignment-distribution.test.ts",
     "smoke:card-alignment": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase611-alignment-distribution-smoke.mjs",
     "test:card-snapping": "vitest run packages/design-engine/test/phase612-smart-snapping.test.ts",
-    "smoke:card-snapping": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase612-smart-snapping-smoke.mjs"
+    "smoke:card-snapping": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase612-smart-snapping-smoke.mjs",
+    "test:starter-template-pack": "vitest run packages/design-engine/test/phase613a-starter-template-asset-pack.test.ts",
+    "smoke:starter-template-pack": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase613a-starter-template-asset-pack-smoke.mjs"
   },
   "workspaces": [
     "packages/*",

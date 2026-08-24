@@ -19,3 +19,5 @@ export * from './starter-templates.js';
 export * from './alignment.js';
 
 export * from './snapping.js';
+
+export * from './decorative-assets.js';
