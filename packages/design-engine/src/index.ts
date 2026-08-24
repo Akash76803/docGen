@@ -15,3 +15,7 @@ export * from './history.js';
 export * from './clipboard.js';
 
 export * from './starter-templates.js';
+
+export * from './alignment.js';
+
+export * from './snapping.js';

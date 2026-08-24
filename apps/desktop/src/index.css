@@ -2241,3 +2241,14 @@ body { background: var(--bg-primary); color: var(--text-primary); }
 
 /* Default editable Card Designer starter templates */
 .card-starter-template-button{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 11px;border:1px solid var(--border-color,#dbe2ea);border-radius:8px;background:var(--surface,#fff);cursor:pointer;text-align:left}.card-starter-template-button:hover{border-color:#6b8db4;background:#f8fbff}.card-starter-template-button strong{font-size:12px}.card-starter-template-button span{font-size:10px;line-height:1.35;color:#64748b}
+
+/* Phase 6.1.2 — Smart Snapping */
+.card-smart-guide{position:absolute;pointer-events:none;z-index:2147483000;background:#2563eb;box-shadow:0 0 0 1px rgba(255,255,255,.7);opacity:.9}
+.card-smart-guide.vertical{top:-10px;bottom:-10px;width:1px}
+.card-smart-guide.horizontal{left:-10px;right:-10px;height:1px}
+.card-smart-guide.source-guide{background:#7c3aed}
+.card-smart-guide.source-element{background:#db2777}
+.card-smart-guide.source-grid{background:#64748b;opacity:.7}
+.card-toolbar-check{display:inline-flex!important;align-items:center;gap:5px;margin:0!important;font-size:12px;white-space:nowrap}
+.card-toolbar-check input{width:auto!important;margin:0}
+.canvas-zoom-controls button.active{background:var(--primary,#2563eb);color:#fff;border-color:transparent}

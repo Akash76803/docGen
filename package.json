@@ -46,7 +46,11 @@
     "smoke:card-layers": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase605-layers-groups-smoke.mjs",
     "test:card-productivity": "vitest run packages/design-engine/test/phase606-productivity.test.ts",
     "test:default-id-card": "vitest run packages/design-engine/test/phase606-default-id-card-template.test.ts",
-    "smoke:card-productivity": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase606-productivity-smoke.mjs"
+    "smoke:card-productivity": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase606-productivity-smoke.mjs",
+    "test:card-alignment": "vitest run packages/design-engine/test/phase611-alignment-distribution.test.ts",
+    "smoke:card-alignment": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase611-alignment-distribution-smoke.mjs",
+    "test:card-snapping": "vitest run packages/design-engine/test/phase612-smart-snapping.test.ts",
+    "smoke:card-snapping": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase612-smart-snapping-smoke.mjs"
   },
   "workspaces": [
     "packages/*",
