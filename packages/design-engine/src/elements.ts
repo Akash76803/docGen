@@ -1,0 +1,89 @@
+import type {
+  AssetReference,
+  DesignElement,
+  DesignShapeKind,
+  DesignTemplate,
+  ImageDesignElement,
+  ShapeDesignElement,
+  TextDesignElement,
+} from '@document-tool/contracts';
+
+export interface ElementFactoryOptions {
+  id:string;
+  name?:string;
+  xMm?:number;
+  yMm?:number;
+  widthMm?:number;
+  heightMm?:number;
+  zIndex?:number;
+}
+
+export function nextElementZIndex(template:DesignTemplate, artboardId:string):number {
+  const artboard=template.artboards.find(a=>a.id===artboardId);
+  if(!artboard?.elements.length)return 0;
+  return Math.max(...artboard.elements.map(e=>e.zIndex))+1;
+}
+
+export function createTextElement(options:ElementFactoryOptions):TextDesignElement {
+  return {
+    id:options.id,
+    type:'TEXT',
+    name:options.name??'Text',
+    position:{xMm:options.xMm??10,yMm:options.yMm??10},
+    size:{widthMm:options.widthMm??45,heightMm:options.heightMm??12},
+    rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
+    text:'Double-click to edit',
+    style:{fontFamily:'Arial',fontSizePt:18,fontWeight:400,italic:false,underline:false,color:'#111827',alignment:'LEFT',lineHeight:1.2,letterSpacingPt:0},
+  };
+}
+
+export function createShapeElement(shape:DesignShapeKind, options:ElementFactoryOptions):ShapeDesignElement {
+  return {
+    id:options.id,
+    type:'SHAPE',
+    name:options.name??shapeLabel(shape),
+    position:{xMm:options.xMm??12,yMm:options.yMm??12},
+    size:{widthMm:options.widthMm??28,heightMm:options.heightMm??18},
+    rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
+    shape,
+    fill:{type:'SOLID',color:'#dbeafe',opacity:1},
+    stroke:{color:'#2563eb',widthMm:.35,style:'SOLID'},
+    cornerRadiusMm:shape==='ROUNDED_RECTANGLE'?3:0,
+  };
+}
+
+export function createImageElement(assetId:string, options:ElementFactoryOptions):ImageDesignElement {
+  return {
+    id:options.id,
+    type:'IMAGE',
+    name:options.name??'Image',
+    position:{xMm:options.xMm??12,yMm:options.yMm??12},
+    size:{widthMm:options.widthMm??35,heightMm:options.heightMm??25},
+    rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
+    assetId,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,
+    stroke:{color:'#000000',widthMm:0,style:'NONE'},
+  };
+}
+
+export function addDesignElement(template:DesignTemplate,artboardId:string,element:DesignElement):DesignTemplate {
+  return {...template,artboards:template.artboards.map(a=>a.id===artboardId?{...a,elements:[...a.elements,element]}:a)};
+}
+
+export function updateDesignElement(template:DesignTemplate,artboardId:string,elementId:string,updater:(element:DesignElement)=>DesignElement):DesignTemplate {
+  return {...template,artboards:template.artboards.map(a=>a.id===artboardId?{...a,elements:a.elements.map(e=>e.id===elementId?updater(e):e)}:a)};
+}
+
+export function deleteDesignElements(template:DesignTemplate,artboardId:string,elementIds:readonly string[]):DesignTemplate {
+  const ids=new Set(elementIds);
+  return {...template,artboards:template.artboards.map(a=>a.id===artboardId?{...a,elements:a.elements.filter(e=>!ids.has(e.id)||e.locked),groups:a.groups.map(g=>({...g,elementIds:g.elementIds.filter(id=>!ids.has(id))})).filter(g=>g.elementIds.length>0)}:a)};
+}
+
+export function addAssetReference(template:DesignTemplate,asset:AssetReference):DesignTemplate {
+  const existing=template.sharedAssets.find(a=>a.id===asset.id);
+  if(existing)return {...template,sharedAssets:template.sharedAssets.map(a=>a.id===asset.id?asset:a)};
+  return {...template,sharedAssets:[...template.sharedAssets,asset]};
+}
+
+function shapeLabel(shape:DesignShapeKind):string {
+  return shape.toLowerCase().split('_').map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+}

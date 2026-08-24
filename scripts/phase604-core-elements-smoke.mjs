@@ -1,0 +1,10 @@
+import { addAssetReference,addDesignElement,createBlankArtboard,createImageElement,createShapeElement,createTextElement,deserializeDesignTemplate,nextElementZIndex,serializeDesignTemplate,updateDesignElement,validateDesignTemplate } from '../packages/design-engine/dist/index.js';
+let template={kind:'CARD_DESIGN',schemaVersion:1,id:'phase604',name:'Phase 6.0.4 Smoke',version:1,status:'DRAFT',sharedAssets:[],artboards:[createBlankArtboard({id:'front',name:'Front',order:0,widthMm:90,heightMm:50})]};
+template=addDesignElement(template,'front',createTextElement({id:'title',name:'Title',zIndex:nextElementZIndex(template,'front')}));
+template=updateDesignElement(template,'front','title',e=>e.type==='TEXT'?{...e,text:'Auraa Dreams',style:{...e.style,fontWeight:700,color:'#112233'}}:e);
+template=addDesignElement(template,'front',createShapeElement('STAR',{id:'star',zIndex:nextElementZIndex(template,'front')}));
+template=addAssetReference(template,{id:'logo',name:'Logo',kind:'LOGO',sourceType:'DATA_URL',source:'data:image/png;base64,AA==',mimeType:'image/png'});
+template=addDesignElement(template,'front',createImageElement('logo',{id:'image',zIndex:nextElementZIndex(template,'front')}));
+const validation=validateDesignTemplate(template);if(!validation.valid)throw new Error(validation.errors.map(e=>e.message).join('; '));
+const reopened=deserializeDesignTemplate(serializeDesignTemplate(template));if(JSON.stringify(reopened)!==JSON.stringify(template))throw new Error('Card element serialization round-trip failed.');
+console.log(JSON.stringify({status:'PASS',phase:'6.0.4',elements:template.artboards[0].elements.map(e=>e.type),zIndex:template.artboards[0].elements.map(e=>e.zIndex),assetCount:template.sharedAssets.length,serializationRoundTrip:true},null,2));

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileSpreadsheet, Layers, FileText, Settings, Play, CheckCircle } from 'lucide-react';
+import { FileSpreadsheet, Layers, FileText, Settings, Play, CheckCircle, Palette } from 'lucide-react';
 
 interface HomeProps {
   onNavigate: (page: string) => void;
@@ -47,6 +47,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           </div>
           <Play size={18} className="arrow-icon" />
         </div>
+
+        <div className="dashboard-card" onClick={() => onNavigate('card-designer')}><div className="card-icon template-color"><Palette size={28} /></div><div className="card-content"><h3>Card Designer</h3><p>Create fixed-size, multi-artboard visual designs for print and digital output.</p></div><Play size={18} className="arrow-icon" /></div>
 
         <div className="dashboard-card" onClick={() => onNavigate('generate')}>
           <div className="card-icon generate-color">

@@ -20,6 +20,7 @@ export default defineConfig({
       '@document-tool/grouping-engine': path.resolve(root, 'packages/grouping-engine/src'),
       '@document-tool/template-engine': path.resolve(root, 'packages/template-engine/src'),
       '@document-tool/persistence': path.resolve(root, 'packages/persistence/src'),
+      '@document-tool/design-engine': path.resolve(root, 'packages/design-engine/src'),
       '@document-tool/renderer-sdk': path.resolve(root, 'packages/renderer-sdk/src'),
       '@document-tool/renderer-image': path.resolve(root, 'packages/renderer-image/src'),
     },

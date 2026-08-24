@@ -67,6 +67,9 @@
       ],
       "@document-tool/grouping-engine": [
         "packages/grouping-engine/src/index.ts"
+      ],
+      "@document-tool/design-engine": [
+        "packages/design-engine/src/index.ts"
       ]
     }
   }

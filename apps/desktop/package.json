@@ -27,7 +27,8 @@
     "lucide-react": "^0.400.0",
     "@tauri-apps/api": "^1.6.0",
     "@document-tool/grouping-engine": "*",
-    "@document-tool/template-engine": "*"
+    "@document-tool/template-engine": "*",
+    "@document-tool/design-engine": "*"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

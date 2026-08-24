@@ -4,7 +4,8 @@ import { Home } from '../pages/Home.tsx';
 import { Templates } from '../pages/Templates.tsx';
 import { Generate } from '../pages/Generate.tsx';
 import { Settings } from '../pages/Settings.tsx';
-import { LayoutDashboard, Layers, Play, Settings as SettingsIcon, FileText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { CardDesigner } from '../pages/CardDesigner.tsx';
+import { LayoutDashboard, Layers, Play, Settings as SettingsIcon, FileText, PanelLeftClose, PanelLeftOpen, Palette } from 'lucide-react';
 
 export type AppTheme = 'light' | 'soft' | 'ocean' | 'lavender' | 'forest' | 'dark';
 const THEME_KEY = 'document-tool-theme';
@@ -32,6 +33,8 @@ export default function App() {
         return <Templates />;
       case 'generate':
         return <Generate onOpenTemplates={() => setCurrentPage('templates')} />;
+      case 'card-designer':
+        return <CardDesigner />;
       case 'settings':
         return <Settings theme={theme} onThemeChange={setTheme} />;
       default:
@@ -54,6 +57,7 @@ export default function App() {
           <nav className="sidebar-menu">
             <NavButton icon={<LayoutDashboard size={18}/>} label="Dashboard" active={currentPage === 'home'} collapsed={sidebarCollapsed} onClick={() => setCurrentPage('home')}/>
             <NavButton icon={<Layers size={18}/>} label="Templates" active={currentPage === 'templates'} collapsed={sidebarCollapsed} onClick={() => setCurrentPage('templates')}/>
+            <NavButton icon={<Palette size={18}/>} label="Card Designer" active={currentPage === 'card-designer'} collapsed={sidebarCollapsed} onClick={() => setCurrentPage('card-designer')}/>
             <NavButton icon={<Play size={18}/>} label="Generate" active={currentPage === 'generate'} collapsed={sidebarCollapsed} onClick={() => setCurrentPage('generate')}/>
             <NavButton icon={<SettingsIcon size={18}/>} label="Settings" active={currentPage === 'settings'} collapsed={sidebarCollapsed} onClick={() => setCurrentPage('settings')}/>
           </nav>
@@ -72,9 +76,9 @@ export default function App() {
                   <option value="dark">Dark</option>
                 </select>
               </label>
-              <div className="version-info">Phase 4.3 PDF</div>
+              <div className="version-info">Phase 6.0.2</div>
             </>
-          ) : <div className="version-info">4.3</div>}
+          ) : <div className="version-info">6.0.2</div>}
         </div>
       </aside>
 

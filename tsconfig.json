@@ -35,6 +35,9 @@
       "path": "packages/calculation-engine"
     },
     {
+      "path": "packages/design-engine"
+    },
+    {
       "path": "packages/renderer-sdk"
     },
     {

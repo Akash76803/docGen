@@ -1,16 +1,15 @@
 {
-  "name": "@document-tool/persistence",
+  "name": "@document-tool/design-engine",
   "version": "1.0.0",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc --build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@document-tool/contracts": "*",
-    "@document-tool/design-engine": "*"
-  },
-  "type": "module"
+    "@document-tool/contracts": "*"
+  }
 }

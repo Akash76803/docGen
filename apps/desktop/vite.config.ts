@@ -26,6 +26,7 @@ export default defineConfig({
       '@document-tool/renderer-docx': path.resolve(__dirname, '../../packages/renderer-docx/src'),
       '@document-tool/core': path.resolve(__dirname, '../../packages/core/src'),
       '@document-tool/persistence': path.resolve(__dirname, '../../packages/persistence/src'),
+      '@document-tool/design-engine': path.resolve(__dirname, '../../packages/design-engine/src'),
       '@document-tool/validation': path.resolve(__dirname, '../../packages/validation/src'),
     },
   },
