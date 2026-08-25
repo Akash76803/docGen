@@ -21,3 +21,6 @@ export * from './alignment.js';
 export * from './snapping.js';
 
 export * from './decorative-assets.js';
+
+export * from './guides.js';
+export * from './styling.js';

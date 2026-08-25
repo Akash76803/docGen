@@ -35,6 +35,7 @@ export function createTextElement(options:ElementFactoryOptions):TextDesignEleme
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
     text:'Double-click to edit',
     style:{fontFamily:'Arial',fontSizePt:18,fontWeight:400,italic:false,underline:false,color:'#111827',alignment:'LEFT',lineHeight:1.2,letterSpacingPt:0},
+    shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
   };
 }
 
@@ -50,6 +51,7 @@ export function createShapeElement(shape:DesignShapeKind, options:ElementFactory
     fill:{type:'SOLID',color:'#dbeafe',opacity:1},
     stroke:{color:'#2563eb',widthMm:.35,style:'SOLID'},
     cornerRadiusMm:shape==='ROUNDED_RECTANGLE'?3:0,
+    shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
   };
 }
 
@@ -62,7 +64,7 @@ export function createImageElement(assetId:string, options:ElementFactoryOptions
     size:{widthMm:options.widthMm??35,heightMm:options.heightMm??25},
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
     assetId,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,
-    stroke:{color:'#000000',widthMm:0,style:'NONE'},
+    stroke:{color:'#000000',widthMm:0,style:'NONE',opacity:1},shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
   };
 }
 
@@ -75,7 +77,7 @@ export function createSvgElement(assetId:string, options:ElementFactoryOptions):
     position:{xMm:options.xMm??12,yMm:options.yMm??12},
     size:{widthMm:options.widthMm??30,heightMm:options.heightMm??30},
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
-    assetId,preserveVector:true,
+    assetId,preserveVector:true,stroke:{color:'#000000',widthMm:0,style:'NONE',opacity:1},shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
   };
 }
 

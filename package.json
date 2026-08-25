@@ -7,6 +7,8 @@
     "node": ">=20 <21"
   },
   "scripts": {
+    "test:card-styling": "vitest run packages/design-engine/test/phase614-advanced-styling.test.ts",
+    "smoke:card-styling": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase614-advanced-styling-smoke.mjs",
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc -b --pretty false",
@@ -52,7 +54,11 @@
     "test:card-snapping": "vitest run packages/design-engine/test/phase612-smart-snapping.test.ts",
     "smoke:card-snapping": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase612-smart-snapping-smoke.mjs",
     "test:starter-template-pack": "vitest run packages/design-engine/test/phase613a-starter-template-asset-pack.test.ts",
-    "smoke:starter-template-pack": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase613a-starter-template-asset-pack-smoke.mjs"
+    "smoke:starter-template-pack": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase613a-starter-template-asset-pack-smoke.mjs",
+    "test:user-asset-library": "vitest run packages/persistence/test/phase613a-user-asset-library.test.ts",
+    "smoke:user-asset-library": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && npm run build -w @document-tool/persistence && node scripts/phase613a-user-asset-library-smoke.mjs",
+    "test:card-guides": "vitest run packages/design-engine/test/phase613-rulers-grid-guides.test.ts",
+    "smoke:card-guides": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase613-rulers-grid-guides-smoke.mjs"
   },
   "workspaces": [
     "packages/*",

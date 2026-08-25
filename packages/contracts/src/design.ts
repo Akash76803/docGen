@@ -14,7 +14,7 @@ export type MissingBindingBehavior = 'BLANK' | 'FALLBACK' | 'HIDE' | 'WARNING';
 export interface DesignPoint { xMm:number; yMm:number; }
 export interface DesignSize { widthMm:number; heightMm:number; }
 export interface DesignInsets { topMm:number; rightMm:number; bottomMm:number; leftMm:number; }
-export interface DesignStroke { color:string; widthMm:number; style:'SOLID'|'DASHED'|'DOTTED'|'NONE'; }
+export interface DesignStroke { color:string; widthMm:number; style:'SOLID'|'DASHED'|'DOTTED'|'NONE'; opacity?:number; }
 export interface DesignShadow { enabled:boolean; offsetXmm:number; offsetYmm:number; blurMm:number; color:string; opacity:number; }
 export interface DesignGradientStop { offset:number; color:string; opacity?:number; }
 export interface DesignLinearGradient { type:'LINEAR'; angleDeg:number; stops:DesignGradientStop[]; }
@@ -92,6 +92,7 @@ export interface TextDesignElement extends BaseDesignElement {
     lineHeight:number;
     letterSpacingPt:number;
   };
+  shadow?:DesignShadow;
 }
 
 export interface ShapeDesignElement extends BaseDesignElement {
@@ -113,12 +114,15 @@ export interface ImageDesignElement extends BaseDesignElement {
   maintainAspectRatio?:boolean;
   cornerRadiusMm?:number;
   stroke?:DesignStroke;
+  shadow?:DesignShadow;
 }
 
 export interface SvgDesignElement extends BaseDesignElement {
   type:'SVG';
   assetId:string;
   preserveVector?:boolean;
+  stroke?:DesignStroke;
+  shadow?:DesignShadow;
 }
 
 export interface QrDesignElement extends BaseDesignElement {

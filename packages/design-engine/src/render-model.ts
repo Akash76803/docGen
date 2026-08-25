@@ -37,10 +37,10 @@ function resolveElement(element:DesignElement, context:CardRenderResolutionConte
   }
   const base:ResolvedDesignElement={id:element.id,type:element.type,name:element.name,position:element.position,size:element.size,rotationDeg:element.rotationDeg,opacity:element.opacity,visible:element.visible,locked:element.locked,zIndex:element.zIndex,groupId:element.groupId,metadata:element.metadata,sourceElementType:element.type==='CUSTOM'?element.customType:element.type,content:{}};
   switch (element.type) {
-    case 'TEXT': base.content={text:bindingValue?.value ?? element.text,style:element.style}; break;
+    case 'TEXT': base.content={text:bindingValue?.value ?? element.text,style:element.style,shadow:element.shadow}; break;
     case 'SHAPE': base.content={shape:element.shape,fill:element.fill,stroke:element.stroke,cornerRadiusMm:element.cornerRadiusMm,points:element.points,shadow:element.shadow}; break;
-    case 'IMAGE': base.content={assetId:bindingValue?.value ?? element.assetId,fit:element.fit,flipX:element.flipX,flipY:element.flipY,maintainAspectRatio:element.maintainAspectRatio,cornerRadiusMm:element.cornerRadiusMm,stroke:element.stroke}; break;
-    case 'SVG': base.content={assetId:bindingValue?.value ?? element.assetId,preserveVector:element.preserveVector}; break;
+    case 'IMAGE': base.content={assetId:bindingValue?.value ?? element.assetId,fit:element.fit,flipX:element.flipX,flipY:element.flipY,maintainAspectRatio:element.maintainAspectRatio,cornerRadiusMm:element.cornerRadiusMm,stroke:element.stroke,shadow:element.shadow}; break;
+    case 'SVG': base.content={assetId:bindingValue?.value ?? element.assetId,preserveVector:element.preserveVector,stroke:element.stroke,shadow:element.shadow}; break;
     case 'QR': base.content={value:bindingValue?.value ?? element.value,foreground:element.foreground,background:element.background,errorCorrection:element.errorCorrection}; break;
     case 'BARCODE': base.content={value:bindingValue?.value ?? element.value,symbology:element.symbology,foreground:element.foreground,background:element.background}; break;
     case 'CUSTOM': base.content={customType:element.customType,props:element.props,boundValue:bindingValue?.value}; break;

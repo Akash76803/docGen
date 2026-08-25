@@ -2277,7 +2277,125 @@ body { background: var(--bg-primary); color: var(--text-primary); }
 .card-library-body{padding:0 9px 9px}
 .card-starter-template-list{max-height:220px}
 .card-decorative-grid{max-height:220px}
+.card-library-toolbar{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.card-library-search{width:100%;min-height:32px;border:1px solid var(--glass-border);border-radius:8px;padding:7px 9px;background:var(--bg-tertiary);color:var(--text-primary);font-size:11px}
+.card-library-search::placeholder{color:var(--text-secondary)}
+.card-library-hint{font-size:9px;line-height:1.35;color:var(--text-secondary)}
+.card-library-folders{display:flex;flex-direction:column;gap:8px}
+.card-library-folder{border:1px solid var(--glass-border);border-radius:8px;background:color-mix(in srgb,var(--bg-tertiary) 80%,transparent);overflow:hidden}
+.card-library-folder>summary{min-height:34px;padding:7px 9px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;list-style:none;font-size:10px;font-weight:800;color:var(--text-primary)}
+.card-library-folder>summary::-webkit-details-marker{display:none}
+.card-library-folder>summary:before{content:'›';font-size:13px;color:var(--text-secondary);transform:rotate(0deg);transition:transform .15s ease;margin-right:2px}
+.card-library-folder[open]>summary:before{transform:rotate(90deg)}
+.card-library-folder>summary span{flex:1;min-width:0}
+.card-library-folder>summary small{font-size:9px;color:var(--accent-primary);font-weight:750}
+.card-library-folder-grid{padding:0 8px 8px;max-height:none;overflow:visible}
 .artboard-list{flex:0 0 auto;max-height:190px}
 .card-layers-panel{flex:0 0 auto;min-height:160px}
 .card-layer-list{max-height:220px}
 @media(max-height:820px){.card-starter-template-list,.card-decorative-grid{max-height:160px}.artboard-list{max-height:140px}.card-layer-list{max-height:160px}.card-elements-primary{padding-top:8px;padding-bottom:8px}}
+
+/* Phase 6.1.3A Fix 3 — reusable My Assets library */
+.card-user-assets-toolbar{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}.card-user-assets-toolbar button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px}.card-user-assets-toolbar small{font-size:9px;line-height:1.35;color:var(--text-secondary)}.card-asset-library-status{margin:6px 0 8px;padding:7px 8px;border:1px solid var(--glass-border);border-radius:7px;background:color-mix(in srgb,var(--bg-tertiary) 75%,transparent);font-size:9px;color:var(--text-secondary)}.card-user-assets-grid{max-height:300px}.card-user-asset-card{position:relative;min-width:0;border:1px solid var(--glass-border);border-radius:8px;background:var(--bg-tertiary);overflow:hidden}.card-user-asset-insert{width:100%;border:0!important;border-radius:0!important;background:transparent!important;padding:7px!important}.card-user-asset-actions{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--glass-border)}.card-user-asset-actions button{min-height:27px;border:0!important;border-radius:0!important;background:transparent!important}.card-user-asset-actions button+button{border-left:1px solid var(--glass-border)!important}.card-user-asset-actions button:hover{background:color-mix(in srgb,var(--accent-primary) 8%,var(--bg-tertiary))!important}.card-user-asset-actions .danger{color:#ef4444}.card-empty-library{display:flex;flex-direction:column;gap:5px;padding:10px;border:1px dashed var(--glass-border);border-radius:8px;color:var(--text-secondary);font-size:9px;line-height:1.4}.card-empty-library strong{color:var(--text-primary);font-size:10px}
+
+/* Phase 6.1.3 — Rulers, Grid & Guides */
+.card-grid-size-control{display:inline-flex!important;align-items:center;gap:4px;margin:0!important;padding:0 5px;border:1px solid var(--glass-border);border-radius:7px;min-height:31px;background:var(--bg-tertiary)}
+.card-grid-size-control span,.card-grid-size-control small{font-size:9px;color:var(--text-secondary);white-space:nowrap}.card-grid-size-control input{width:48px!important;min-height:24px!important;padding:3px 4px!important;border:0!important;background:transparent!important;text-align:right;font-size:10px!important}
+.card-artboard-canvas.with-rulers{outline:1px solid color-mix(in srgb,var(--text-secondary) 30%,transparent)}
+.card-ruler{position:absolute;z-index:2147482500;background:color-mix(in srgb,var(--bg-secondary,#fff) 92%,#94a3b8 8%);color:#475569;user-select:none;touch-action:none;overflow:hidden}
+.card-ruler-top{left:18px;right:0;top:0;height:18px;border-bottom:1px solid rgba(100,116,139,.35);cursor:ns-resize}
+.card-ruler-left{top:18px;bottom:0;left:0;width:18px;border-right:1px solid rgba(100,116,139,.35);cursor:ew-resize}
+.card-ruler-corner{position:absolute;left:0;top:0;width:18px;height:18px;z-index:2147482600;background:#e2e8f0;border-right:1px solid #94a3b8;border-bottom:1px solid #94a3b8;pointer-events:none}
+.card-ruler i{position:absolute;display:block;font-style:normal;pointer-events:none}.card-ruler-top i{bottom:0;width:1px;height:6px;border-left:1px solid #94a3b8}.card-ruler-top i.major{height:11px;border-left-color:#475569}.card-ruler-top i span{position:absolute;left:3px;bottom:5px;font-size:7px;line-height:1;color:#475569;white-space:nowrap}.card-ruler-left i{right:0;width:6px;height:1px;border-top:1px solid #94a3b8}.card-ruler-left i.major{width:11px;border-top-color:#475569}.card-ruler-left i span{position:absolute;right:5px;top:2px;font-size:7px;line-height:1;color:#475569;transform:rotate(-90deg);transform-origin:right top;white-space:nowrap}
+.card-user-guide{position:absolute;z-index:2147482400;pointer-events:auto;touch-action:none}.card-user-guide.vertical{top:0;bottom:0;width:0;border-left:1px solid #06b6d4;cursor:ew-resize}.card-user-guide.horizontal{left:0;right:0;height:0;border-top:1px solid #06b6d4;cursor:ns-resize}.card-user-guide.vertical:after,.card-user-guide.horizontal:after{content:'';position:absolute;background:transparent}.card-user-guide.vertical:after{left:-4px;top:0;width:8px;height:100%}.card-user-guide.horizontal:after{top:-4px;left:0;height:8px;width:100%}.card-user-guide.locked{border-color:#7c3aed;cursor:not-allowed}.card-user-guide.preview{border-color:#f97316;pointer-events:none;z-index:2147482450}
+.card-guide-list{display:flex;flex-direction:column;gap:6px;padding:8px 9px}.card-guide-row{display:grid;grid-template-columns:22px minmax(0,1fr) 24px 28px 28px;align-items:center;gap:5px}.card-guide-row>span{display:grid;place-items:center;width:22px;height:24px;border-radius:5px;background:color-mix(in srgb,var(--accent-primary) 10%,var(--bg-tertiary));font-size:9px;font-weight:850;color:var(--accent-primary)}.card-guide-row input{min-width:0!important;min-height:28px!important;padding:4px 6px!important}.card-guide-row small{font-size:8px;color:var(--text-secondary)}.card-guide-row button{min-height:26px!important;padding:3px!important;font-size:12px!important}
+@media(max-width:1450px){.canvas-zoom-controls{gap:4px}.card-grid-size-control{display:none!important}.canvas-zoom-controls .card-toolbar-check{font-size:10px}}
+
+/* Phase 6.1.3 Fix1 — 100% zoom responsive toolbar + layers visibility */
+.card-canvas-toolbar{
+  flex-wrap:wrap;
+  gap:6px 10px;
+  align-items:center;
+  justify-content:space-between;
+  overflow:visible;
+}
+.canvas-artboard-name{
+  flex:0 1 auto;
+  min-width:120px;
+  max-width:100%;
+  flex-wrap:wrap;
+}
+.canvas-zoom-controls{
+  flex:1 1 620px;
+  min-width:0;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  align-items:center;
+  gap:5px;
+  row-gap:5px;
+}
+.canvas-zoom-controls button,
+.canvas-zoom-controls .card-toolbar-check,
+.canvas-zoom-controls .card-grid-size-control,
+.canvas-zoom-controls>span{
+  flex:0 0 auto;
+}
+.card-grid-size-control{
+  display:inline-flex!important;
+  align-items:center;
+  gap:4px;
+  min-height:28px;
+  padding:3px 6px;
+  border:1px solid var(--glass-border);
+  border-radius:7px;
+  background:var(--bg-tertiary);
+  font-size:9px;
+  white-space:nowrap;
+}
+.card-grid-size-control input{
+  width:46px;
+  min-width:46px;
+  height:22px;
+  padding:2px 4px;
+  border:1px solid var(--glass-border);
+  border-radius:5px;
+  background:var(--bg-secondary);
+  color:var(--text-primary);
+  font-size:9px;
+}
+.card-grid-size-control small{font-size:8px;color:var(--text-secondary)}
+
+/* Never intentionally hide Grid Size at ordinary desktop widths. */
+@media(max-width:1450px){
+  .canvas-zoom-controls{gap:4px;flex-basis:520px}
+  .card-grid-size-control{display:inline-flex!important}
+  .canvas-zoom-controls .card-toolbar-check{font-size:9.5px}
+  .canvas-zoom-controls button{padding-inline:6px}
+}
+@media(max-width:1180px){
+  .card-canvas-toolbar{align-items:stretch}
+  .canvas-artboard-name{width:100%}
+  .canvas-zoom-controls{flex:1 1 100%;justify-content:flex-start}
+}
+
+/* Layers must remain readable at 100% zoom and narrow side-panel widths. */
+.card-layers-panel{min-width:0;overflow:hidden}
+.card-layer-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+.card-layer-actions button{min-width:0;padding:4px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-layer-list{min-width:0;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable}
+.card-layer-row{min-width:0}
+.card-layer-main{
+  min-width:0;
+  grid-template-columns:38px minmax(0,1fr);
+  grid-template-areas:'type name' 'type group';
+  column-gap:5px;
+  row-gap:1px;
+  overflow:hidden;
+}
+.card-layer-main>span{grid-area:type;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-layer-main>input{grid-area:name;width:100%;min-width:0;box-sizing:border-box}
+.card-layer-main>small{grid-area:group;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-layer-mini{grid-template-columns:repeat(6,minmax(0,1fr))}
+.card-layer-mini button{min-width:0;width:100%}
+.card-style-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:8px 0}.card-style-actions button,.card-gradient-editor button{border:1px solid var(--glass-border);border-radius:6px;background:var(--bg-tertiary);color:var(--text-secondary);padding:6px;font-size:9px;cursor:pointer}.card-style-actions button:disabled{opacity:.4;cursor:not-allowed}.card-range-row{display:grid;grid-template-columns:minmax(0,1fr) 58px auto;gap:5px;align-items:center}.card-range-row input[type=range]{min-height:auto;padding:0}.card-gradient-editor{margin:8px 9px;display:flex;flex-direction:column;gap:6px}.card-gradient-stop{display:grid;grid-template-columns:34px minmax(42px,1fr) 26px 26px 26px;gap:4px}.card-gradient-stop input{min-width:0}.card-svg-visual{width:100%;height:100%;box-sizing:border-box}.card-svg-visual img{width:100%;height:100%;display:block;object-fit:contain;pointer-events:none}

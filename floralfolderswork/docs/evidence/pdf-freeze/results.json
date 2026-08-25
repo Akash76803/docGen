@@ -1,0 +1,83 @@
+[
+  {
+    "file": "01-single-page.pdf",
+    "templateId": "Single Page",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 1,
+    "renderDurationMs": 5,
+    "warningsCount": 0,
+    "bytes": 4567
+  },
+  {
+    "file": "02-two-page.pdf",
+    "templateId": "Two Page",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 2,
+    "renderDurationMs": 5,
+    "warningsCount": 0,
+    "bytes": 22011
+  },
+  {
+    "file": "03-three-page.pdf",
+    "templateId": "Three Page",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 3,
+    "renderDurationMs": 5,
+    "warningsCount": 0,
+    "bytes": 41020
+  },
+  {
+    "file": "04-long-table.pdf",
+    "templateId": "Long Table",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 10,
+    "renderDurationMs": 15,
+    "warningsCount": 0,
+    "bytes": 166975
+  },
+  {
+    "file": "05-custom-grid.pdf",
+    "templateId": "Custom Grid",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 1,
+    "renderDurationMs": 2,
+    "warningsCount": 0,
+    "bytes": 8911
+  },
+  {
+    "file": "06-qr-bank.pdf",
+    "templateId": "QR Bank",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 1,
+    "renderDurationMs": 1,
+    "warningsCount": 0,
+    "bytes": 7122
+  },
+  {
+    "file": "07-a4-landscape.pdf",
+    "templateId": "A4 Landscape",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 2,
+    "renderDurationMs": 3,
+    "warningsCount": 0,
+    "bytes": 17074
+  },
+  {
+    "file": "08-a3.pdf",
+    "templateId": "A3",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 1,
+    "renderDurationMs": 2,
+    "warningsCount": 0,
+    "bytes": 23894
+  },
+  {
+    "file": "09-long-text.pdf",
+    "templateId": "Long Text",
+    "documentGroupId": "freeze-fixture",
+    "pageCount": 2,
+    "renderDurationMs": 5,
+    "warningsCount": 0,
+    "bytes": 20851
+  }
+]

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { createBlankArtboard,emptySelection,getSelectionBounds,moveElements,normalizeRotationDeg,nudgeElements,resizeElement,rotateElement,selectAllSelectable,selectByMarquee,selectOnly,toggleSelection } from '../packages/design-engine/dist/index.js';
+const shape=(id,x,y,w=20,h=10,locked=false)=>({id,type:'SHAPE',name:id,position:{xMm:x,yMm:y},size:{widthMm:w,heightMm:h},rotationDeg:0,opacity:1,visible:true,locked,zIndex:0,shape:'RECTANGLE',fill:{type:'SOLID',color:'#fff'},stroke:{color:'#000',widthMm:.2,style:'SOLID'}});
+const fixture=()=>({kind:'CARD_DESIGN',schemaVersion:1,id:'t',name:'T',version:1,status:'DRAFT',sharedAssets:[],artboards:[{...createBlankArtboard({id:'a',name:'Front',order:0,widthMm:90,heightMm:50}),elements:[shape('one',5,5),shape('two',35,10),shape('locked',70,5,10,10,true)]}]});
+let a=fixture().artboards[0];let s=selectOnly(a.id,'one');s=toggleSelection(s,'two');assert.deepEqual(s.elementIds,['one','two']);assert.deepEqual(selectAllSelectable(a).elementIds,['one','two']);
+s=selectByMarquee(a,{xMm:0,yMm:0,widthMm:30,heightMm:30},'REPLACE',emptySelection(a.id));assert.deepEqual(s.elementIds,['one']);
+let t=moveElements(fixture(),'a',['one','locked'],{xMm:2,yMm:-1});assert.deepEqual(t.artboards[0].elements[0].position,{xMm:7,yMm:4});assert.deepEqual(t.artboards[0].elements[2].position,{xMm:70,yMm:5});
+t=resizeElement(fixture(),'a','one',{widthMm:40,heightMm:10},{anchor:'NW',maintainAspectRatio:true});assert.deepEqual(t.artboards[0].elements[0].size,{widthMm:40,heightMm:20});assert.deepEqual(t.artboards[0].elements[0].position,{xMm:-15,yMm:-5});
+assert.equal(normalizeRotationDeg(-90),270);assert.equal(normalizeRotationDeg(450),90);t=rotateElement(fixture(),'a','one',725);assert.equal(t.artboards[0].elements[0].rotationDeg,5);
+t=nudgeElements(fixture(),'a',['one'],'RIGHT');assert.equal(t.artboards[0].elements[0].position.xMm,5.5);t=nudgeElements(t,'a',['one'],'DOWN',true);assert.equal(t.artboards[0].elements[0].position.yMm,10);
+assert.deepEqual(getSelectionBounds(fixture().artboards[0].elements.slice(0,2)),{xMm:5,yMm:5,widthMm:50,heightMm:15});
+console.log(JSON.stringify({status:'PASS',phase:'6.0.3',selection:['single','toggle','marquee','select-all'],transform:['move','resize','rotate','nudge','bounds'],lockedProtection:true},null,2));
