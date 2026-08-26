@@ -21,6 +21,17 @@ export function validateDesignTemplate(template:DesignTemplate, registry:DesignE
     orders.add(artboard.order);
     validateArtboard(artboard,registry,allElementIds,error);
   }
+  const pairCounts=new Map<string,number>();
+  for (const artboard of template.artboards ?? []) {
+    if (artboard.pairId) {
+      pairCounts.set(artboard.pairId, (pairCounts.get(artboard.pairId)||0)+1);
+    }
+  }
+  for (const artboard of template.artboards ?? []) {
+    if (artboard.pairId && pairCounts.get(artboard.pairId)!==2) {
+      error({code:'ARTBOARD_PAIR_INVALID',message:`Artboard pairId must be shared by exactly two artboards (found ${pairCounts.get(artboard.pairId)}).`,artboardId:artboard.id});
+    }
+  }
   const assetIds=new Set<string>();
   for (const asset of template.sharedAssets ?? []) {
     if (assetIds.has(asset.id)) error({code:'ASSET_ID_DUPLICATE',message:`Duplicate asset id: ${asset.id}`});

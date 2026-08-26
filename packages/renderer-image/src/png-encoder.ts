@@ -10,6 +10,21 @@ export function encodePngRgba(width:number,height:number,rgba:Uint8Array):Uint8A
 
 export interface PngEncoder{encode(width:number,height:number,rgba:Uint8Array):Promise<Uint8Array>;}
 export class DeterministicPngEncoder implements PngEncoder{async encode(width:number,height:number,rgba:Uint8Array):Promise<Uint8Array>{return encodePngRgba(width,height,rgba);}}
-/** Uses the browser's optimized DEFLATE/filter pipeline for production files. */
-export class BrowserPngEncoder implements PngEncoder{async encode(width:number,height:number,rgba:Uint8Array):Promise<Uint8Array>{const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const context=canvas.getContext('2d');if(!context)throw new Error('Canvas 2D is unavailable.');const image=context.createImageData(width,height);image.data.set(rgba);context.putImageData(image,0,0);const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('PNG encoding failed.')),'image/png'));return new Uint8Array(await blob.arrayBuffer());}}
-export function defaultPngEncoder():PngEncoder{return typeof document==='undefined'?new DeterministicPngEncoder():new BrowserPngEncoder();}
+export class BrowserPngEncoder implements PngEncoder{
+  async encode(width:number,height:number,rgba:Uint8Array):Promise<Uint8Array>{
+    const canvas=document.createElement('canvas');
+    canvas.width=width;
+    canvas.height=height;
+    const context=canvas.getContext('2d');
+    if(!context)throw new Error('Canvas 2D is unavailable.');
+    const image=context.createImageData(width,height);
+    image.data.set(rgba);
+    context.putImageData(image,0,0);
+    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('PNG encoding failed.')),'image/png'));
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+}
+export function defaultPngEncoder():PngEncoder{
+  // Always prefer BrowserPngEncoder if in a browser-like environment to get native compression
+  return typeof document !== 'undefined' ? new BrowserPngEncoder() : new DeterministicPngEncoder();
+}

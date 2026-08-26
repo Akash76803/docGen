@@ -11,6 +11,9 @@ export type DesignShapeKind = 'RECTANGLE' | 'ROUNDED_RECTANGLE' | 'CIRCLE' | 'EL
 export type DesignBindingSource = 'STATIC' | 'SOURCE_FIELD' | 'DATA_VIEW' | 'CALCULATED_FIELD';
 export type MissingBindingBehavior = 'BLANK' | 'FALLBACK' | 'HIDE' | 'WARNING';
 
+export type ArtboardRole = 'FRONT' | 'BACK' | 'INSIDE' | 'OUTSIDE' | 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM' | 'GENERIC';
+export type ArtboardTargetMode = 'CURRENT' | 'SELECTED' | 'ALL';
+
 export interface DesignPoint { xMm:number; yMm:number; }
 export interface DesignSize { widthMm:number; heightMm:number; }
 export interface DesignInsets { topMm:number; rightMm:number; bottomMm:number; leftMm:number; }
@@ -43,7 +46,30 @@ export interface AssetReference {
   mimeType?:string;
   widthPx?:number;
   heightPx?:number;
-  metadata?:Record<string,unknown>;
+  metadata?:AssetMetadata;
+}
+
+export interface AssetMetadata extends Record<string,unknown> {
+  originalFileName?:string;
+  source?:string;
+  license?:string;
+  category?:string;
+  subcategory?:string;
+  folder?:string;
+  tags?:string[];
+  format?:'SVG'|'RASTER';
+  builtIn?:boolean;
+  userUploaded?:boolean;
+  importedAt?:string;
+  originalWidth?:number;
+  originalHeight?:number;
+  viewBox?:string;
+  aspectRatio?:number;
+  fingerprint?:string;
+  sanitized?:boolean;
+  normalized?:boolean;
+  fallbackDimensions?:boolean;
+  recolorable?:boolean;
 }
 
 export interface Guide {
@@ -123,6 +149,7 @@ export interface SvgDesignElement extends BaseDesignElement {
   preserveVector?:boolean;
   stroke?:DesignStroke;
   shadow?:DesignShadow;
+  tintColor?:string;
 }
 
 export interface QrDesignElement extends BaseDesignElement {
@@ -153,7 +180,22 @@ export type DesignElement = TextDesignElement|ShapeDesignElement|ImageDesignElem
 export interface ArtboardPrintSettings {
   bleed:DesignInsets;
   safeArea:DesignInsets;
+  cropMarksEnabledForExport?:boolean;
+  showBleedInEditor?:boolean;
+  showSafeAreaInEditor?:boolean;
+  showCropMarksInEditor?:boolean;
+  minimumRasterDpi?:number;
+  preferredRasterDpi?:number;
+  profileId?:string;
+  profileVersion?:number;
 }
+
+export type PrintQualityStatus='GOOD'|'WARNING'|'LOW'|'UNKNOWN'|'VECTOR';
+export interface RasterDpiResult {dpiX?:number;dpiY?:number;effectiveDpi?:number;status:PrintQualityStatus;message:string;}
+export type PrintValidationSeverity='INFO'|'WARNING'|'ERROR';
+export interface PrintValidationIssue {id:string;code:string;severity:PrintValidationSeverity;artboardId:string;elementId?:string;message:string;details?:Record<string,unknown>;}
+export interface ArtboardPrintValidationResult {artboardId:string;issues:PrintValidationIssue[];errors:number;warnings:number;info:number;}
+export interface DesignPrintValidationResult {artboards:ArtboardPrintValidationResult[];issues:PrintValidationIssue[];errors:number;warnings:number;info:number;}
 
 export interface Artboard {
   id:string;
@@ -167,6 +209,8 @@ export interface Artboard {
   guides:Guide[];
   groups:DesignGroup[];
   elements:DesignElement[];
+  role?:ArtboardRole;
+  pairId?:string;
   metadata?:Record<string,unknown>;
 }
 
@@ -205,6 +249,14 @@ export interface ResolvedArtboard {
   background:DesignFill;
   print:ArtboardPrintSettings;
   elements:ResolvedDesignElement[];
+  role?:ArtboardRole;
+  pairId?:string;
+}
+
+export interface ArtboardTarget {
+  mode:ArtboardTargetMode;
+  artboardIds:string[];
+  orderedArtboards:Artboard[];
 }
 
 export interface CardRenderModel {
@@ -224,6 +276,7 @@ export type DesignValidationCode =
   | 'ARTBOARD_NAME_REQUIRED'
   | 'ARTBOARD_DIMENSION_INVALID'
   | 'ARTBOARD_ORDER_DUPLICATE'
+  | 'ARTBOARD_PAIR_INVALID'
   | 'ELEMENT_ID_DUPLICATE'
   | 'ELEMENT_TYPE_UNSUPPORTED'
   | 'ELEMENT_GEOMETRY_INVALID'

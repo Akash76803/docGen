@@ -2399,3 +2399,32 @@ body { background: var(--bg-primary); color: var(--text-primary); }
 .card-layer-mini{grid-template-columns:repeat(6,minmax(0,1fr))}
 .card-layer-mini button{min-width:0;width:100%}
 .card-style-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:8px 0}.card-style-actions button,.card-gradient-editor button{border:1px solid var(--glass-border);border-radius:6px;background:var(--bg-tertiary);color:var(--text-secondary);padding:6px;font-size:9px;cursor:pointer}.card-style-actions button:disabled{opacity:.4;cursor:not-allowed}.card-range-row{display:grid;grid-template-columns:minmax(0,1fr) 58px auto;gap:5px;align-items:center}.card-range-row input[type=range]{min-height:auto;padding:0}.card-gradient-editor{margin:8px 9px;display:flex;flex-direction:column;gap:6px}.card-gradient-stop{display:grid;grid-template-columns:34px minmax(42px,1fr) 26px 26px 26px;gap:4px}.card-gradient-stop input{min-width:0}.card-svg-visual{width:100%;height:100%;box-sizing:border-box}.card-svg-visual img{width:100%;height:100%;display:block;object-fit:contain;pointer-events:none}
+.card-svg-tint{width:100%;height:100%;mask-repeat:no-repeat;mask-position:center;mask-size:contain;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;-webkit-mask-size:contain;pointer-events:none}
+.card-print-bleed-boundary,.card-print-trim-boundary,.card-print-safe-boundary{position:absolute;pointer-events:none;box-sizing:border-box;z-index:9995}.card-print-bleed-boundary{border:1px dashed var(--danger,#ef4444);background:color-mix(in srgb,var(--danger,#ef4444) 5%,transparent)}.card-print-trim-boundary{inset:0;border:1px solid color-mix(in srgb,var(--text-primary) 65%,transparent)}.card-print-safe-boundary{border:1px dashed var(--success,#22c55e)}.card-print-crop-marks{position:absolute;inset:0;pointer-events:none;z-index:9996}.card-print-crop-marks i{position:absolute;width:10px;height:10px}.card-print-crop-marks i:before,.card-print-crop-marks i:after{content:"";position:absolute;background:var(--text-primary)}.card-print-crop-marks i:before{width:14px;height:1px;top:0}.card-print-crop-marks i:after{width:1px;height:14px;left:0}.card-print-crop-marks .tl{left:-15px;top:-15px}.card-print-crop-marks .tr{right:-15px;top:-15px;transform:rotate(90deg)}.card-print-crop-marks .br{right:-15px;bottom:-15px;transform:rotate(180deg)}.card-print-crop-marks .bl{left:-15px;bottom:-15px;transform:rotate(270deg)}.card-print-quality{display:flex;flex-direction:column;gap:3px;margin:8px 9px;padding:8px;border-radius:6px;font-size:10px;background:var(--bg-tertiary)}.card-print-quality.good{border-left:3px solid var(--success,#22c55e)}.card-print-quality.warning,.card-print-quality.unknown{border-left:3px solid var(--warning,#f59e0b)}.card-print-quality.low,.card-print-quality.error{border-left:3px solid var(--danger,#ef4444)}.card-preflight-summary{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:8px 9px}.card-preflight-summary span,.card-preflight-issue{padding:6px;border-radius:5px;font-size:9px;background:var(--bg-tertiary)}.card-preflight-summary .good,.card-preflight-issue.info{color:var(--success,#22c55e)}.card-preflight-summary .warning,.card-preflight-issue.warning{color:var(--warning,#f59e0b)}.card-preflight-summary .error,.card-preflight-issue.error{color:var(--danger,#ef4444)}.card-preflight-issue{margin:4px 9px}
+
+/* Phase 6.4 Artboard UX */
+.card-artboards-section { flex: 0 0 auto; min-height: 220px; }
+.card-artboards-section > .card-library-body { display: flex; flex-direction: column; gap: 8px; }
+.card-artboard-batch-panel { display: flex; align-items: center; gap: 6px; }
+.card-artboard-batch-panel button { padding: 4px 6px; min-height: 26px; font-size: 10px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--glass-border); border-radius: 4px; background: transparent; cursor: pointer; color: var(--text-primary); }
+.card-artboard-batch-panel button:hover:not(:disabled) { background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent); }
+.card-artboard-batch-panel button:disabled { opacity: 0.5; cursor: not-allowed; }
+.card-artboard-batch-panel .spacer { flex: 1; min-width: 0; }
+.card-artboard-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
+.card-artboard-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px; border: 1px solid var(--glass-border); border-radius: 6px; background: var(--bg-tertiary); cursor: pointer; user-select: none; transition: all 0.15s ease; }
+.card-artboard-item:hover { border-color: var(--accent-primary); }
+.card-artboard-item.active { border-color: var(--accent-primary); box-shadow: inset 2px 0 0 var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 5%, var(--bg-tertiary)); }
+.card-artboard-item.selected { background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-tertiary)); border-color: var(--accent-primary); }
+.card-artboard-checkbox { padding-top: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.card-artboard-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.card-artboard-name-row { display: flex; align-items: center; gap: 6px; }
+.card-artboard-index { font-size: 10px; font-weight: 700; color: var(--text-secondary); }
+.card-artboard-name { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); flex: 1; }
+.card-artboard-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.card-artboard-role { display: inline-flex; align-items: center; justify-content: center; padding: 2px 5px; border-radius: 4px; font-size: 9px; font-weight: 750; text-transform: uppercase; line-height: 1; }
+.card-artboard-role.role-front { background: color-mix(in srgb, #3b82f6 15%, transparent); color: #3b82f6; }
+.card-artboard-role.role-back { background: color-mix(in srgb, #10b981 15%, transparent); color: #10b981; }
+.card-artboard-role.role-generic { background: var(--glass-border); color: var(--text-secondary); }
+.card-artboard-dims { font-size: 10px; color: var(--text-secondary); }
+.card-artboard-pair { font-size: 9.5px; color: var(--accent-primary); display: flex; align-items: center; gap: 4px; font-weight: 600; margin-top: 2px; }
+

@@ -22,10 +22,10 @@ const PT_PER_MM = 72 / 25.4;
 const mm = (value: number) => value * PT_PER_MM;
 const MIN_CELL_HEIGHT = mm(3.2);
 
-type DrawOp = string;
-type PdfPage = { width:number; height:number; ops:DrawOp[] };
+export type DrawOp = string;
+export type PdfPage = { width:number; height:number; ops:DrawOp[]; extGStates?:string };
 type FontKey = 'F1'|'F2'|'F3'|'F4'|'F5'|'F6';
-type PdfImage = { name:string; bytes:Uint8Array; width:number; height:number };
+export type PdfImage = { name:string; bytes:Uint8Array; width:number; height:number };
 
 type Ctx = {
   pages: PdfPage[];
@@ -849,7 +849,7 @@ function decodeDataUrl(source:string){const base64=source.slice(source.indexOf('
 function jpegDimensions(bytes:Uint8Array){if(bytes.length<4||bytes[0]!==0xff||bytes[1]!==0xd8)return;let i=2;while(i+8<bytes.length){if(bytes[i]!==0xff){i++;continue;}const marker=bytes[i+1]!;const len=(bytes[i+2]!<<8)+bytes[i+3]!;if([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf].includes(marker)){return{height:(bytes[i+5]!<<8)+bytes[i+6]!,width:(bytes[i+7]!<<8)+bytes[i+8]!};}i+=2+Math.max(0,len);}return;}
 async function blobToDataUrl(blob:Blob){return await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(blob);});}
 
-function buildPdf(pages:PdfPage[],images:PdfImage[]):Uint8Array{
+export function buildPdf(pages:PdfPage[],images:PdfImage[]):Uint8Array{
   const objects:Array<string|Uint8Array>=[];
   const add=(s:string|Uint8Array)=>{objects.push(s);return objects.length;};
   const catalog=add(''); const pagesObj=add('');
@@ -857,7 +857,7 @@ function buildPdf(pages:PdfPage[],images:PdfImage[]):Uint8Array{
   const imageIds=new Map<string,number>();
   for(const img of images){const header=`<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.bytes.length} >>\nstream\n`;const tail='\nendstream';const hb=new TextEncoder().encode(header),tb=new TextEncoder().encode(tail);const combined=new Uint8Array(hb.length+img.bytes.length+tb.length);combined.set(hb);combined.set(img.bytes,hb.length);combined.set(tb,hb.length+img.bytes.length);imageIds.set(img.name,add(combined));}
   const pageIds:number[]=[];
-  for(const p of pages){const stream=p.ops.join('\n');const content=add(`<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`);const fontDict=Object.entries(fonts).map(([k,id])=>`/${k} ${id} 0 R`).join(' ');const xObjects=images.length?`/XObject << ${images.map(img=>`/${img.name} ${imageIds.get(img.name)} 0 R`).join(' ')} >>`:'';pageIds.push(add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${f(p.width)} ${f(p.height)}] /Resources << /Font << ${fontDict} >> ${xObjects} >> /Contents ${content} 0 R >>`));}
+  for(const p of pages){const stream=p.ops.join('\n');const content=add(`<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`);const fontDict=Object.entries(fonts).map(([k,id])=>`/${k} ${id} 0 R`).join(' ');const xObjects=images.length?`/XObject << ${images.map(img=>`/${img.name} ${imageIds.get(img.name)} 0 R`).join(' ')} >>`:'';const gs=p.extGStates?`/ExtGState << ${p.extGStates} >>`:'';pageIds.push(add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${f(p.width)} ${f(p.height)}] /Resources << /Font << ${fontDict} >> ${xObjects} ${gs} >> /Contents ${content} 0 R >>`));}
   objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(id=>`${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
   const chunks:Uint8Array[]=[new TextEncoder().encode('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n')];const offsets=[0];let length=chunks[0]!.length;
   for(let i=0;i<objects.length;i++){offsets.push(length);const prefix=new TextEncoder().encode(`${i+1} 0 obj\n`),suffix=new TextEncoder().encode('\nendobj\n');const body=typeof objects[i]==='string'?new TextEncoder().encode(objects[i] as string):objects[i] as Uint8Array;chunks.push(prefix,body,suffix);length+=prefix.length+body.length+suffix.length;}

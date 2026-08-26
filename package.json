@@ -7,6 +7,10 @@
     "node": ">=20 <21"
   },
   "scripts": {
+    "test:card-print": "vitest run packages/design-engine/test/phase630-print-readiness.test.ts packages/persistence/test/phase630-print-settings-persistence.test.ts",
+    "smoke:card-print": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase630-print-readiness-smoke.mjs",
+    "test:card-assets": "vitest run packages/design-engine/test/phase620-svg-asset-hardening.test.ts",
+    "smoke:card-assets": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase620-svg-asset-hardening-smoke.mjs",
     "test:card-styling": "vitest run packages/design-engine/test/phase614-advanced-styling.test.ts",
     "smoke:card-styling": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase614-advanced-styling-smoke.mjs",
     "dev": "npm run dev --workspaces --if-present",
@@ -58,7 +62,13 @@
     "test:user-asset-library": "vitest run packages/persistence/test/phase613a-user-asset-library.test.ts",
     "smoke:user-asset-library": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && npm run build -w @document-tool/persistence && node scripts/phase613a-user-asset-library-smoke.mjs",
     "test:card-guides": "vitest run packages/design-engine/test/phase613-rulers-grid-guides.test.ts",
-    "smoke:card-guides": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase613-rulers-grid-guides-smoke.mjs"
+    "smoke:card-guides": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase613-rulers-grid-guides-smoke.mjs",
+    "test:multi-artboard": "vitest run packages/design-engine/test/phase640-multi-artboard.test.ts packages/persistence/test/phase640-multi-artboard-persistence.test.ts",
+    "smoke:multi-artboard": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node phase640-multi-artboard-smoke.mjs",
+    "test:card-artboard-ui": "vitest run apps/desktop/test/card-artboard-ui.test.ts",
+    "test:card-export": "vitest run packages/design-engine/test/phase650-export-target.test.ts packages/renderer-pdf/test/phase650-card-pdf-export.test.ts packages/renderer-image/test/phase650-card-image-export.test.ts",
+    "smoke:card-export": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && npm run build -w @document-tool/renderer-sdk && npm run build -w @document-tool/renderer-pdf && npm run build -w @document-tool/renderer-image && node scripts/phase650-card-export-smoke.mjs",
+    "test:card-export-ui": "vitest run apps/desktop/test/card-export-ui.test.ts"
   },
   "workspaces": [
     "packages/*",
