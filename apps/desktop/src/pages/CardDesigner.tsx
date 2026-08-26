@@ -1,4 +1,5 @@
 import { getArtboardRole, formatArtboardRole, getArtboardPairLabel, getArtboardSelectionState } from './artboard-ui-helpers.js';
+import { filterAvailableFields } from './field-picker-helpers.js';
 import { buildCardRenderModel, validateExportMemory, type CardExportRequest } from '@document-tool/design-engine';
 import { ExportCancellationSource, ExportCancelledError, ExportOrchestrator, RendererRegistry, ZipBundler, type ResolvedExportDocument } from '@document-tool/renderer-sdk';
 import { IsolatedCardExportCanvas } from './CardExportCanvas';
@@ -7,7 +8,7 @@ import { CardPdfExportRenderer } from '@document-tool/renderer-pdf';
 import { registerPngRenderer, registerJpegRenderer, BrowserExactPageRasterizer } from '@document-tool/renderer-image';
 import { useEffect,useMemo,useRef,useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Artboard,AssetReference,DesignElement,DesignShadow,DesignShapeKind,DesignTemplate,DesignUnit,ImageDesignElement,ShapeDesignElement,SvgDesignElement,TextDesignElement,ArtboardRole } from '@document-tool/contracts';
+import type { Artboard,AssetReference,DesignElement,DesignShadow,DesignShapeKind,DesignTemplate,DesignUnit,ImageDesignElement,ShapeDesignElement,SvgDesignElement,TextDesignElement,ArtboardRole,DesignDataContext } from '@document-tool/contracts';
 import {
   ARTBOARD_PRESETS,addArtboard,addAssetReference,addDesignElement,createBlankArtboard,createImageElement,createShapeElement,createTextElement,
   deleteArtboard,deleteDesignElements,duplicateArtboard,emptySelection,getSelectionBounds,mmToUnit,moveArtboard,moveElements,nextElementZIndex,
@@ -21,11 +22,14 @@ import {
   snapMoveDelta,snapResizeSize,addGuide,moveGuide,deleteGuide,setGuideLocked,setAllGuidesLocked,clearGuides,
   copyDesignElementStyle,pasteDesignElementStyle,resetDesignElementStyle,updateElementsOpacity,DEFAULT_DESIGN_SHADOW,
   prepareAssetImport,assetRenderKind,resolvePrintSettings,imagePrintQuality,validateArtboardPrint,requiredPixels,updateArtboardPrintSettings,
-  setArtboardRole,pairArtboards,unpairArtboard,createBackSide,applyPrintSettingsToTargets
+  setArtboardRole,pairArtboards,unpairArtboard,createBackSide,applyPrintSettingsToTargets,resolveArtboardBindings,
+  getTextBinding,setTextFieldBinding,removeTextBinding,resolveDataContextSeeding,
+  getSourceBinding,setSourceFieldBinding,removeSourceBinding
 } from '@document-tool/design-engine';
 import type { DesignAlignmentReference,DesignClipboardPayload,DesignHistoryState,DesignRectMm,DesignSelectionState,DesignStyleClipboard,SnapGuideIndicator } from '@document-tool/design-engine';
 import { LocalStorageDesignTemplateRepository,LocalStorageUserAssetLibraryRepository,type UserAssetLibraryItem } from '@document-tool/persistence';
 import { ArrowDown,ArrowUp,ClipboardPaste,Copy,FilePlus2,ImagePlus,Maximize2,Minus,MonitorUp,Plus,Redo2,RotateCcw,Save,Square,Trash2,Type,Undo2,Upload,PenLine } from 'lucide-react';
+import { loadImportWorkspace } from '../services/workspaceStore.js';
 
 const MM_TO_CSS_PX=96/25.4,MIN_ZOOM=25,MAX_ZOOM=200;
 const SHAPES:DesignShapeKind[]=['RECTANGLE','ROUNDED_RECTANGLE','CIRCLE','ELLIPSE','LINE','TRIANGLE','ARROW','STAR','POLYGON','RIBBON','BADGE'];
@@ -36,7 +40,14 @@ export function CardDesigner(){
  const repo=useMemo(()=>new LocalStorageDesignTemplateRepository(window.localStorage),[]);
  const assetRepo=useMemo(()=>new LocalStorageUserAssetLibraryRepository(window.localStorage),[]);
  const [template,setTemplate]=useState<DesignTemplate>(()=>fresh());
- const [activeId,setActiveId]=useState('');
+  const [dataContext,setDataContext]=useState<DesignDataContext>({ record: {} });
+  const [availableFields,setAvailableFields]=useState<import('@document-tool/contracts').FieldDefinition[]>([]);
+  const [datasourceStatus,setDatasourceStatus]=useState<string>('No imported datasource available.');
+  const [importedRecord,setImportedRecord]=useState<Record<string, any>>({});
+  const [previewContextSource,setPreviewContextSource]=useState<'IMPORTED'|'MANUAL'>('IMPORTED');
+  const previewContextSourceRef=useRef(previewContextSource);
+  previewContextSourceRef.current=previewContextSource;
+  const [activeId,setActiveId]=useState('');
  const [selectedArtboardIds,setSelectedArtboardIds]=useState<string[]>([]);
  const [zoom,setZoom]=useState(100);
  const [status,setStatus]=useState('Ready');
@@ -64,7 +75,8 @@ export function CardDesigner(){
  const pasteCountRef=useRef(0);
  const [historyVersion,setHistoryVersion]=useState(0);
  const artboards=useMemo(()=>[...template.artboards].sort((a,b)=>a.order-b.order),[template.artboards]);
- const active=artboards.find(a=>a.id===activeId)??artboards[0];
+ const activeSource=artboards.find(a=>a.id===activeId)??artboards[0];
+ const active=useMemo(()=>activeSource ? resolveArtboardBindings(activeSource, dataContext) : undefined, [activeSource, dataContext]);
  const decorativeMatches=(asset:(typeof DECORATIVE_ASSETS)[number],query:string)=>{if(!query.trim())return true;const haystack=[asset.name,asset.category,decorativeFolderLabel(asset)].join(' ').toLowerCase();return haystack.includes(query.trim().toLowerCase());};
  const decorativeGroups=useMemo(()=>{
   const groups=[
@@ -96,8 +108,30 @@ export function CardDesigner(){
  const resetStyle=()=>{if(!active||!selection.elementIds.length)return;mutate(t=>({...t,artboards:t.artboards.map(a=>a.id===active.id?{...a,elements:a.elements.map(e=>selection.elementIds.includes(e.id)&&!e.locked?resetDesignElementStyle(e):e)}:a)}));setStatus('Style reset');};
 
  useEffect(()=>{let cancelled=false;(async()=>{try{const activeTemplateId=await repo.getActiveId();const stored=activeTemplateId?await repo.getById(activeTemplateId):(await repo.list())[0]??null;if(cancelled)return;if(stored){setTemplate(stored);templateRef.current=stored;resetHistory(stored);const aid=[...stored.artboards].sort((a,b)=>a.order-b.order)[0]?.id??'';setActiveId(aid);setSelection(emptySelection(aid));setStatus('Draft restored');}else{const f=fresh();setTemplate(f);templateRef.current=f;resetHistory(f);setActiveId(f.artboards[0]!.id);setSelection(emptySelection(f.artboards[0]!.id));}}catch(e){if(!cancelled)setStatus(e instanceof Error?e.message:'Unable to restore card draft.');}})();return()=>{cancelled=true};},[repo]);
- useEffect(()=>{let cancelled=false;(async()=>{try{const assets=await assetRepo.list();if(!cancelled)setUserAssets(assets);}catch(e){if(!cancelled)setAssetLibraryStatus(e instanceof Error?e.message:'Unable to load asset library.');}})();return()=>{cancelled=true};},[assetRepo]);
- useEffect(()=>{if(active)setSelection(s=>sanitizeSelection(s,active));},[active]);
+  useEffect(()=>{let cancelled=false;(async()=>{try{const assets=await assetRepo.list();if(!cancelled)setUserAssets(assets);}catch(e){if(!cancelled)setAssetLibraryStatus(e instanceof Error?e.message:'Unable to load asset library.');}})();return()=>{cancelled=true};},[assetRepo]);
+  useEffect(()=>{
+    let cancelled=false;
+    (async()=>{
+      try{
+        const ws = await loadImportWorkspace();
+        if(cancelled) return;
+        if(ws && ws.dataPreview) {
+          setAvailableFields(ws.dataPreview.schema.fields || []);
+          const newRec = ws.dataPreview.records[0] || {};
+          setImportedRecord(newRec);
+          setDataContext(prev => resolveDataContextSeeding(prev, newRec, previewContextSourceRef.current));
+          setDatasourceStatus('Imported Data');
+        } else {
+          setAvailableFields([]);
+          setDatasourceStatus('No imported datasource available.');
+        }
+      }catch(e){
+        if(!cancelled) setDatasourceStatus('Failed to load datasource.');
+      }
+    })();
+    return ()=>{cancelled=true};
+  }, []);
+  useEffect(()=>{if(active)setSelection(s=>sanitizeSelection(s,active));},[active]);
  useEffect(()=>{const kd=(e:KeyboardEvent)=>{if(e.code==='Space'&&!isForm(e.target)){setSpace(true);e.preventDefault();return;}if(!active||isForm(e.target))return;const command=e.ctrlKey||e.metaKey;if(command&&e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo();return;}if(command&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(command&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected();return;}if(command&&e.key.toLowerCase()==='v'){e.preventDefault();pasteClipboard();return;}if(command&&e.key.toLowerCase()==='d'&&selection.elementIds.length){e.preventDefault();duplicateSelected();return;}if(command&&e.key.toLowerCase()==='a'){e.preventDefault();setSelection(selectAllSelectable(active));return;}if(e.key==='Escape'){setSelection(emptySelection(active.id));return;}if((e.key==='Delete'||e.key==='Backspace')&&selection.elementIds.length){e.preventDefault();mutate(t=>deleteDesignElements(t,active.id,selection.elementIds));setSelection(emptySelection(active.id));setStatus('Element deleted');return;}const dir=e.key==='ArrowLeft'?'LEFT':e.key==='ArrowRight'?'RIGHT':e.key==='ArrowUp'?'UP':e.key==='ArrowDown'?'DOWN':null;if(dir&&selection.elementIds.length){e.preventDefault();mutate(t=>nudgeElements(t,active.id,selection.elementIds,dir,e.shiftKey));setStatus('Unsaved changes');}},ku=(e:KeyboardEvent)=>{if(e.code==='Space')setSpace(false)};window.addEventListener('keydown',kd);window.addEventListener('keyup',ku);return()=>{window.removeEventListener('keydown',kd);window.removeEventListener('keyup',ku)};},[active,selection.elementIds,historyVersion]);
  const save=async()=>{try{await repo.save(template);await repo.setActiveId(template.id);setDirty(false);setStatus('Saved locally');}catch(e){setStatus(e instanceof Error?e.message:'Save failed');}};
  const newDesign=()=>{if(dirty&&!window.confirm('Discard unsaved Card Designer changes?'))return;const f=fresh();setTemplate(f);templateRef.current=f;resetHistory(f);setActiveId(f.artboards[0]!.id);setSelection(emptySelection(f.artboards[0]!.id));setZoom(100);setDirty(true);setStatus('New card design');};
@@ -119,14 +153,15 @@ export function CardDesigner(){
  };
  const add=()=>{if(!active)return;const a=createBlankArtboard({id:id('artboard'),name:`Artboard ${template.artboards.length+1}`,order:template.artboards.length,widthMm:active.widthMm,heightMm:active.heightMm,displayUnit:active.displayUnit});a.print=resolvePrintSettings(active.print);mutate(t=>addArtboard(t,a));chooseArtboard(a.id);};
  const duplicate=()=>{
-  if(!selectedArtboardIds.length)return;
+  if(!selectedArtboardIds.length||!activeSource)return;
   const nextId=id('artboard');
   // For simplicity, duplicate active if multiple selected, or we could duplicate all. Let's just duplicate active.
-  mutate(t=>duplicateArtboard(t,active.id,nextId));
+  mutate(t=>duplicateArtboard(t,activeSource.id,nextId));
   chooseArtboard(nextId);
  };
  const remove=()=>{
-  const targets = selectedArtboardIds.length > 0 ? selectedArtboardIds : [active.id];
+  if(!activeSource)return;
+  const targets = selectedArtboardIds.length > 0 ? selectedArtboardIds : [activeSource.id];
   if(template.artboards.length - targets.length < 1){setStatus('A design must keep at least one artboard.');return;}
   if(!window.confirm(`Delete ${targets.length} artboard(s)?`))return;
   mutate(t=>targets.reduce((acc,id)=>deleteArtboard(acc,id),t));
@@ -181,8 +216,9 @@ export function CardDesigner(){
       const orchestrator = new ExportOrchestrator({
         registry,
         resolveDocument: async (_templateId, documentGroupId) => {
-          const artboard = byId.get(documentGroupId);
-          if (!artboard) throw new Error(`Artboard ${documentGroupId} missing`);
+          const sourceArtboard = byId.get(documentGroupId);
+          if (!sourceArtboard) throw new Error(`Artboard ${documentGroupId} missing`);
+          const artboard = resolveArtboardBindings(sourceArtboard, dataContext);
           return {
             documentGroupId,
             template,
@@ -242,6 +278,11 @@ export function CardDesigner(){
 
   const performExport = async () => {
     try {
+      if (!activeSource) {
+        setStatus('Export cancelled: No active artboard.');
+        setIsExporting(false);
+        return;
+      }
       setIsExporting(true);
       setStatus('Preparing export...');
 
@@ -249,7 +290,7 @@ export function CardDesigner(){
         format: exportFormat,
         targetMode: exportTargetMode,
         selectedArtboardIds: exportTargetMode === 'SELECTED' ? selectedArtboardIds : undefined,
-        currentArtboardId: active.id,
+        currentArtboardId: activeSource.id,
         includeBleed: exportIncludeBleed,
         includeCropMarks: exportIncludeCropMarks,
         usePrintSettings: true,
@@ -259,7 +300,7 @@ export function CardDesigner(){
       };
 
       let targets: Artboard[] = [];
-      if (exportTargetMode === 'CURRENT') targets = [active];
+      if (exportTargetMode === 'CURRENT') targets = [activeSource];
       else if (exportTargetMode === 'SELECTED') targets = template.artboards.filter(a => selectedArtboardIds.includes(a.id));
       else targets = [...template.artboards];
 
@@ -373,7 +414,9 @@ export function CardDesigner(){
     <div ref={viewport} className={`card-canvas-viewport ${space?'pan-ready':''}`} onPointerDown={e=>{if(!space&&e.button!==1)return;const v=viewport.current;if(!v)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);pan.current={x:e.clientX,y:e.clientY,left:v.scrollLeft,top:v.scrollTop};}} onPointerMove={e=>{const v=viewport.current,p=pan.current;if(!v||!p)return;v.scrollLeft=p.left-(e.clientX-p.x);v.scrollTop=p.top-(e.clientY-p.y);}} onPointerUp={()=>pan.current=null} onPointerCancel={()=>pan.current=null}><div className="card-canvas-stage"><CardArtboardCanvas artboard={active} assets={template.sharedAssets} zoom={zoom} selection={selection} setSelection={setSelection} mutate={mutateTransient} commitMutate={mutate} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} showRulers={showRulers} showGrid={showGrid} gridSizeMm={gridSizeMm}/></div></div>
     <footer className="card-canvas-status"><span>{status}</span><span>{selection.elementIds.length?`${selection.elementIds.length} selected · Delete removes · Arrow nudge · Shift+Arrow 5 mm`:'Ctrl+Z/Y undo/redo · Ctrl+C/V copy/paste · Ctrl+D duplicate · Hold Space + drag to pan'}</span></footer>
    </section>
-    <aside className="card-properties-panel"><div className="card-panel-heading"><div><strong>{primary?'Element Properties':selectedArtboardIds.length>1?'Batch Artboard Properties':'Artboard Properties'}</strong><small>{primary?'Content, style & transform':'Physical canvas settings'}</small></div></div>{primary&&<div className="card-style-actions"><button onClick={copyStyle}>Copy Style</button><button onClick={pasteStyle} disabled={!styleClipboardRef.current}>Paste Style</button><button onClick={resetStyle}>Reset Style</button></div>}{selected.length>1?<><BatchOpacityProperties elements={selected} artboard={active} mutate={mutate}/><MultiSelectionProperties elements={selected} artboard={active} mutate={mutate} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/></>:primary?<ElementProperties element={primary} asset={primary.type==='IMAGE'||primary.type==='SVG'?template.sharedAssets.find(asset=>asset.id===primary.assetId):undefined} artboard={active} mutate={mutate}/>:selectedArtboardIds.length>1?<MultiArtboardProperties artboards={template.artboards.filter(a=>selectedArtboardIds.includes(a.id))} mutate={mutate}/>:<><Properties artboard={active} template={template} mutate={mutate}/><PrintProperties artboard={active} assets={template.sharedAssets} mutate={mutate}/></>}</aside>
+    <aside className="card-properties-panel"><div className="card-panel-heading"><div><strong>{primary?'Element Properties':selectedArtboardIds.length>1?'Batch Artboard Properties':'Artboard Properties'}</strong><small>{primary?'Content, style & transform':'Physical canvas settings'}</small></div></div>{primary&&<div className="card-style-actions"><button onClick={copyStyle}>Copy Style</button><button onClick={pasteStyle} disabled={!styleClipboardRef.current}>Paste Style</button><button onClick={resetStyle}>Reset Style</button></div>}{selected.length>1?<><BatchOpacityProperties elements={selected} artboard={active} mutate={mutate}/><MultiSelectionProperties elements={selected} artboard={active} mutate={mutate} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/></>:primary?<ElementProperties element={primary} asset={primary.type==='IMAGE'||primary.type==='SVG'?template.sharedAssets.find(asset=>asset.id===primary.assetId):undefined} artboard={active} mutate={mutate} availableFields={availableFields} datasourceStatus={datasourceStatus}/>:selectedArtboardIds.length>1?<MultiArtboardProperties artboards={template.artboards.filter(a=>selectedArtboardIds.includes(a.id))} mutate={mutate}/>:<><Properties artboard={active} template={template} mutate={mutate}/><PrintProperties artboard={active} assets={template.sharedAssets} mutate={mutate}/></>}
+    <PreviewDataPanel dataContext={dataContext} setDataContext={setDataContext} previewContextSource={previewContextSource} setPreviewContextSource={setPreviewContextSource} importedRecord={importedRecord} />
+    </aside>
    </div>
   {exportDialogOpen && (
     <div className="export-dialog-overlay" style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:999,display:'grid',placeItems:'center'}}>
@@ -448,20 +491,33 @@ function LayerPanel({artboard,selection,setSelection,mutate,duplicateSelected,gr
 function ElementVisual({element,assets,mutate,artboardId}:{element:DesignElement;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string}){
  if(element.type==='TEXT')return <div className="card-text-visual" style={{fontFamily:element.style.fontFamily,fontSize:`${element.style.fontSizePt}pt`,fontWeight:element.style.fontWeight,fontStyle:element.style.italic?'italic':'normal',textDecoration:element.style.underline?'underline':'none',color:element.style.color,textAlign:element.style.alignment.toLowerCase() as 'left'|'center'|'right',lineHeight:element.style.lineHeight,letterSpacing:`${element.style.letterSpacingPt}pt`,textShadow:textShadowCss(element.shadow)}} onDoubleClick={ev=>{ev.stopPropagation();const value=window.prompt('Edit text',element.text);if(value!==null)mutate(t=>updateDesignElement(t,artboardId,element.id,e=>e.type==='TEXT'?{...e,text:value}:e));}}>{element.text}</div>;
  if(element.type==='SHAPE')return <ShapeVisual element={element}/>;
- if(element.type==='IMAGE'){const asset=assets.find(a=>a.id===element.assetId),kind=assetRenderKind(asset);return <div className="card-image-visual" style={{borderRadius:`${element.cornerRadiusMm??0}mm`,border:strokeCss(element.stroke),boxShadow:boxShadowCss(element.shadow)}}>{kind==='RASTER_IMAGE'&&asset?<img src={asset.source} alt={element.name} draggable={false} style={{objectFit:element.fit==='FIT'?'contain':element.fit==='FILL'?'cover':'fill',transform:`scale(${element.flipX?-1:1},${element.flipY?-1:1})`}}/>:<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}</div>;}
- if(element.type==='SVG'){const asset=assets.find(a=>a.id===element.assetId),kind=assetRenderKind(asset),tinted=kind==='VECTOR_SVG'&&asset&&asset.metadata?.recolorable===true&&element.tintColor;return <div className="card-svg-visual" style={{border:strokeCss(element.stroke),filter:dropShadowCss(element.shadow)}}>{kind==='VECTOR_SVG'&&asset?(tinted?<div className="card-svg-tint" style={{backgroundColor:element.tintColor,maskImage:`url("${asset.source}")`,WebkitMaskImage:`url("${asset.source}")`}}/>:<img src={asset.source} alt={element.name} draggable={false}/>):<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}</div>;}
+ if(element.type==='IMAGE'){
+    const dynamicSource = (element as any).source;
+    const asset=assets.find(a=>a.id===element.assetId);
+    const kind=dynamicSource ? 'RASTER_IMAGE' : assetRenderKind(asset);
+    const src=dynamicSource || asset?.source;
+    return <div className="card-image-visual" style={{borderRadius:`${element.cornerRadiusMm??0}mm`,border:strokeCss(element.stroke),boxShadow:boxShadowCss(element.shadow)}}>{kind==='RASTER_IMAGE'&&src?<img src={src} alt={element.name} draggable={false} style={{objectFit:element.fit==='FIT'?'contain':element.fit==='FILL'?'cover':'fill',transform:`scale(${element.flipX?-1:1},${element.flipY?-1:1})`}}/>:<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}</div>;
+  }
+  if(element.type==='SVG'){
+    const dynamicSource = (element as any).source;
+    const asset=assets.find(a=>a.id===element.assetId);
+    const kind=dynamicSource ? 'VECTOR_SVG' : assetRenderKind(asset);
+    const src=dynamicSource || asset?.source;
+    const tinted=kind==='VECTOR_SVG'&&src&&(dynamicSource || asset?.metadata?.recolorable===true)&&element.tintColor;
+    return <div className="card-svg-visual" style={{border:strokeCss(element.stroke),filter:dropShadowCss(element.shadow)}}>{kind==='VECTOR_SVG'&&src?(tinted?<div className="card-svg-tint" style={{backgroundColor:element.tintColor,maskImage:`url("${src}")`,WebkitMaskImage:`url("${src}")`}}/>:<img src={src} alt={element.name} draggable={false}/>):<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}</div>;
+  }
  return <div className="card-unsupported-element">{element.type}</div>;
 }
 
 function ShapeVisual({element}:{element:ShapeDesignElement}){const gradientId=`gradient-${element.id.replace(/[^a-zA-Z0-9_-]/g,'')}`,fill=element.fill.type==='SOLID'?element.fill.color:element.fill.type==='LINEAR_GRADIENT'?`url(#${gradientId})`:'transparent',fillOpacity=element.fill.type==='SOLID'?(element.fill.opacity??1):1,stroke=element.stroke.style==='NONE'?'none':colorWithOpacity(element.stroke.color,element.stroke.opacity??1),sw=Math.max(.4,element.stroke.widthMm*MM_TO_CSS_PX),dash=element.stroke.style==='DASHED'?'6 4':element.stroke.style==='DOTTED'?'2 3':undefined;const common={fill,fillOpacity,stroke,strokeWidth:sw,strokeDasharray:dash,vectorEffect:'non-scaling-stroke' as const};return <svg className="card-shape-visual" style={{filter:dropShadowCss(element.shadow)}} viewBox="0 0 100 100" preserveAspectRatio="none">{element.fill.type==='LINEAR_GRADIENT'&&<defs><linearGradient id={gradientId} gradientTransform={`rotate(${element.fill.gradient.angleDeg} .5 .5)`}>{element.fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} stopOpacity={stop.opacity??1}/>)}</linearGradient></defs>}{shapeNode(element,common)}</svg>;}
 function shapeNode(element:ShapeDesignElement,common:Record<string,unknown>){switch(element.shape){case'RECTANGLE':return <rect x="1" y="1" width="98" height="98" {...common}/>;case'ROUNDED_RECTANGLE':return <rect x="1" y="1" width="98" height="98" rx={Math.min(48,(element.cornerRadiusMm??3)*4)} ry={Math.min(48,(element.cornerRadiusMm??3)*4)} {...common}/>;case'CIRCLE':case'ELLIPSE':return <ellipse cx="50" cy="50" rx="48" ry="48" {...common}/>;case'LINE':return <line x1="2" y1="50" x2="98" y2="50" {...common} fill="none"/>;case'TRIANGLE':return <polygon points="50,2 98,98 2,98" {...common}/>;case'ARROW':return <polygon points="2,35 62,35 62,15 98,50 62,85 62,65 2,65" {...common}/>;case'STAR':return <polygon points="50,2 61,36 97,36 68,57 79,92 50,71 21,92 32,57 3,36 39,36" {...common}/>;case'POLYGON':return <polygon points="25,3 75,3 98,50 75,97 25,97 2,50" {...common}/>;case'RIBBON':return <polygon points="2,20 20,20 20,8 80,8 80,20 98,20 88,50 98,80 80,80 80,92 20,92 20,80 2,80 12,50" {...common}/>;case'BADGE':return <polygon points="50,2 62,14 79,9 86,25 97,37 88,52 92,69 76,77 67,94 50,87 33,94 24,77 8,69 12,52 3,37 14,25 21,9 38,14" {...common}/>;default:return null;}}
 
-function ElementProperties({element,asset,artboard,mutate}:{element:DesignElement;asset?:AssetReference;artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){
+function ElementProperties({element,asset,artboard,mutate,availableFields,datasourceStatus}:{element:DesignElement;asset?:AssetReference;artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
  const artboardId=artboard.id;
  const num=(label:string,value:number,onChange:(v:number)=>void,step='0.1')=><label>{label}<input type="number" step={step} value={normalizeDisplayValue(value)} disabled={element.locked} onChange={e=>{const v=Number(e.target.value);if(Number.isFinite(v))onChange(v);}}/></label>;
  const update=(fn:(e:DesignElement)=>DesignElement)=>mutate(t=>updateDesignElement(t,artboardId,element.id,fn));
  return <div className="card-property-sections"><div className="card-property-note"><strong>{element.name}</strong><span>{element.type}{element.locked?' · Locked':''}</span></div>
-  {element.type==='TEXT'&&<AdvancedTextProperties element={element} update={update}/>} {element.type==='SHAPE'&&<AdvancedShapeProperties element={element} update={update}/>} {element.type==='IMAGE'&&<AdvancedImageProperties element={element} update={update}/>} {element.type==='SVG'&&<SvgProperties element={element} asset={asset} update={update}/>} 
+  {element.type==='TEXT'&&<AdvancedTextProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SHAPE'&&<AdvancedShapeProperties element={element} update={update}/>} {element.type==='IMAGE'&&<AdvancedImageProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SVG'&&<SvgProperties element={element} asset={asset} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} 
   {(element.type==='IMAGE'||element.type==='SVG')&&<ElementPrintQuality element={element} asset={asset} print={artboard.print}/>} 
   <details className="card-property-details"><summary>Transform</summary><div className="card-property-grid">{num('X (mm)',element.position.xMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:v,yMm:element.position.yMm})))}{num('Y (mm)',element.position.yMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:element.position.xMm,yMm:v})))}{num('Width (mm)',element.size.widthMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:v,heightMm:element.size.heightMm})))}{num('Height (mm)',element.size.heightMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:element.size.widthMm,heightMm:v})))}</div>{num('Rotation (°)',element.rotationDeg,v=>mutate(t=>rotateElement(t,artboardId,element.id,v)))}</details>
   <details className="card-property-details"><summary>Align to Artboard</summary><div className="card-layer-action-grid card-align-grid"><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'LEFT','ARTBOARD'))}>Left</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'HCENTER','ARTBOARD'))}>H Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'RIGHT','ARTBOARD'))}>Right</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'TOP','ARTBOARD'))}>Top</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'VCENTER','ARTBOARD'))}>V Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'BOTTOM','ARTBOARD'))}>Bottom</button><button disabled={element.locked} onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboardId,[element.id],'BOTH'))}>Center Both</button></div></details>
@@ -471,10 +527,145 @@ function ElementProperties({element,asset,artboard,mutate}:{element:DesignElemen
 function OpacityControl({value,onChange}:{value:number;onChange:(value:number)=>void}){const percent=Math.round(clamp(value,0,1)*100);return <label>Opacity<div className="card-range-row"><input type="range" min="0" max="100" value={percent} onChange={e=>onChange(Number(e.target.value)/100)}/><input type="number" min="0" max="100" value={percent} onChange={e=>onChange(clamp(Number(e.target.value)||0,0,100)/100)}/><span>%</span></div></label>}
 function ShadowControls({shadow,onChange}:{shadow?:DesignShadow;onChange:(shadow:DesignShadow)=>void}){const s=shadow??DEFAULT_DESIGN_SHADOW,patch=(p:Partial<DesignShadow>)=>onChange({...s,...p});return <details className="card-property-details"><summary>Shadow</summary><label className="card-check-row"><input type="checkbox" checked={s.enabled} onChange={e=>patch({enabled:e.target.checked})}/>Enabled</label>{s.enabled&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round(s.opacity*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label><label>Blur (mm)<input type="number" min="0" step=".1" value={s.blurMm} onChange={e=>patch({blurMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Offset X (mm)<input type="number" step=".1" value={s.offsetXmm} onChange={e=>patch({offsetXmm:Number(e.target.value)||0})}/></label><label>Offset Y (mm)<input type="number" step=".1" value={s.offsetYmm} onChange={e=>patch({offsetYmm:Number(e.target.value)||0})}/></label></div></>}</details>}
 function BorderControls({stroke,onChange}:{stroke?:ShapeDesignElement['stroke'];onChange:(stroke:ShapeDesignElement['stroke'])=>void}){const s=stroke??{color:'#000000',widthMm:0,style:'NONE',opacity:1},patch=(p:Partial<typeof s>)=>onChange({...s,...p});return <details className="card-property-details"><summary>Border</summary><label>Style<select value={s.style} onChange={e=>patch({style:e.target.value as typeof s.style})}><option value="NONE">None</option><option value="SOLID">Solid</option><option value="DASHED">Dashed</option><option value="DOTTED">Dotted</option></select></label>{s.style!=='NONE'&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Width (mm)<input type="number" min="0" step=".1" value={s.widthMm} onChange={e=>patch({widthMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round((s.opacity??1)*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></div></>}</details>}
-function AdvancedTextProperties({element,update}:{element:TextDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void}){const patch=(p:Partial<TextDesignElement>)=>update(e=>e.type==='TEXT'?{...e,...p}:e),style=(p:Partial<TextDesignElement['style']>)=>patch({style:{...element.style,...p}});return <><details className="card-property-details" open><summary>Typography</summary><label>Content<textarea value={element.text} onChange={e=>patch({text:e.target.value})}/></label><label>Font<select value={element.style.fontFamily} onChange={e=>style({fontFamily:e.target.value})}>{['Arial','Helvetica','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].map(f=><option key={f}>{f}</option>)}</select></label><div className="card-property-grid"><label>Size (pt)<input type="number" min="1" value={element.style.fontSizePt} onChange={e=>style({fontSizePt:Math.max(1,Number(e.target.value)||1)})}/></label><label>Weight<select value={element.style.fontWeight} onChange={e=>style({fontWeight:Number(e.target.value)})}>{[300,400,500,600,700,800].map(w=><option key={w} value={w}>{w}</option>)}</select></label></div><div className="card-segmented-control triple"><button className={element.style.italic?'active':''} onClick={()=>style({italic:!element.style.italic})}>Italic</button><button className={element.style.underline?'active':''} onClick={()=>style({underline:!element.style.underline})}>Underline</button><button className={element.style.fontWeight>=700?'active':''} onClick={()=>style({fontWeight:element.style.fontWeight>=700?400:700})}>Bold</button></div><label>Alignment<select value={element.style.alignment} onChange={e=>style({alignment:e.target.value as TextDesignElement['style']['alignment']})}><option value="LEFT">Left</option><option value="CENTER">Center</option><option value="RIGHT">Right</option></select></label><div className="card-property-grid"><label>Line height<input type="number" min=".5" step=".1" value={element.style.lineHeight} onChange={e=>style({lineHeight:Math.max(.5,Number(e.target.value)||1.2)})}/></label><label>Letter spacing<input type="number" step=".1" value={element.style.letterSpacingPt} onChange={e=>style({letterSpacingPt:Number(e.target.value)||0})}/></label></div></details><details className="card-property-details" open><summary>Appearance</summary><label>Text color<div className="card-color-row"><input type="color" value={element.style.color} onChange={e=>style({color:e.target.value})}/><input value={element.style.color} onChange={e=>style({color:e.target.value})}/></div></label><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></details><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
+function AdvancedTextProperties({element,update,availableFields,datasourceStatus}:{element:TextDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+  const patch=(p:Partial<TextDesignElement>)=>update(e=>e.type==='TEXT'?{...e,...p}:e);
+  const style=(p:Partial<TextDesignElement['style']>)=>patch({style:{...element.style,...p}});
+  const textBinding=getTextBinding(element);
+  const isBound=!!textBinding;
+  const isMissingField=isBound&&textBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===textBinding.fieldPath);
+  
+  const bindingMode = element.textBindingMode === 'TEMPLATE' ? 'TEMPLATE' : 'FULL';
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleInsertField = (fieldPath: string) => {
+    if (fieldPath === '__NONE__') return;
+    const txt = textareaRef.current;
+    if (txt) {
+      const start = txt.selectionStart;
+      const end = txt.selectionEnd;
+      const val = element.text;
+      const newText = val.substring(0, start) + `{{${fieldPath}}}` + val.substring(end);
+      patch({text: newText});
+      setTimeout(() => {
+         txt.focus();
+         txt.setSelectionRange(start + fieldPath.length + 4, start + fieldPath.length + 4);
+      }, 0);
+    } else {
+      patch({text: element.text + `{{${fieldPath}}}`});
+    }
+  };
+
+  const handleModeChange = (mode: 'FULL' | 'TEMPLATE') => {
+    if (mode === 'TEMPLATE') {
+      const currentVal = isBound && textBinding.fieldPath ? `{{${textBinding.fieldPath}}}` : element.text;
+      update(el => {
+        const unbound = removeTextBinding(el as TextDesignElement);
+        return { ...unbound, text: currentVal, textBindingMode: 'TEMPLATE' };
+      });
+    } else {
+      update(el => {
+        return { ...el, textBindingMode: 'FULL' };
+      });
+    }
+  };
+  
+  return <><details className="card-property-details" open><summary>Typography</summary><label>Content<textarea ref={textareaRef} value={element.text} onChange={e=>patch({text:e.target.value})}/></label><label>Font<select value={element.style.fontFamily} onChange={e=>style({fontFamily:e.target.value})}>{['Arial','Helvetica','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].map(f=><option key={f}>{f}</option>)}</select></label><div className="card-property-grid"><label>Size (pt)<input type="number" min="1" value={element.style.fontSizePt} onChange={e=>style({fontSizePt:Math.max(1,Number(e.target.value)||1)})}/></label><label>Weight<select value={element.style.fontWeight} onChange={e=>style({fontWeight:Number(e.target.value)})}>{[300,400,500,600,700,800].map(w=><option key={w} value={w}>{w}</option>)}</select></label></div><div className="card-segmented-control triple"><button className={element.style.italic?'active':''} onClick={()=>style({italic:!element.style.italic})}>Italic</button><button className={element.style.underline?'active':''} onClick={()=>style({underline:!element.style.underline})}>Underline</button><button className={element.style.fontWeight>=700?'active':''} onClick={()=>style({fontWeight:element.style.fontWeight>=700?400:700})}>Bold</button></div><label>Alignment<select value={element.style.alignment} onChange={e=>style({alignment:e.target.value as TextDesignElement['style']['alignment']})}><option value="LEFT">Left</option><option value="CENTER">Center</option><option value="RIGHT">Right</option></select></label><div className="card-property-grid"><label>Line height<input type="number" min=".5" step=".1" value={element.style.lineHeight} onChange={e=>style({lineHeight:Math.max(.5,Number(e.target.value)||1.2)})}/></label><label>Letter spacing<input type="number" step=".1" value={element.style.letterSpacingPt} onChange={e=>style({letterSpacingPt:Number(e.target.value)||0})}/></label></div></details>
+  <details className="card-property-details" open><summary>Dynamic Binding</summary>
+    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+        <label>Binding Mode:
+          <select value={bindingMode} onChange={e => handleModeChange(e.target.value as 'FULL' | 'TEMPLATE')}>
+            <option value="FULL">Replace Entire Text</option>
+            <option value="TEMPLATE">Insert Dynamic Fields</option>
+          </select>
+        </label>
+        
+        {bindingMode === 'FULL' ? (
+          <>
+            <label>Field:
+              <SearchableFieldPicker 
+                availableFields={availableFields} 
+                currentFieldPath={textBinding?.fieldPath ?? '__NONE__'} 
+                onSelectField={val => {
+                  if (val === '__NONE__') update(el => removeTextBinding(el as TextDesignElement));
+                  else update(el => setTextFieldBinding(el as TextDesignElement, val));
+                }} 
+              />
+            </label>
+            {isBound&&<div style={{fontSize:'11px'}}>Fallback: {textBinding.fallbackValue as string}</div>}
+            {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {textBinding.fieldPath} Not available in current datasource</div>}
+            {isBound&&<button className="secondary" onClick={()=>update(el=>removeTextBinding(el as TextDesignElement))}>Remove Binding</button>}
+          </>
+        ) : (
+          <>
+            <label>Search Field:
+              <SearchableFieldPicker 
+                availableFields={availableFields} 
+                currentFieldPath={'__NONE__'} 
+                onSelectField={handleInsertField}
+              />
+            </label>
+            <div style={{fontSize:'11px', color:'var(--text-secondary)'}}>
+              Use the dropdown to insert a placeholder into the text content above.
+            </div>
+          </>
+        )}
+      </div>
+    }
+  </details>
+  <details className="card-property-details" open><summary>Appearance</summary><label>Text color<div className="card-color-row"><input type="color" value={element.style.color} onChange={e=>style({color:e.target.value})}/><input value={element.style.color} onChange={e=>style({color:e.target.value})}/></div></label><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></details><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
 function AdvancedShapeProperties({element,update}:{element:ShapeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void}){const patch=(p:Partial<ShapeDesignElement>)=>update(e=>e.type==='SHAPE'?{...e,...p}:e),mode=element.fill.type==='NONE'?'NONE':element.fill.type==='LINEAR_GRADIENT'?'LINEAR_GRADIENT':'SOLID',solid=element.fill.type==='SOLID'?element.fill:{type:'SOLID' as const,color:'#dbeafe',opacity:1},gradient=element.fill.type==='LINEAR_GRADIENT'?element.fill.gradient:{type:'LINEAR' as const,angleDeg:0,stops:[{offset:0,color:'#2563eb'},{offset:100,color:'#dbeafe'}]},setGradient=(p:Partial<typeof gradient>)=>patch({fill:{type:'LINEAR_GRADIENT',gradient:{...gradient,...p}}}),setStop=(index:number,p:Partial<(typeof gradient.stops)[number]>)=>setGradient({stops:gradient.stops.map((s,i)=>i===index?{...s,...p}:s)});return <><details className="card-property-details" open><summary>Appearance</summary><label>Shape<select value={element.shape} onChange={e=>patch({shape:e.target.value as DesignShapeKind})}>{SHAPES.map(s=><option key={s} value={s}>{shapeLabel(s)}</option>)}</select></label><label>Fill<select value={mode} onChange={e=>patch({fill:e.target.value==='NONE'?{type:'NONE'}:e.target.value==='LINEAR_GRADIENT'?{type:'LINEAR_GRADIENT',gradient}:solid})}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear Gradient</option></select></label>{mode==='SOLID'&&<label>Fill color<div className="card-color-row"><input type="color" value={solid.color} onChange={e=>patch({fill:{...solid,color:e.target.value}})}/><input value={solid.color} readOnly/></div></label>}{mode==='LINEAR_GRADIENT'&&<div className="card-gradient-editor"><label>Angle (°)<input type="number" min="0" max="360" value={gradient.angleDeg} onChange={e=>setGradient({angleDeg:clamp(Number(e.target.value)||0,0,360)})}/></label>{gradient.stops.map((stop,index)=><div className="card-gradient-stop" key={index}><input type="color" value={stop.color} onChange={e=>setStop(index,{color:e.target.value})}/><input aria-label="Stop position" type="number" min="0" max="100" value={stop.offset} onChange={e=>setStop(index,{offset:clamp(Number(e.target.value)||0,0,100)})}/><button disabled={index===0} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index-1)})}>↑</button><button disabled={index===gradient.stops.length-1} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index+1)})}>↓</button><button disabled={gradient.stops.length<=2} onClick={()=>setGradient({stops:gradient.stops.filter((_,i)=>i!==index)})}>×</button></div>)}<button onClick={()=>setGradient({stops:[...gradient.stops,{offset:100,color:'#ffffff'}]})}>Add Stop</button></div>}<OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/>{(element.shape==='RECTANGLE'||element.shape==='ROUNDED_RECTANGLE')&&<label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label>}</details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
-function AdvancedImageProperties({element,update}:{element:ImageDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void}){const patch=(p:Partial<ImageDesignElement>)=>update(e=>e.type==='IMAGE'?{...e,...p}:e);return <><details className="card-property-details" open><summary>Image</summary><label>Fit<select value={element.fit} onChange={e=>patch({fit:e.target.value as ImageDesignElement['fit']})}><option value="FIT">Fit</option><option value="FILL">Fill</option><option value="STRETCH">Stretch</option></select></label><div className="card-segmented-control"><button className={element.flipX?'active':''} onClick={()=>patch({flipX:!element.flipX})}>Flip X</button><button className={element.flipY?'active':''} onClick={()=>patch({flipY:!element.flipY})}>Flip Y</button></div><label className="card-check-row"><input type="checkbox" checked={element.maintainAspectRatio??true} onChange={e=>patch({maintainAspectRatio:e.target.checked})}/>Lock aspect ratio</label></details><details className="card-property-details" open><summary>Appearance</summary><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
-function SvgProperties({element,asset,update}:{element:SvgDesignElement;asset?:AssetReference;update:(f:(e:DesignElement)=>DesignElement)=>void}){const patch=(p:Partial<SvgDesignElement>)=>update(e=>e.type==='SVG'?{...e,...p}:e),canTint=asset?.metadata?.recolorable===true;return <><details className="card-property-details" open><summary>Appearance</summary><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/>{canTint&&<label>SVG Color / Tint<div className="card-color-row"><input type="color" value={element.tintColor??'#111827'} onChange={e=>patch({tintColor:e.target.value})}/><input value={element.tintColor??''} placeholder="Original" onChange={e=>patch({tintColor:e.target.value||undefined})}/></div></label>}</details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
+function AdvancedImageProperties({element,update,availableFields,datasourceStatus}:{element:ImageDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+  const patch=(p:Partial<ImageDesignElement>)=>update(e=>e.type==='IMAGE'?{...e,...p}:e);
+  const sourceBinding=getSourceBinding(element);
+  const isBound=!!sourceBinding;
+  const isMissingField=isBound&&sourceBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===sourceBinding.fieldPath);
+  return <><details className="card-property-details" open><summary>Image</summary><label>Fit<select value={element.fit} onChange={e=>patch({fit:e.target.value as ImageDesignElement['fit']})}><option value="FIT">Fit</option><option value="FILL">Fill</option><option value="STRETCH">Stretch</option></select></label><div className="card-segmented-control"><button className={element.flipX?'active':''} onClick={()=>patch({flipX:!element.flipX})}>Flip X</button><button className={element.flipY?'active':''} onClick={()=>patch({flipY:!element.flipY})}>Flip Y</button></div><label className="card-check-row"><input type="checkbox" checked={element.maintainAspectRatio??true} onChange={e=>patch({maintainAspectRatio:e.target.checked})}/>Lock aspect ratio</label></details>
+  <details className="card-property-details" open><summary>Dynamic Binding</summary>
+    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+        <label>Source Field:
+          <SearchableFieldPicker 
+            availableFields={availableFields} 
+            currentFieldPath={sourceBinding?.fieldPath ?? '__NONE__'} 
+            onSelectField={val => {
+              if (val === '__NONE__') update(el => removeSourceBinding(el as ImageDesignElement));
+              else update(el => setSourceFieldBinding(el as ImageDesignElement, val));
+            }} 
+          />
+        </label>
+        {isBound&&<div style={{fontSize:'11px'}}>Fallback: Default Asset</div>}
+        {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {sourceBinding.fieldPath} Not available in current datasource</div>}
+        {isBound&&<button className="secondary" onClick={()=>update(el=>removeSourceBinding(el as ImageDesignElement))}>Remove Binding</button>}
+      </div>
+    }
+  </details>
+  <details className="card-property-details" open><summary>Appearance</summary><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
+function SvgProperties({element,asset,update,availableFields,datasourceStatus}:{element:SvgDesignElement;asset?:AssetReference;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+  const patch=(p:Partial<SvgDesignElement>)=>update(e=>e.type==='SVG'?{...e,...p}:e),canTint=asset?.metadata?.recolorable===true;
+  const sourceBinding=getSourceBinding(element);
+  const isBound=!!sourceBinding;
+  const isMissingField=isBound&&sourceBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===sourceBinding.fieldPath);
+  return <><details className="card-property-details" open><summary>Dynamic Binding</summary>
+    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+        <label>Source Field:
+          <SearchableFieldPicker 
+            availableFields={availableFields} 
+            currentFieldPath={sourceBinding?.fieldPath ?? '__NONE__'} 
+            onSelectField={val => {
+              if (val === '__NONE__') update(el => removeSourceBinding(el as SvgDesignElement));
+              else update(el => setSourceFieldBinding(el as SvgDesignElement, val));
+            }} 
+          />
+        </label>
+        {isBound&&<div style={{fontSize:'11px'}}>Fallback: Default Asset</div>}
+        {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {sourceBinding.fieldPath} Not available in current datasource</div>}
+        {isBound&&<button className="secondary" onClick={()=>update(el=>removeSourceBinding(el as SvgDesignElement))}>Remove Binding</button>}
+      </div>
+    }
+  </details>
+  <details className="card-property-details" open><summary>Appearance</summary><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/>{canTint&&<label>SVG Color / Tint<div className="card-color-row"><input type="color" value={element.tintColor??'#111827'} onChange={e=>patch({tintColor:e.target.value})}/><input value={element.tintColor??''} placeholder="Original" onChange={e=>patch({tintColor:e.target.value||undefined})}/></div></label>}</details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
 function BatchOpacityProperties({elements,artboard,mutate}:{elements:DesignElement[];artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const compatible=elements.filter(e=>['TEXT','SHAPE','IMAGE','SVG'].includes(e.type)),first=compatible[0]?.opacity,mixed=compatible.some(e=>Math.abs(e.opacity-(first??e.opacity))>.0001),percent=Math.round((first??1)*100);if(!compatible.length)return null;return <details className="card-property-details" open><summary>Appearance</summary><label>Opacity {mixed?'(Mixed)':''}<div className="card-range-row"><input type="range" min="0" max="100" value={mixed?100:percent} onChange={e=>mutate(t=>updateElementsOpacity(t,artboard.id,compatible.map(x=>x.id),Number(e.target.value)/100))}/><span>{mixed?'Mixed':`${percent}%`}</span></div></label></details>}
 function ElementPrintQuality({element,asset,print}:{element:ImageDesignElement|SvgDesignElement;asset?:AssetReference;print:Artboard['print']}){if(element.type==='SVG')return <details className="card-property-details" open><summary>Print Quality</summary><div className={`card-print-quality ${assetRenderKind(asset)==='VECTOR_SVG'?'good':'error'}`}><strong>{assetRenderKind(asset)==='VECTOR_SVG'?'Vector — resolution independent':asset?'Unsupported Asset':'Missing Asset'}</strong></div></details>;const quality=imagePrintQuality(element,asset,print);return <details className="card-property-details" open><summary>Print Quality</summary><div className={`card-print-quality ${quality.status.toLowerCase()}`}><strong>{quality.message}</strong><span>Source: {asset?.widthPx&&asset?.heightPx?`${asset.widthPx} × ${asset.heightPx} px`:'Dimensions unavailable'}</span><span>Placed: {normalizeDisplayValue(element.size.widthMm)} × {normalizeDisplayValue(element.size.heightMm)} mm</span><span>Effective: {quality.effectiveDpi?`${Math.round(quality.effectiveDpi)} DPI`:'Unknown'}</span></div></details>}
 function MultiSelectionProperties({elements,artboard,mutate,groupSelected,ungroupSelected}:{elements:DesignElement[];artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;groupSelected:()=>void;ungroupSelected:()=>void}){
@@ -509,7 +700,6 @@ return <div className="card-property-sections"><label>Name<input value={artboard
     <div className="card-layer-action-grid">
       <button onClick={()=>mutate(t=>createBackSide(t,artboard.id,id('artboard'),id('pair')))}>Create Back Side</button>
       {availableToPair.length > 0 && <select aria-label="Pair with" value="" onChange={e=>{if(e.target.value)mutate(t=>pairArtboards(t,artboard.id,e.target.value,id('pair')));}}>
-        <option value="">Pair with...</option>
         {availableToPair.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
       </select>}
     </div>
@@ -555,3 +745,130 @@ function decorativeFolderLabel(asset:(typeof DECORATIVE_ASSETS)[number]):string{
 const color=(a:Artboard)=>a.background.type==='SOLID'?a.background.color:'#ffffff';const bg=(a:Artboard)=>a.background.type==='SOLID'?a.background.color:'#ffffff';const near=(a:number,b:number)=>Math.abs(a-b)<.001;const clamp=(v:number,min:number,max:number)=>Math.min(max,Math.max(min,v));const sizeText=(a:Artboard)=>a.displayUnit==='IN'?`${normalizeDisplayValue(mmToUnit(a.widthMm,'IN'))} × ${normalizeDisplayValue(mmToUnit(a.heightMm,'IN'))} in`:`${normalizeDisplayValue(a.widthMm)} × ${normalizeDisplayValue(a.heightMm)} mm`;const isForm=(t:EventTarget|null)=>t instanceof HTMLInputElement||t instanceof HTMLTextAreaElement||t instanceof HTMLSelectElement||t instanceof HTMLButtonElement;const shapeLabel=(s:DesignShapeKind)=>s.toLowerCase().split('_').map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');const strokeStyle=(s:'SOLID'|'DASHED'|'DOTTED'|'NONE')=>s==='DASHED'?'dashed':s==='DOTTED'?'dotted':'solid';
 function readAsDataUrl(file:File):Promise<string>{return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>typeof r.result==='string'?resolve(r.result):reject(new Error('Unable to read image.'));r.onerror=()=>reject(r.error??new Error('Unable to read image.'));r.readAsDataURL(file);});}
 function readImageDimensions(src:string):Promise<{widthPx:number;heightPx:number}>{return new Promise(resolve=>{const image=new Image();image.onload=()=>resolve({widthPx:image.naturalWidth,heightPx:image.naturalHeight});image.onerror=()=>resolve({widthPx:0,heightPx:0});image.src=src;});}
+
+function PreviewDataPanel({dataContext, setDataContext, previewContextSource, setPreviewContextSource, importedRecord}: {dataContext: DesignDataContext, setDataContext: (dc: DesignDataContext) => void, previewContextSource: 'IMPORTED'|'MANUAL', setPreviewContextSource: (s: 'IMPORTED'|'MANUAL')=>void, importedRecord: Record<string, any>}) {
+  const [jsonInput, setJsonInput] = useState(JSON.stringify(dataContext.record, null, 2));
+  useEffect(() => { setJsonInput(JSON.stringify(dataContext.record, null, 2)); }, [dataContext.record]);
+  const [error, setError] = useState<string>('');
+  const handleApply = () => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      setDataContext({ ...dataContext, record: parsed });
+      setPreviewContextSource('MANUAL');
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
+  const handleRestore = () => {
+    setDataContext({ ...dataContext, record: importedRecord });
+    setPreviewContextSource('IMPORTED');
+    setError('');
+  };
+  return (
+    <div className="card-properties-group" style={{marginTop:'auto', borderTop:'1px solid var(--border-color)', paddingTop:'15px'}}>
+      <label>
+        <span>Preview Data Context (JSON)</span>
+        <textarea
+          style={{fontFamily:'monospace', fontSize:'11px', height:'120px', width:'100%', resize:'vertical'}}
+          value={jsonInput}
+          onChange={e => setJsonInput(e.target.value)}
+        />
+      </label>
+      {error && <div style={{color:'red', fontSize:'11px', marginBottom:'5px'}}>{error}</div>}
+      <div style={{display:'flex', gap:'5px', marginTop:'5px'}}>
+        <button onClick={handleApply}>Apply Preview Data</button>
+        {previewContextSource === 'MANUAL' && <button onClick={handleRestore}>Use Imported Record</button>}
+      </div>
+    </div>
+  );
+}
+
+function SearchableFieldPicker({availableFields, currentFieldPath, onSelectField}: {availableFields: import('@document-tool/contracts').FieldDefinition[], currentFieldPath: string, onSelectField: (path: string) => void}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    if (open) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const filtered = useMemo(() => filterAvailableFields(availableFields, query), [availableFields, query]);
+  const currentField = availableFields.find(f => f.name === currentFieldPath);
+
+  return (
+    <div className="card-field-picker" ref={containerRef} style={{position:'relative', width:'100%', marginTop:'4px'}}>
+      <button 
+        type="button" 
+        className="card-field-picker-trigger" 
+        onClick={() => { setOpen(!open); setQuery(''); }}
+        style={{width:'100%', textAlign:'left', padding:'4px 8px', display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--bg-secondary)', border:'1px solid var(--border-color)', borderRadius:'4px'}}
+      >
+        <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+          {currentField ? (currentField.label || currentField.name) : (currentFieldPath === '__NONE__' ? 'None' : currentFieldPath)}
+        </span>
+        <span>▾</span>
+      </button>
+
+      {open && (
+        <div className="card-field-picker-dropdown" style={{marginTop:'4px', background:'var(--bg-primary)', border:'1px solid var(--border-color)', borderRadius:'4px', display:'flex', flexDirection:'column', maxHeight:'250px'}}>
+          <input 
+            autoFocus
+            type="text" 
+            placeholder="Search fields..." 
+            value={query} 
+            onChange={e => setQuery(e.target.value)} 
+            onKeyDown={e => {
+              if (e.key === 'Escape') setOpen(false);
+              else if (e.key === 'Enter' && filtered.length > 0) {
+                onSelectField(filtered[0]!.name);
+                setOpen(false);
+              }
+            }}
+            style={{margin:'4px', padding:'4px 8px', border:'1px solid var(--border-color)', borderRadius:'2px', color:'var(--text-primary)', background:'var(--bg-secondary)'}}
+          />
+          <div style={{overflowY:'auto', flex:1}}>
+            <button 
+              type="button"
+              className="card-field-picker-option"
+              onClick={() => { onSelectField('__NONE__'); setOpen(false); }}
+              style={{display:'block', width:'100%', textAlign:'left', padding:'6px 8px', background:'transparent', border:'none', cursor:'pointer', color:'var(--text-primary)'}}
+            >
+              None
+            </button>
+            {filtered.slice(0, 100).map(f => (
+              <button
+                key={f.name}
+                type="button"
+                className="card-field-picker-option"
+                onClick={() => { onSelectField(f.name); setOpen(false); }}
+                style={{display:'flex', flexDirection:'column', width:'100%', textAlign:'left', padding:'6px 8px', background:'transparent', border:'none', borderTop:'1px solid var(--border-color)', cursor:'pointer', color:'var(--text-primary)'}}
+              >
+                <strong>{f.label || f.name}</strong>
+                {f.label && f.label !== f.name && <span style={{fontSize:'10px', color:'var(--text-secondary)'}}>{f.name}</span>}
+                <span style={{fontSize:'10px', color:'var(--text-secondary)'}}>{f.type}</span>
+              </button>
+            ))}
+            {filtered.length > 100 && (
+              <div style={{padding:'6px 8px', fontSize:'11px', color:'var(--text-secondary)', textAlign:'center', borderTop:'1px solid var(--border-color)'}}>
+                Refine search to see more fields.
+              </div>
+            )}
+            {filtered.length === 0 && (
+              <div style={{padding:'6px 8px', fontSize:'11px', color:'var(--text-secondary)', textAlign:'center', borderTop:'1px solid var(--border-color)'}}>
+                No fields found.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

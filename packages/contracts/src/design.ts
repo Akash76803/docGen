@@ -1,4 +1,4 @@
-import type { DisplayFormatDefinition } from './template.js';
+
 
 /** Phase 6.0 shared Visual Design Studio contracts. Physical geometry is canonical in millimetres. */
 export type DesignTemplateStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -8,8 +8,7 @@ export type DesignVerticalAlignment = 'TOP' | 'CENTER' | 'BOTTOM';
 export type GuideOrientation = 'HORIZONTAL' | 'VERTICAL';
 export type DesignElementKind = 'TEXT' | 'SHAPE' | 'IMAGE' | 'SVG' | 'QR' | 'BARCODE' | 'CUSTOM';
 export type DesignShapeKind = 'RECTANGLE' | 'ROUNDED_RECTANGLE' | 'CIRCLE' | 'ELLIPSE' | 'LINE' | 'TRIANGLE' | 'ARROW' | 'STAR' | 'POLYGON' | 'RIBBON' | 'BADGE';
-export type DesignBindingSource = 'STATIC' | 'SOURCE_FIELD' | 'DATA_VIEW' | 'CALCULATED_FIELD';
-export type MissingBindingBehavior = 'BLANK' | 'FALLBACK' | 'HIDE' | 'WARNING';
+export type DesignBindingSource = 'FIELD' | 'CALCULATED' | 'STATIC';
 
 export type ArtboardRole = 'FRONT' | 'BACK' | 'INSIDE' | 'OUTSIDE' | 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM' | 'GENERIC';
 export type ArtboardTargetMode = 'CURRENT' | 'SELECTED' | 'ALL';
@@ -27,14 +26,41 @@ export type DesignFill =
   | { type:'LINEAR_GRADIENT'; gradient:DesignLinearGradient }
   | { type:'IMAGE'; assetId:string; fit:'FIT'|'FILL'|'STRETCH'; opacity?:number };
 
+export interface DesignBindingFormat {
+  type?: 'TEXT' | 'NUMBER' | 'DATE' | 'DATETIME' | 'CURRENCY' | 'PERCENT';
+  locale?: string;
+  pattern?: string;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+}
+
 export interface DesignBinding {
-  source: DesignBindingSource;
-  /** Canonical source/calculated/view path or alias. STATIC bindings may omit this. */
-  path?: string;
-  staticValue?: string|number|boolean|null;
-  fallback?: string;
-  missingBehavior?: MissingBindingBehavior;
-  displayFormat?: DisplayFormatDefinition;
+  id: string;
+  targetProperty: string;
+  sourceType: DesignBindingSource;
+
+  // Generic resolved path, datasource agnostic
+  fieldPath?: string;
+
+  // For future calculated/global fields
+  calculatedFieldId?: string;
+
+  // Optional static fallback/default
+  fallbackValue?: unknown;
+
+  // Formatting metadata only
+  format?: DesignBindingFormat;
+
+  // Future-safe metadata
+  metadata?: Record<string, unknown>;
+}
+
+export interface DesignDataContext {
+  record?: Record<string, unknown>;
+  globals?: Record<string, unknown>;
+  calculated?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AssetReference {
@@ -100,7 +126,7 @@ export interface BaseDesignElement {
   locked:boolean;
   zIndex:number;
   groupId?:string;
-  binding?:DesignBinding;
+  bindings?:DesignBinding[];
   metadata?:Record<string,unknown>;
 }
 
@@ -119,6 +145,7 @@ export interface TextDesignElement extends BaseDesignElement {
     letterSpacingPt:number;
   };
   shadow?:DesignShadow;
+  textBindingMode?:'FULL'|'TEMPLATE';
 }
 
 export interface ShapeDesignElement extends BaseDesignElement {

@@ -2,6 +2,7 @@ export * from './element-registry.js';
 export * from './validation.js';
 export * from './render-model.js';
 export * from './serialization.js';
+export * from './bindings/index.js';
 
 export * from './artboards.js';
 export * from './transform.js';

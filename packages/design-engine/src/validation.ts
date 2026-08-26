@@ -80,6 +80,41 @@ function validateElement(artboard:Artboard, element:DesignElement, registry:Desi
   if (![element.position.xMm,element.position.yMm,element.size.widthMm,element.size.heightMm,element.rotationDeg].every(finite)||element.size.widthMm<=0||element.size.heightMm<=0) error({code:'ELEMENT_GEOMETRY_INVALID',message:'Element position/size/rotation must be finite and size must be positive.',artboardId:artboard.id,elementId:element.id});
   if (!finite(element.opacity)||element.opacity<0||element.opacity>1) error({code:'ELEMENT_OPACITY_INVALID',message:'Element opacity must be between 0 and 1.',artboardId:artboard.id,elementId:element.id});
   if (element.groupId&&!groupIds.has(element.groupId)) error({code:'ELEMENT_GROUP_MISSING',message:`Element references missing group: ${element.groupId}`,artboardId:artboard.id,elementId:element.id});
-  if (element.binding && element.binding.source!=='STATIC' && !element.binding.path?.trim()) error({code:'BINDING_INVALID',message:'Non-static bindings require a path/alias.',artboardId:artboard.id,elementId:element.id});
+  if (element.bindings) {
+    const bindingIds = new Set<string>();
+    
+    // Supported target property registry
+    const supportedProps: Record<string, string[]> = {
+      TEXT: ['text', 'visible'],
+      IMAGE: ['source', 'altText', 'visible'],
+      SVG: ['source', 'tintColor', 'visible'],
+      SHAPE: ['visible']
+    };
+    
+    for (const binding of element.bindings) {
+      if (!binding.id) error({code:'BINDING_INVALID',message:'Binding requires an id.',artboardId:artboard.id,elementId:element.id});
+      if (bindingIds.has(binding.id)) error({code:'BINDING_INVALID',message:`Duplicate binding id on element: ${binding.id}`,artboardId:artboard.id,elementId:element.id});
+      bindingIds.add(binding.id);
+      
+      if (!binding.targetProperty) error({code:'BINDING_INVALID',message:'Binding requires a targetProperty.',artboardId:artboard.id,elementId:element.id});
+      
+      const allowed = supportedProps[element.type] || [];
+      if (binding.targetProperty && !allowed.includes(binding.targetProperty)) {
+        error({code:'BINDING_INVALID',message:`Unsupported target property '${binding.targetProperty}' for element type ${element.type}.`,artboardId:artboard.id,elementId:element.id});
+      }
+      
+      if (binding.sourceType === 'FIELD') {
+        if (!binding.fieldPath?.trim()) error({code:'BINDING_INVALID',message:'FIELD bindings require a fieldPath.',artboardId:artboard.id,elementId:element.id});
+        if (binding.fieldPath && (binding.fieldPath.includes('__proto__') || binding.fieldPath.includes('constructor') || binding.fieldPath.includes('prototype'))) {
+          error({code:'BINDING_INVALID',message:'FIELD binding path contains blocked dangerous keys.',artboardId:artboard.id,elementId:element.id});
+        }
+      } else if (binding.sourceType === 'CALCULATED') {
+        if (!binding.calculatedFieldId?.trim()) error({code:'BINDING_INVALID',message:'CALCULATED bindings require a calculatedFieldId.',artboardId:artboard.id,elementId:element.id});
+      } else if (binding.sourceType === 'STATIC') {
+        if (binding.fallbackValue === undefined) error({code:'BINDING_INVALID',message:'STATIC bindings require a fallbackValue.',artboardId:artboard.id,elementId:element.id});
+      }
+    }
+  }
+
   for (const message of registry.validate(element)) error({code:'DESIGN_TEMPLATE_INVALID',message,artboardId:artboard.id,elementId:element.id});
 }

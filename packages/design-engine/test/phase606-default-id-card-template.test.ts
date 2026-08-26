@@ -12,18 +12,27 @@ describe('default Corporate Employee ID Card starter template',()=>{
   expect(front.elements.some(e=>e.type==='SHAPE'&&e.name==='Header')).toBe(true);
   expect(front.elements.some(e=>e.type==='SHAPE'&&e.name==='Photo')).toBe(true);
   expect(front.elements.some(e=>e.type==='TEXT'&&e.name==='Company')).toBe(true);
-  expect(front.elements.some(e=>e.type==='TEXT'&&e.binding?.path==='Employee.Name')).toBe(true);
-  expect(front.elements.some(e=>e.type==='TEXT'&&e.binding?.path==='Employee.Designation')).toBe(true);
-  expect(front.elements.some(e=>e.type==='TEXT'&&e.binding?.path==='Employee.EmployeeId')).toBe(true);
-  expect(front.elements.some(e=>e.type==='TEXT'&&e.binding?.path==='Employee.Department')).toBe(true);
+  const hasBinding = (e: any, path: string) => Array.isArray(e.bindings) && e.bindings.length > 0 && e.bindings[0].targetProperty === 'text' && e.bindings[0].sourceType === 'FIELD' && e.bindings[0].fieldPath === path;
+  expect(front.elements.some(e=>e.type==='TEXT'&&hasBinding(e, 'Employee.Name'))).toBe(true);
+  expect(front.elements.some(e=>e.type==='TEXT'&&hasBinding(e, 'Employee.Designation'))).toBe(true);
+  expect(front.elements.some(e=>e.type==='TEXT'&&hasBinding(e, 'Employee.EmployeeId'))).toBe(true);
+  expect(front.elements.some(e=>e.type==='TEXT'&&hasBinding(e, 'Employee.Department'))).toBe(true);
   expect(front.elements.some(e=>e.name==='QR')).toBe(true);
   expect(back.elements.some(e=>e.type==='TEXT'&&e.name==='Address')).toBe(true);
-  expect(back.elements.some(e=>e.type==='TEXT'&&e.binding?.path==='Employee.EmergencyContact')).toBe(true);
-  expect(back.elements.some(e=>e.type==='TEXT'&&e.binding?.path==='Employee.ValidUntil')).toBe(true);
-  expect(back.elements.some(e=>e.type==='TEXT'&&e.binding?.path==='Employee.BloodGroup')).toBe(true);
+  expect(back.elements.some(e=>e.type==='TEXT'&&hasBinding(e, 'Employee.EmergencyContact'))).toBe(true);
+  expect(back.elements.some(e=>e.type==='TEXT'&&hasBinding(e, 'Employee.ValidUntil'))).toBe(true);
+  expect(back.elements.some(e=>e.type==='TEXT'&&hasBinding(e, 'Employee.BloodGroup'))).toBe(true);
   expect(back.elements.some(e=>e.type==='SHAPE'&&e.name==='Signature')).toBe(true);
   expect(back.elements.some(e=>e.type==='TEXT'&&e.name==='Terms'&&e.text.includes('return this card'))).toBe(true);
   expect(validateDesignTemplate(t).valid).toBe(true);
+ });
+ it('ensures no elements expose the legacy binding property', () => {
+  const t = createCorporateEmployeeIdTemplate();
+  for (const artboard of t.artboards) {
+    for (const element of artboard.elements) {
+      expect((element as any).binding).toBeUndefined();
+    }
+  }
  });
  it('uses independent ids across repeated template creation',()=>{
   let n=0;const f=(p:string)=>`${p}-${++n}`;const a=createCorporateEmployeeIdTemplate(f),b=createCorporateEmployeeIdTemplate(f);expect(a.id).not.toBe(b.id);expect(a.artboards[0]!.id).not.toBe(b.artboards[0]!.id);

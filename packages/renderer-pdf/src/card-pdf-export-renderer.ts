@@ -1,5 +1,4 @@
 import type { DocumentRenderer, RendererCapabilities, RendererRequest, RendererResult } from '@document-tool/renderer-sdk';
-import type { ShapeDesignElement, TextDesignElement, DesignElement } from '@document-tool/contracts';
 import { buildPdf, type PdfPage, type PdfImage } from './pdf-renderer.js';
 
 const PT_PER_MM = 72 / 25.4;
@@ -61,18 +60,4 @@ export class CardPdfExportRenderer implements DocumentRenderer {
       warnings: []
     };
   }
-}
-
-function parseColor(cssColor: string): {r:number,g:number,b:number} {
-  if (cssColor.startsWith('#')) {
-    const hex = cssColor.substring(1);
-    if (hex.length === 6) {
-      return { r: parseInt(hex.substring(0,2), 16)/255, g: parseInt(hex.substring(2,4), 16)/255, b: parseInt(hex.substring(4,6), 16)/255 };
-    }
-  }
-  return {r:0,g:0,b:0};
-}
-
-function escapePdfString(str: string): string {
-  return str.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }

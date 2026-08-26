@@ -7,6 +7,9 @@
     "node": ">=20 <21"
   },
   "scripts": {
+    "test:card-bindings": "vitest run packages/design-engine/test/phase661-dynamic-binding.test.ts",
+    "test:card-binding-persistence": "vitest run packages/persistence/test/phase661-binding-persistence.test.ts",
+    "test:card-binding-runtime": "vitest run apps/desktop/test/phase662-data-context-binding.test.ts",
     "test:card-print": "vitest run packages/design-engine/test/phase630-print-readiness.test.ts packages/persistence/test/phase630-print-settings-persistence.test.ts",
     "smoke:card-print": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase630-print-readiness-smoke.mjs",
     "test:card-assets": "vitest run packages/design-engine/test/phase620-svg-asset-hardening.test.ts",
@@ -68,7 +71,11 @@
     "test:card-artboard-ui": "vitest run apps/desktop/test/card-artboard-ui.test.ts",
     "test:card-export": "vitest run packages/design-engine/test/phase650-export-target.test.ts packages/renderer-pdf/test/phase650-card-pdf-export.test.ts packages/renderer-image/test/phase650-card-image-export.test.ts",
     "smoke:card-export": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && npm run build -w @document-tool/renderer-sdk && npm run build -w @document-tool/renderer-pdf && npm run build -w @document-tool/renderer-image && node scripts/phase650-card-export-smoke.mjs",
-    "test:card-export-ui": "vitest run apps/desktop/test/card-export-ui.test.ts"
+    "test:card-export-ui": "vitest run apps/desktop/test/card-export-ui.test.ts",
+    "test:card-field-picker": "vitest run apps/desktop/test/phase663-field-picker.test.ts",
+    "test:card-field-search": "vitest run apps/desktop/test/phase663a-searchable-field-picker.test.ts",
+    "test:card-dynamic-text": "vitest run packages/design-engine/test/phase664-mixed-dynamic-text.test.ts",
+    "test:card-dynamic-images": "vitest run packages/design-engine/test/phase665-dynamic-image-binding.test.ts"
   },
   "workspaces": [
     "packages/*",
