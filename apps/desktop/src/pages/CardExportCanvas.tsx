@@ -1,5 +1,7 @@
 import React from 'react';
-import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop } from '@document-tool/contracts';
+
+import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop, QrDesignElement } from '@document-tool/contracts';
+import QRCode from 'react-qr-code';
 
 export function normalizeExportColor(value: string | undefined | null): string {
   if (!value) return 'transparent';
@@ -59,7 +61,7 @@ export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artbo
 
   return (
     <div data-artboard-id={artboard.id} style={canvasStyle}>
-      {artboard.elements.filter(e => e.visible).map(e => (
+      {artboard.elements.filter(e => e.visible && !e.runtimeHidden).map(e => (
         <IsolatedExportElement key={e.id} element={e} assets={assets} mmToPx={MM_TO_CSS_PX} />
       ))}
     </div>
@@ -129,7 +131,7 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
         textAlign: e.style.alignment.toLowerCase() as any,
         lineHeight: e.style.lineHeight,
         letterSpacing: `${e.style.letterSpacingPt}pt`,
-        textShadow: normalizeShadow(e.shadow),
+        textShadow: 'shadow' in e ? normalizeShadow((e as any).shadow) : undefined,
         width: '100%',
         height: '100%',
         boxSizing: 'border-box'
@@ -148,7 +150,7 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
     const stroke = e.stroke.style === 'NONE' ? 'none' : normalizeExportColor(e.stroke.color);
     const sw = e.stroke.style === 'NONE' ? 0 : e.stroke.widthMm * mmToPx;
     const dash = e.stroke.style === 'DASHED' ? '6 4' : e.stroke.style === 'DOTTED' ? '2 3' : undefined;
-    const shadow = normalizeShadow(e.shadow);
+    const shadow = 'shadow' in e ? normalizeShadow((e as any).shadow) : 'none';
 
     const common = {
       fill: bg,
@@ -202,7 +204,7 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
             transform: `scale(${geom.flipX ? -1 : 1}, ${geom.flipY ? -1 : 1})`,
             borderRadius: e.cornerRadiusMm ? `${e.cornerRadiusMm * mmToPx}px` : 0,
             border: normalizeStroke(e.stroke, mmToPx),
-            boxShadow: normalizeShadow(e.shadow),
+            boxShadow: 'shadow' in e ? normalizeShadow((e as any).shadow) : undefined,
             boxSizing: 'border-box'
           }} 
         />
@@ -213,7 +215,7 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
     if (asset && asset.source) {
       const tinted = asset.metadata?.recolorable === true && e.tintColor;
       const border = normalizeStroke(e.stroke, mmToPx);
-      const shadow = normalizeShadow(e.shadow);
+      const shadow = 'shadow' in e ? normalizeShadow((e as any).shadow) : 'none';
       let inlineSvg = '';
       if (asset.source.startsWith('data:image/svg+xml')) {
         const isBase64 = asset.source.includes(';base64,');
@@ -289,7 +291,27 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
         );
       }
     }
-  }
+  } else if (e.type === 'QR') {
+      const qr = e as QrDesignElement;
+      const value = qr.value || "QR";
+      const size = Math.min(geom.widthMm, geom.heightMm) * mmToPx;
+      content = (
+        <div style={{
+          width: '100%', height: '100%', 
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          filter: 'shadow' in e && normalizeShadow((e as any).shadow) !== 'none' ? `drop-shadow(${normalizeShadow((e as any).shadow)})` : undefined
+        }}>
+          <QRCode 
+            value={value} 
+            size={size} 
+            fgColor={qr.foreground} 
+            bgColor={qr.background} 
+            level={qr.errorCorrection} 
+            style={{height: "auto", maxWidth: "100%", width: "100%"}} 
+          />
+        </div>
+      );
+    }
 
   return (
     <div data-element-id={e.id} style={shellStyle}>

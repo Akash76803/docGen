@@ -1,4 +1,5 @@
 import type { DesignBinding, DesignDataContext, DesignElement, Artboard, TextDesignElement } from '@document-tool/contracts';
+import { evaluateElementVisibility } from './visibility.js';
 
 /**
  * Resolves a dot-notation path against a record deterministically.
@@ -208,8 +209,9 @@ export function applyResolvedValueToElement(element: DesignElement, binding: Des
 export function resolveElementBindings(element: DesignElement, context: DesignDataContext): DesignElement {
   const isTemplateMode = element.type === 'TEXT' && (element as TextDesignElement).textBindingMode === 'TEMPLATE';
   const hasBindings = element.bindings && element.bindings.length > 0;
+  const hasVisibilityRule = element.visibilityRule !== undefined;
 
-  if (!hasBindings && !isTemplateMode) {
+  if (!hasBindings && !isTemplateMode && !hasVisibilityRule) {
     return element; // Immutability: return unchanged if no bindings and not in template mode
   }
 
@@ -231,6 +233,12 @@ export function resolveElementBindings(element: DesignElement, context: DesignDa
       const rawValue = resolveDesignBinding(binding, context);
       applyResolvedValueToElement(resolvedElement, binding, rawValue);
     }
+  }
+
+  // Resolve conditional visibility
+  if (hasVisibilityRule) {
+    const isVisible = evaluateElementVisibility(resolvedElement.visibilityRule, context);
+    resolvedElement.runtimeHidden = !isVisible;
   }
 
   return resolvedElement;

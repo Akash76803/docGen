@@ -105,6 +105,21 @@ export interface Guide {
   locked?:boolean;
 }
 
+export type VisibilityOperator = 
+  | 'EQUALS' | 'NOT_EQUALS'
+  | 'CONTAINS' | 'NOT_CONTAINS' | 'STARTS_WITH' | 'ENDS_WITH'
+  | 'GREATER_THAN' | 'GREATER_OR_EQUAL' | 'LESS_THAN' | 'LESS_OR_EQUAL'
+  | 'BEFORE' | 'AFTER' | 'ON_OR_BEFORE' | 'ON_OR_AFTER'
+  | 'IS_EMPTY' | 'IS_NOT_EMPTY';
+
+export interface ElementVisibilityRule {
+  id: string;
+  enabled: boolean;
+  fieldPath: string;
+  operator: VisibilityOperator;
+  value?: unknown;
+}
+
 export interface DesignGroup {
   id:string;
   name:string;
@@ -112,6 +127,7 @@ export interface DesignGroup {
   parentGroupId?:string;
   locked?:boolean;
   visible?:boolean;
+  visibilityRule?:ElementVisibilityRule;
 }
 
 export interface BaseDesignElement {
@@ -128,6 +144,8 @@ export interface BaseDesignElement {
   groupId?:string;
   bindings?:DesignBinding[];
   metadata?:Record<string,unknown>;
+  visibilityRule?:ElementVisibilityRule;
+  runtimeHidden?:boolean; // Runtime evaluation result, never persisted
 }
 
 export interface TextDesignElement extends BaseDesignElement {

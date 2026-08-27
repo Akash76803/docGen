@@ -20,6 +20,7 @@ import { CardPdfExportRenderer } from '@document-tool/renderer-pdf';
 import { registerPngRenderer, registerJpegRenderer, BrowserExactPageRasterizer } from '@document-tool/renderer-image';
 import { useEffect,useMemo,useRef,useState,createContext,useContext } from 'react';
 import { createPortal } from 'react-dom';
+import QRCode from 'react-qr-code';
 import type { Artboard,AssetReference,DesignElement,DesignShadow,DesignShapeKind,DesignTemplate,DesignUnit,ImageDesignElement,ShapeDesignElement,SvgDesignElement,TextDesignElement,QrDesignElement,BarcodeDesignElement,ArtboardRole,DesignDataContext } from '@document-tool/contracts';
 import {
   ARTBOARD_PRESETS,addArtboard,addAssetReference,addDesignElement,createBlankArtboard,createImageElement,createShapeElement,createTextElement,createQrElement,createBarcodeElement,
@@ -41,8 +42,10 @@ import {
 } from '@document-tool/design-engine';
 import type { DesignAlignmentReference,DesignClipboardPayload,DesignHistoryState,DesignRectMm,DesignSelectionState,DesignStyleClipboard,SnapGuideIndicator } from '@document-tool/design-engine';
 import { LocalStorageDesignTemplateRepository,LocalStorageUserAssetLibraryRepository,type UserAssetLibraryItem } from '@document-tool/persistence';
-import { ArrowDown,ArrowUp,ClipboardPaste,Copy,FilePlus2,Maximize2,Minus,MonitorUp,Plus,RotateCcw,Trash2,Upload,PenLine, Type, Image as ImageIcon, Box, Shapes, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
+import { ArrowDown,ArrowUp,Copy,Maximize2,Minus,MonitorUp,Plus,RotateCcw,Trash2,Upload,PenLine, Type, Image as ImageIcon, Box, Shapes, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 import { loadImportWorkspace } from '../services/workspaceStore.js';
+import { clampPreviewRecordIndex, getPreviewRecord, createRecordDesignDataContext, getRecordDisplayLabel } from '../services/previewRecordHelpers.js';
+import { createBulkGenerationPlan, BulkCancellationToken, resolveItemArtboard, type BulkCardGenerationRequest, type BulkArtboardTarget, type BulkRecordTarget, type BulkGenerationResult } from '../services/cardBulkGeneration.js';
 
 const MM_TO_CSS_PX=96/25.4,MIN_ZOOM=25,MAX_ZOOM=200;
 const SHAPES:DesignShapeKind[]=['RECTANGLE','ROUNDED_RECTANGLE','CIRCLE','ELLIPSE','LINE','TRIANGLE','ARROW','STAR','POLYGON','RIBBON','BADGE'];
@@ -56,10 +59,20 @@ export function CardDesigner(){
   const [dataContext,setDataContext]=useState<DesignDataContext>({ record: {} });
   const [availableFields,setAvailableFields]=useState<import('@document-tool/contracts').FieldDefinition[]>([]);
   const [datasourceStatus,setDatasourceStatus]=useState<string>('No imported datasource available.');
-  const [importedRecord,setImportedRecord]=useState<Record<string, any>>({});
+  // Canonical datasource rows — single source of truth for all record-based preview and export
+  const [importedRows,setImportedRows]=useState<Record<string,unknown>[]>([]);
+  // Legacy single record for backward-compat w/ PreviewDataPanel (derived from importedRows)
+  const importedRecord = importedRows[0] ?? {};
+  const [previewRecordIndex,setPreviewRecordIndex]=useState(0);
   const [previewContextSource,setPreviewContextSource]=useState<'IMPORTED'|'MANUAL'>('IMPORTED');
   const previewContextSourceRef=useRef(previewContextSource);
   previewContextSourceRef.current=previewContextSource;
+  // Clamp index whenever rows change
+  const safePreviewIndex = clampPreviewRecordIndex(previewRecordIndex, importedRows.length);
+  const currentPreviewRecord = previewContextSource === 'MANUAL'
+    ? (dataContext.record as Record<string,unknown>)
+    : getPreviewRecord(importedRows as Record<string,unknown>[], safePreviewIndex);
+  const recordCount = importedRows.length;
   const [activeId,setActiveId]=useState('');
  const [selectedArtboardIds,setSelectedArtboardIds]=useState<string[]>([]);
  const [zoom,setZoom]=useState(100);
@@ -71,6 +84,7 @@ export function CardDesigner(){
  const [guideSnapEnabled,setGuideSnapEnabled]=useState(true);
  const [showRulers,setShowRulers]=useState(true);
  const [showGrid,setShowGrid]=useState(false);
+ const [showHiddenElements,setShowHiddenElements]=useState(false);
  const [gridSizeMm,setGridSizeMm]=useState(5);
  const [userAssets,setUserAssets]=useState<UserAssetLibraryItem[]>([]);
  const [assetLibraryStatus,setAssetLibraryStatus]=useState('');
@@ -133,13 +147,17 @@ export function CardDesigner(){
         const ws = await loadImportWorkspace();
         if(cancelled) return;
         if(ws && ws.dataPreview) {
-          setAvailableFields(ws.dataPreview.schema.fields || []);
-          const newRec = ws.dataPreview.records[0] || {};
-          setImportedRecord(newRec);
-          setDataContext(prev => resolveDataContextSeeding(prev, newRec, previewContextSourceRef.current));
-          setDatasourceStatus('Imported Data');
+          const fields = ws.dataPreview.schema.fields || [];
+          const rows = (ws.dataPreview.records || []) as Record<string,unknown>[];
+          setAvailableFields(fields);
+          setImportedRows(rows);
+          setPreviewRecordIndex(0);
+          const firstRec = rows[0] ?? {};
+          setDataContext(prev => resolveDataContextSeeding(prev, firstRec, previewContextSourceRef.current));
+          setDatasourceStatus(`${rows.length} record${rows.length===1?'':'s'}`);
         } else {
           setAvailableFields([]);
+          setImportedRows([]);
           setDatasourceStatus('No imported datasource available.');
         }
       }catch(e){
@@ -148,6 +166,20 @@ export function CardDesigner(){
     })();
     return ()=>{cancelled=true};
   }, []);
+
+  // Keep canonical dataContext in sync with the current preview record
+  useEffect(()=>{
+    if (previewContextSource === 'IMPORTED') {
+      setDataContext(createRecordDesignDataContext(currentPreviewRecord));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewRecordIndex, importedRows, previewContextSource]);
+
+  const navigatePreviewRecord = (delta: number) => {
+    if (!recordCount) return;
+    setPreviewRecordIndex(i => clampPreviewRecordIndex(i + delta, recordCount));
+    if (previewContextSource === 'MANUAL') setPreviewContextSource('IMPORTED');
+  };
   useEffect(()=>{if(active)setSelection(s=>sanitizeSelection(s,active));},[active]);
  useEffect(()=>{const kd=(e:KeyboardEvent)=>{if(e.code==='Space'&&!isForm(e.target)){setSpace(true);e.preventDefault();return;}if(!active||isForm(e.target))return;const command=e.ctrlKey||e.metaKey;if(command&&e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo();return;}if(command&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(command&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected();return;}if(command&&e.key.toLowerCase()==='v'){e.preventDefault();pasteClipboard();return;}if(command&&e.key.toLowerCase()==='d'&&selection.elementIds.length){e.preventDefault();duplicateSelected();return;}if(command&&e.key.toLowerCase()==='a'){e.preventDefault();setSelection(selectAllSelectable(active));return;}if(e.key==='Escape'){setSelection(emptySelection(active.id));return;}if((e.key==='Delete'||e.key==='Backspace')&&selection.elementIds.length){e.preventDefault();mutate(t=>deleteDesignElements(t,active.id,selection.elementIds));setSelection(emptySelection(active.id));setStatus('Element deleted');return;}const dir=e.key==='ArrowLeft'?'LEFT':e.key==='ArrowRight'?'RIGHT':e.key==='ArrowUp'?'UP':e.key==='ArrowDown'?'DOWN':null;if(dir&&selection.elementIds.length){e.preventDefault();mutate(t=>nudgeElements(t,active.id,selection.elementIds,dir,e.shiftKey));setStatus('Unsaved changes');}},ku=(e:KeyboardEvent)=>{if(e.code==='Space')setSpace(false)};window.addEventListener('keydown',kd);window.addEventListener('keyup',ku);return()=>{window.removeEventListener('keydown',kd);window.removeEventListener('keyup',ku)};},[active,selection.elementIds,historyVersion]);
  const save=async()=>{try{await repo.save(template);await repo.setActiveId(template.id);setDirty(false);setStatus('Saved locally');}catch(e){setStatus(e instanceof Error?e.message:'Save failed');}};
@@ -206,51 +238,69 @@ export function CardDesigner(){
   const [exportTransparent, setExportTransparent] = useState(false);
   const [exportJpegQuality, setExportJpegQuality] = useState(90);
 
+  // ── Bulk generation state ────────────────────────────────────────────────
+  const [bulkRecordTarget, setBulkRecordTarget] = useState<BulkRecordTarget>('CURRENT_RECORD');
+  const [bulkArtboardTarget, setBulkArtboardTarget] = useState<BulkArtboardTarget>('ALL');
+  const [bulkFilenameTemplate, setBulkFilenameTemplate] = useState('{{recordIndex}}-{{artboardName}}');
+  const [bulkCombinePdf, setBulkCombinePdf] = useState(true);
+  const [bulkSelectedRecordIndexes, setBulkSelectedRecordIndexes] = useState<number[]>([]);
+  const [bulkProgress, setBulkProgress] = useState<{current:number;total:number;label:string}|null>(null);
+  const [bulkResult, setBulkResult] = useState<BulkGenerationResult|null>(null);
+  const [bulkSelectDialogOpen, setBulkSelectDialogOpen] = useState(false);
+  const [bulkSelectPage, setBulkSelectPage] = useState(0);
+  const bulkCancelRef = useRef<BulkCancellationToken|null>(null);
+
+
   const [exportRasterTargets, setExportRasterTargets] = useState<Artboard[]>([]);
   const pendingRasterExportRef = useRef<{ targets: Artboard[], request: CardExportRequest, format: string, fileName: string, exportReq: any } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const cancelExportRef = useRef<ExportCancellationSource | null>(null);
   const [exportHost, setExportHost] = useState<HTMLElement | null>(null);
 
+  const generateExportFiles = async (targets: Artboard[], request: CardExportRequest, exportReq: any, host: HTMLElement | null, token: any) => {
+    const registry = new RendererRegistry();
+    const rasterizer = new BrowserExactPageRasterizer(
+      async (resolved) => {
+        const root = (host || document).querySelector(`.raster-export-root [data-document-id="${resolved.documentGroupId}"]`);
+        if (!root) throw new Error(`Isolated export page root for ${resolved.documentGroupId} is unavailable.`);
+        return Array.from(root.querySelectorAll<HTMLElement>('[data-document-export-page]'));
+      },
+      () => exportReq.format === 'PNG' && (exportReq.options?.png as { backgroundMode?: string } | undefined)?.backgroundMode === 'TRANSPARENT',
+      host || document
+    );
+    registry.register('PDF', new CardPdfExportRenderer((docId, dpi) => rasterizer.rasterizePageAsJpeg(docId, dpi)));
+    registerPngRenderer(registry, rasterizer);
+    registerJpegRenderer(registry, rasterizer);
+
+    const byId = new Map(targets.map(t => [t.id, t]));
+    
+    const orchestrator = new ExportOrchestrator({
+      registry,
+      resolveDocument: async (_templateId, documentGroupId) => {
+        const artboard = byId.get(documentGroupId);
+        if (!artboard) throw new Error(`Artboard ${documentGroupId} missing`);
+        return {
+          documentGroupId,
+          template,
+          model: buildCardRenderModel(artboard, request) as any,
+          namingValues: { DocumentGroupKey: artboard.name || documentGroupId }
+        } as unknown as ResolvedExportDocument;
+      }
+    });
+
+    const result = await orchestrator.export(exportReq, { cancellationToken: token });
+    return result.files;
+  };
+
   const runOrchestrator = async (targets: Artboard[], request: CardExportRequest, exportReq: any) => {
     const cancelToken = new ExportCancellationSource();
     cancelExportRef.current = cancelToken;
     try {
-      const registry = new RendererRegistry();
-        const rasterizer = new BrowserExactPageRasterizer(
-          async (resolved) => {
-            const root = (exportHost || document).querySelector(`.raster-export-root [data-document-id="${resolved.documentGroupId}"]`);
-            if (!root) throw new Error(`Isolated export page root for ${resolved.documentGroupId} is unavailable.`);
-            return Array.from(root.querySelectorAll<HTMLElement>('[data-document-export-page]'));
-          },
-          () => exportReq.format === 'PNG' && (exportReq.options?.png as { backgroundMode?: string } | undefined)?.backgroundMode === 'TRANSPARENT',
-          exportHost || document
-        );
-      registry.register('PDF', new CardPdfExportRenderer((docId, dpi) => rasterizer.rasterizePageAsJpeg(docId, dpi)));
-      registerPngRenderer(registry, rasterizer);
-      registerJpegRenderer(registry, rasterizer);
-
-      const byId = new Map(targets.map(t => [t.id, t]));
+      const files = await generateExportFiles(targets, request, exportReq, exportHost, cancelToken.token);
       
-      const orchestrator = new ExportOrchestrator({
-        registry,
-        resolveDocument: async (_templateId, documentGroupId) => {
-          const artboard = byId.get(documentGroupId);
-          if (!artboard) throw new Error(`Artboard ${documentGroupId} missing`);
-          return {
-            documentGroupId,
-            template,
-            model: buildCardRenderModel(artboard, request) as any,
-            namingValues: { DocumentGroupKey: artboard.name || documentGroupId }
-          } as unknown as ResolvedExportDocument;
-        }
-      });
-
-      const result = await orchestrator.export(exportReq, { cancellationToken: cancelToken.token });
-      
-      const downloadable = result.files.length > 1 && exportReq.format !== 'PDF'
-        ? [new ZipBundler().bundle(result.files, { fileName: exportReq.fileName })]
-        : result.files;
+      const downloadable = files.length > 1 && exportReq.format !== 'PDF'
+        ? [new ZipBundler().bundle(files, { fileName: exportReq.fileName })]
+        : files;
 
       setStatus('Waiting for save location...');
       const delivered = await deliverExportedFiles(downloadable);
@@ -293,6 +343,158 @@ export function CardDesigner(){
       });
     }
   }, [exportRasterTargets]);
+
+  /**
+   * Bulk personalized generation pipeline (Phase 6.7).
+   * Sequential per-record processing — memory-safe, failure-isolated.
+   */
+  const performBulkExport = async () => {
+    if (!activeSource || !importedRows.length) {
+      setStatus('Bulk generation cancelled: No datasource records available.');
+      return;
+    }
+    if (bulkRecordTarget === 'SELECTED_RECORDS' && !bulkSelectedRecordIndexes.length) {
+      setStatus('Bulk generation cancelled: No records selected.');
+      return;
+    }
+
+    const bulkRequest: BulkCardGenerationRequest = {
+      recordTarget: bulkRecordTarget,
+      currentRecordIndex: safePreviewIndex,
+      selectedRecordIndexes: bulkSelectedRecordIndexes,
+      artboardTarget: bulkArtboardTarget,
+      currentArtboardId: activeSource.id,
+      selectedArtboardIds: selectedArtboardIds,
+      format: exportFormat,
+      filenameTemplate: bulkFilenameTemplate || '{{recordIndex}}-{{artboardName}}',
+      combinePdf: bulkCombinePdf,
+      dpi: exportDpi,
+      jpegQuality: exportJpegQuality,
+      transparentBackground: exportTransparent,
+      includeBleed: exportIncludeBleed,
+      includeCropMarks: exportIncludeCropMarks,
+    };
+
+    const plan = createBulkGenerationPlan(template, importedRows as Record<string, unknown>[], bulkRequest);
+
+    if (!plan.items.length) {
+      setStatus('Bulk generation cancelled: Nothing to generate.');
+      return;
+    }
+
+    const cancelToken = new BulkCancellationToken();
+    bulkCancelRef.current = cancelToken;
+    setBulkProgress({ current: 0, total: plan.items.length, label: 'Preparing...' });
+    setBulkResult(null);
+    setIsExporting(true);
+    setExportDialogOpen(false);
+
+    const failures: import('../services/cardBulkGeneration.js').BulkGenerationFailure[] = [];
+    let succeeded = 0;
+    const allExportedFiles: import('@document-tool/export-engine').ExportedFile[] = [];
+    
+    // 1. Create stable host explicitly for bulk
+    const host = document.createElement('div');
+    host.className = 'raster-export-root';
+    document.body.appendChild(host);
+    setExportHost(host);
+
+    try {
+      for (let i = 0; i < plan.items.length; i++) {
+        if (cancelToken.cancelled) break;
+        const item = plan.items[i]!;
+        setBulkProgress({ current: i + 1, total: plan.items.length, label: item.label });
+
+        try {
+          // Resolve per-item artboard fresh every time — template never mutated
+          const resolved = resolveItemArtboard(item);
+
+          // Memory validation before render
+          if (exportFormat === 'PNG' || exportFormat === 'JPEG') {
+            const memError = validateExportMemory({ format: exportFormat, targetMode: 'CURRENT', rasterDpi: exportDpi, jpegQuality: exportJpegQuality, transparentBackground: exportTransparent } as any, resolved.widthMm, resolved.heightMm);
+            if (memError) throw new Error(memError);
+          }
+
+          // Use the existing orchestrator infrastructure for rendering each item
+          const cardRequest: CardExportRequest = {
+            format: exportFormat,
+            targetMode: 'CURRENT',
+            currentArtboardId: resolved.id,
+            includeBleed: exportIncludeBleed,
+            includeCropMarks: exportIncludeCropMarks,
+            usePrintSettings: true,
+            rasterDpi: exportDpi,
+            jpegQuality: exportJpegQuality,
+            transparentBackground: exportTransparent,
+          };
+
+          const exportReq = {
+            format: exportFormat,
+            templateId: template.id,
+            documentGroupIds: [resolved.id],
+            fileName: item.filename.replace(/\.[^.]+$/, ''), // strip ext
+            options: {
+              png: { dpi: exportDpi, pages: 'ALL', backgroundMode: exportTransparent ? 'TRANSPARENT' : 'SOLID' },
+              jpeg: { dpi: exportDpi, quality: exportJpegQuality, backgroundColor: '#FFFFFF' }
+            }
+          };
+
+          // Render via orchestrator (reuse existing infrastructure)
+          setExportRasterTargets([resolved]);
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); // Wait for portal render
+          
+          const files = await generateExportFiles([resolved], cardRequest, exportReq, host, cancelToken.token);
+          allExportedFiles.push(...files);
+          succeeded++;
+        } catch (itemErr) {
+          failures.push({
+            recordIndex: item.recordIndex,
+            artboardId: item.artboard.id,
+            message: itemErr instanceof Error ? itemErr.message : 'Unknown error',
+          });
+        }
+
+        // Release any heavy data after each item
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      if (allExportedFiles.length > 0 && !cancelToken.cancelled) {
+        setStatus('Waiting for save location...');
+        const downloadable = allExportedFiles.length > 1
+          ? [new ZipBundler().bundle(allExportedFiles, { fileName: template.name ? `${template.name.replace(/[^a-z0-9-_]/gi, '_')}-bulk` : 'Bulk_Export' })]
+          : allExportedFiles;
+          
+        const delivered = await deliverExportedFiles(downloadable);
+        if (delivered.status === 'CANCELLED') throw new ExportCancelledError('Save cancelled.');
+        if (delivered.status === 'FAILED') throw new Error(`Generated successfully but could not be saved. ${delivered.error ?? ''}`);
+      }
+
+      const result: BulkGenerationResult = {
+        totalItems: plan.items.length,
+        succeededItems: succeeded,
+        failedItems: failures.length,
+        cancelled: cancelToken.cancelled,
+        failures,
+      };
+      setBulkResult(result);
+      setStatus(`Bulk generation complete: ${succeeded} succeeded, ${failures.length} failed${cancelToken.cancelled ? ', cancelled' : ''}.`);
+    } catch (e) {
+      if (e instanceof ExportCancelledError) {
+        setStatus('Bulk generation cancelled.');
+      } else {
+        setStatus(`Bulk generation failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      }
+    } finally {
+      setIsExporting(false);
+      setBulkProgress(null);
+      bulkCancelRef.current = null;
+      setExportRasterTargets([]);
+      if (host.isConnected) {
+        host.remove();
+      }
+      setExportHost(null);
+    }
+  };
 
   const performExport = async () => {
     try {
@@ -446,9 +648,17 @@ export function CardDesigner(){
         {leftMode === 'DATA' && (
           <div className="card-library-section">
             <div className="card-library-body">
-              <strong>Datasource Status</strong>
-              <p>{datasourceStatus}</p>
-              <p>{availableFields.length} available fields</p>
+              <strong>Datasource</strong>
+              <p style={{color:'var(--text-secondary)',fontSize:'13px',margin:'4px 0'}}>{datasourceStatus}</p>
+              {recordCount > 0 && <>
+                <p style={{fontSize:'12px',margin:'4px 0'}}>{availableFields.length} fields · {recordCount} record{recordCount===1?'':'s'}</p>
+                <p style={{fontSize:'12px',margin:'4px 0',color:'var(--text-secondary)'}}>Previewing: {getRecordDisplayLabel(currentPreviewRecord as Record<string,unknown>, safePreviewIndex)} ({safePreviewIndex+1}/{recordCount})</p>
+                <div style={{display:'flex',gap:'6px',marginTop:'8px'}}>
+                  <button style={{flex:1}} disabled={safePreviewIndex<=0||previewContextSource==='MANUAL'} onClick={()=>navigatePreviewRecord(-1)}>‹ Prev</button>
+                  <button style={{flex:1}} disabled={safePreviewIndex>=recordCount-1||previewContextSource==='MANUAL'} onClick={()=>navigatePreviewRecord(1)}>Next ›</button>
+                </div>
+              </>}
+              {recordCount === 0 && <p style={{fontSize:'12px',color:'var(--text-secondary)'}}>Import a CSV or Excel file to enable dynamic binding and bulk generation.</p>}
             </div>
           </div>
         )}
@@ -498,8 +708,9 @@ export function CardDesigner(){
       </DesignerLeftPanel>
       <div className="dg-designer-legacy-workspace">
         <input ref={uploadRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(f)void uploadImage(f);e.currentTarget.value='';}}/>
-   <section className="card-canvas-column"><div className="card-canvas-toolbar"><div className="canvas-artboard-name"><MonitorUp size={15}/><strong>{active.name}</strong><span>{active.widthMm} × {active.heightMm} mm</span></div><div className="canvas-zoom-controls"><button className={snapEnabled?'active':''} title="Smart snapping. Hold Alt while dragging to temporarily bypass." onClick={()=>setSnapEnabled(v=>!v)}>Snap {snapEnabled?'On':'Off'}</button><label className="card-toolbar-check" title="Show measurement rulers around the artboard."><input type="checkbox" checked={showRulers} onChange={e=>setShowRulers(e.target.checked)}/>Rulers</label><label className="card-toolbar-check" title="Show editor-only grid."><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/>Grid</label><label className="card-toolbar-check" title="Snap elements to the configured grid."><input type="checkbox" checked={gridSnapEnabled} onChange={e=>setGridSnapEnabled(e.target.checked)}/>Snap Grid</label><label className="card-toolbar-check" title="Snap elements to custom guides."><input type="checkbox" checked={guideSnapEnabled} onChange={e=>setGuideSnapEnabled(e.target.checked)}/>Snap Guides</label><label className="card-grid-size-control" title="Grid spacing"><span>Grid</span><input type="number" min="0.5" step="0.5" value={normalizeDisplayValue(mmToUnit(gridSizeMm,active.displayUnit))} onChange={e=>{const next=unitToMm(Number(e.target.value),active.displayUnit);if(Number.isFinite(next)&&next>=0.5)setGridSizeMm(next);}}/><small>{active.displayUnit==='MM'?'mm':'in'}</small></label><button title="Lock or unlock all guides" className={active.guides.length&&active.guides.every(g=>g.locked)?'active':''} onClick={()=>mutate(t=>setAllGuidesLocked(t,active.id,!active.guides.every(g=>g.locked)))} disabled={!active.guides.length}>{active.guides.length&&active.guides.every(g=>g.locked)?'Unlock Guides':'Lock Guides'}</button><button title="Clear unlocked guides" onClick={()=>mutate(t=>clearGuides(t,active.id))} disabled={!active.guides.some(g=>!g.locked)}>Clear Guides</button><button onClick={()=>setZoom(z=>clamp(z-10,MIN_ZOOM,MAX_ZOOM))}><Minus size={15}/></button><span>{zoom}%</span><button onClick={()=>setZoom(z=>clamp(z+10,MIN_ZOOM,MAX_ZOOM))}><Plus size={15}/></button><button onClick={()=>setZoom(100)}><RotateCcw size={14}/>Actual</button><button onClick={fit}><Maximize2 size={14}/>Fit</button></div></div>
-    <div ref={viewport} className={`card-canvas-viewport ${space?'pan-ready':''}`} onPointerDown={e=>{if(!space&&e.button!==1)return;const v=viewport.current;if(!v)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);pan.current={x:e.clientX,y:e.clientY,left:v.scrollLeft,top:v.scrollTop};}} onPointerMove={e=>{const v=viewport.current,p=pan.current;if(!v||!p)return;v.scrollLeft=p.left-(e.clientX-p.x);v.scrollTop=p.top-(e.clientY-p.y);}} onPointerUp={()=>pan.current=null} onPointerCancel={()=>pan.current=null}><div className="card-canvas-stage"><CardArtboardCanvas artboard={active} assets={template.sharedAssets} zoom={zoom} selection={selection} setSelection={setSelection} mutate={mutateTransient} commitMutate={mutate} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} showRulers={showRulers} showGrid={showGrid} gridSizeMm={gridSizeMm}/></div></div>
+   <section className="card-canvas-column"><div className="card-canvas-toolbar"><div className="canvas-artboard-name"><MonitorUp size={15}/><strong>{active.name}</strong><span>{active.widthMm} × {active.heightMm} mm</span></div><div className="canvas-zoom-controls"><button className={snapEnabled?'active':''} title="Smart snapping. Hold Alt while dragging to temporarily bypass." onClick={()=>setSnapEnabled(v=>!v)}>Snap {snapEnabled?'On':'Off'}</button><label className="card-toolbar-check" title="Show measurement rulers around the artboard."><input type="checkbox" checked={showRulers} onChange={e=>setShowRulers(e.target.checked)}/>Rulers</label><label className="card-toolbar-check" title="Show editor-only grid."><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/>Grid</label><label className="card-toolbar-check" title="Show conditionally hidden elements as ghosted."><input type="checkbox" checked={showHiddenElements} onChange={e=>setShowHiddenElements(e.target.checked)}/>Hidden</label><label className="card-toolbar-check" title="Snap elements to the configured grid."><input type="checkbox" checked={gridSnapEnabled} onChange={e=>setGridSnapEnabled(e.target.checked)}/>Snap Grid</label><label className="card-toolbar-check" title="Snap elements to custom guides."><input type="checkbox" checked={guideSnapEnabled} onChange={e=>setGuideSnapEnabled(e.target.checked)}/>Snap Guides</label><label className="card-grid-size-control" title="Grid spacing"><span>Grid</span><input type="number" min="0.5" step="0.5" value={normalizeDisplayValue(mmToUnit(gridSizeMm,active.displayUnit))} onChange={e=>{const next=unitToMm(Number(e.target.value),active.displayUnit);if(Number.isFinite(next)&&next>=0.5)setGridSizeMm(next);}}/><small>{active.displayUnit==='MM'?'mm':'in'}</small></label><button title="Lock or unlock all guides" className={active.guides.length&&active.guides.every(g=>g.locked)?'active':''} onClick={()=>mutate(t=>setAllGuidesLocked(t,active.id,!active.guides.every(g=>g.locked)))} disabled={!active.guides.length}>{active.guides.length&&active.guides.every(g=>g.locked)?'Unlock Guides':'Lock Guides'}</button><button title="Clear unlocked guides" onClick={()=>mutate(t=>clearGuides(t,active.id))} disabled={!active.guides.some(g=>!g.locked)}>Clear Guides</button><button onClick={()=>setZoom(z=>clamp(z-10,MIN_ZOOM,MAX_ZOOM))}><Minus size={15}/></button><span>{zoom}%</span><button onClick={()=>setZoom(z=>clamp(z+10,MIN_ZOOM,MAX_ZOOM))}><Plus size={15}/></button><button onClick={()=>setZoom(100)}><RotateCcw size={14}/>Actual</button><button onClick={fit}><Maximize2 size={14}/>Fit</button></div></div>
+    {recordCount > 0 && <div className="card-record-navigator" role="navigation" aria-label="Record preview navigation" style={{display:'flex',alignItems:'center',gap:'8px',padding:'4px 12px',background:'var(--bg-secondary)',borderBottom:'1px solid var(--border-color)',fontSize:'12px',minHeight:'30px'}}><span style={{color:'var(--text-secondary)',fontWeight:600}}>Preview:</span><button aria-label="Previous record" title="Previous record" disabled={safePreviewIndex<=0||previewContextSource==='MANUAL'} onClick={()=>navigatePreviewRecord(-1)} style={{padding:'2px 8px',minWidth:'28px'}}>‹</button><select aria-label="Jump to record" value={safePreviewIndex} disabled={previewContextSource==='MANUAL'} onChange={e=>setPreviewRecordIndex(Number(e.target.value))} style={{fontSize:'12px',padding:'1px 4px',maxWidth:'140px'}} title="Jump to record"><option value={safePreviewIndex}>{getRecordDisplayLabel(currentPreviewRecord as Record<string,unknown>, safePreviewIndex)}</option>{importedRows.map((_,i)=>i!==safePreviewIndex&&<option key={i} value={i}>{getRecordDisplayLabel(importedRows[i] as Record<string,unknown>,i)}</option>)}</select><span style={{color:'var(--text-secondary)'}}>{safePreviewIndex+1} of {recordCount}</span><button aria-label="Next record" title="Next record" disabled={safePreviewIndex>=recordCount-1||previewContextSource==='MANUAL'} onClick={()=>navigatePreviewRecord(1)} style={{padding:'2px 8px',minWidth:'28px'}}>›</button>{previewContextSource==='MANUAL'&&<span style={{color:'var(--accent-color)',fontSize:'11px'}}>Manual override active</span>}</div>}
+    <div ref={viewport} className={`card-canvas-viewport ${space?'pan-ready':''}`} onPointerDown={e=>{if(!space&&e.button!==1)return;const v=viewport.current;if(!v)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);pan.current={x:e.clientX,y:e.clientY,left:v.scrollLeft,top:v.scrollTop};}} onPointerMove={e=>{const v=viewport.current,p=pan.current;if(!v||!p)return;v.scrollLeft=p.left-(e.clientX-p.x);v.scrollTop=p.top-(e.clientY-p.y);}} onPointerUp={()=>pan.current=null} onPointerCancel={()=>pan.current=null}><div className="card-canvas-stage"><CardArtboardCanvas artboard={active} assets={template.sharedAssets} zoom={zoom} selection={selection} setSelection={setSelection} mutate={mutateTransient} commitMutate={mutate} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} showRulers={showRulers} showGrid={showGrid} showHiddenElements={showHiddenElements} gridSizeMm={gridSizeMm}/></div></div>
     <footer className="card-canvas-status"><span>{status}</span><span>{selection.elementIds.length?`${selection.elementIds.length} selected · Delete removes · Arrow nudge · Shift+Arrow 5 mm`:'Ctrl+Z/Y undo/redo · Ctrl+C/V copy/paste · Ctrl+D duplicate · Hold Space + drag to pan'}</span></footer>
    </section>
     {(()=>{
@@ -519,11 +730,11 @@ export function CardDesigner(){
     </div>
    </div>
   {exportDialogOpen && (
-    <div className="export-dialog-overlay" style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:999,display:'grid',placeItems:'center'}}>
-      <div className="export-dialog" style={{background:'var(--bg-primary)',padding:'20px',borderRadius:'8px',width:'400px',display:'flex',flexDirection:'column',gap:'15px'}}>
+    <div className="export-dialog-overlay" style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:999,display:'grid',placeItems:'center'}} onClick={e=>{if(e.target===e.currentTarget)handleCancelExport();}}>
+      <div className="export-dialog" style={{background:'var(--bg-primary)',padding:'20px',borderRadius:'8px',width:'420px',maxHeight:'90vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:'14px'}}>
         <h3 style={{margin:0}}>Export</h3>
         <label>Format: <select value={exportFormat} onChange={e=>setExportFormat(e.target.value as any)}><option>PDF</option><option>PNG</option><option>JPEG</option></select></label>
-        <label>Target: <select value={exportTargetMode} onChange={e=>setExportTargetMode(e.target.value as any)}><option value="CURRENT">Current Artboard</option><option value="SELECTED" disabled={!selectedArtboardIds.length}>Selected Artboards ({selectedArtboardIds.length})</option><option value="ALL">All Artboards ({artboards.length})</option></select></label>
+        <label>Artboard Target: <select value={exportTargetMode} onChange={e=>setExportTargetMode(e.target.value as any)}><option value="CURRENT">Current Artboard</option><option value="SELECTED" disabled={!selectedArtboardIds.length}>Selected Artboards ({selectedArtboardIds.length})</option><option value="ALL">All Artboards ({artboards.length})</option></select></label>
         <label><input type="checkbox" checked={exportIncludeBleed} onChange={e=>setExportIncludeBleed(e.target.checked)}/> Include Bleed</label>
         <label><input type="checkbox" checked={exportIncludeCropMarks} onChange={e=>setExportIncludeCropMarks(e.target.checked)}/> Include Crop Marks</label>
         {(exportFormat === 'PNG' || exportFormat === 'JPEG') && (
@@ -531,13 +742,126 @@ export function CardDesigner(){
         )}
         {exportFormat === 'PNG' && <label><input type="checkbox" checked={exportTransparent} onChange={e=>setExportTransparent(e.target.checked)}/> Transparent Background</label>}
         {exportFormat === 'JPEG' && <label>JPEG Quality: <input type="number" min={1} max={100} value={exportJpegQuality} onChange={e=>setExportJpegQuality(Number(e.target.value))}/></label>}
-        <div style={{display:'flex',justifyContent:'flex-end',gap:'10px',marginTop:'10px'}}>
+
+        {/* ── Bulk Personalization ──────────────────────────────────────── */}
+        {recordCount > 0 ? (
+          <details open style={{border:'1px solid var(--border-color)',borderRadius:'6px',padding:'10px'}}>
+            <summary style={{cursor:'pointer',fontWeight:600,fontSize:'13px',userSelect:'none'}}>
+              Personalized Generation ({recordCount} record{recordCount===1?'':'s'} available)
+            </summary>
+            <div style={{display:'flex',flexDirection:'column',gap:'10px',marginTop:'10px'}}>
+              <fieldset style={{border:'none',padding:0,margin:0}}>
+                <legend style={{fontWeight:600,fontSize:'12px',marginBottom:'6px'}}>Generate For</legend>
+                <label style={{display:'flex',gap:'6px',alignItems:'center',cursor:'pointer'}}><input type="radio" name="bulkRecordTarget" value="CURRENT_RECORD" checked={bulkRecordTarget==='CURRENT_RECORD'} onChange={()=>setBulkRecordTarget('CURRENT_RECORD')}/> Current Record ({safePreviewIndex+1} of {recordCount})</label>
+                <label style={{display:'flex',gap:'6px',alignItems:'center',cursor:'pointer'}}><input type="radio" name="bulkRecordTarget" value="SELECTED_RECORDS" checked={bulkRecordTarget==='SELECTED_RECORDS'} onChange={()=>setBulkRecordTarget('SELECTED_RECORDS')}/> Selected Records {bulkRecordTarget==='SELECTED_RECORDS'&&<button type="button" style={{fontSize:'11px',padding:'1px 6px'}} onClick={()=>setBulkSelectDialogOpen(true)}>Choose ({bulkSelectedRecordIndexes.length})</button>}</label>
+                <label style={{display:'flex',gap:'6px',alignItems:'center',cursor:'pointer'}}><input type="radio" name="bulkRecordTarget" value="ALL_RECORDS" checked={bulkRecordTarget==='ALL_RECORDS'} onChange={()=>setBulkRecordTarget('ALL_RECORDS')}/> All Records ({recordCount})</label>
+              </fieldset>
+              <label style={{fontSize:'12px'}}>Artboard Target:
+                <select value={bulkArtboardTarget} onChange={e=>setBulkArtboardTarget(e.target.value as BulkArtboardTarget)} style={{marginLeft:'6px'}}>
+                  <option value="ALL">All Artboards</option>
+                  <option value="CURRENT">Current Artboard Only</option>
+                  <option value="SELECTED" disabled={!selectedArtboardIds.length}>Selected Artboards</option>
+                </select>
+              </label>
+              <label style={{fontSize:'12px'}}>Filename Template:
+                <input type="text" value={bulkFilenameTemplate} onChange={e=>setBulkFilenameTemplate(e.target.value)} style={{width:'100%',marginTop:'4px',fontFamily:'monospace',fontSize:'11px'}} placeholder="{{recordIndex}}-{{artboardName}}"/>
+                <small style={{color:'var(--text-secondary)'}}>Tokens: {'{{recordIndex}}'}, {'{{artboardName}}'}, {'{{FieldName}}'}</small>
+              </label>
+              {exportFormat === 'PDF' && <label style={{fontSize:'12px'}}><input type="checkbox" checked={bulkCombinePdf} onChange={e=>setBulkCombinePdf(e.target.checked)}/> Combine into single PDF</label>}
+              {bulkRecordTarget==='SELECTED_RECORDS'&&bulkSelectedRecordIndexes.length===0&&<p style={{color:'var(--danger-color,#e44)',fontSize:'12px',margin:0}}>Select at least one record to generate.</p>}
+            </div>
+          </details>
+        ) : (
+          <p style={{fontSize:'12px',color:'var(--text-secondary)',background:'var(--bg-secondary)',padding:'8px',borderRadius:'4px',margin:0}}>
+            Import a CSV or Excel file to enable personalized bulk generation.
+          </p>
+        )}
+
+        <div style={{display:'flex',justifyContent:'flex-end',gap:'10px',marginTop:'4px',flexWrap:'wrap'}}>
           <button type="button" onClick={handleCancelExport}>Cancel</button>
-          <button type="button" className="primary" onClick={performExport} disabled={isExporting}>{isExporting ? 'Exporting...' : 'Export'}</button>
+          {recordCount > 0 && bulkRecordTarget !== 'CURRENT_RECORD' ? (
+            <button type="button" className="primary" onClick={performBulkExport} disabled={isExporting||(bulkRecordTarget==='SELECTED_RECORDS'&&!bulkSelectedRecordIndexes.length)}>
+              {isExporting ? 'Generating...' : `Generate (${bulkRecordTarget==='SELECTED_RECORDS'?bulkSelectedRecordIndexes.length:recordCount} record${(bulkRecordTarget==='SELECTED_RECORDS'?bulkSelectedRecordIndexes.length:recordCount)===1?'':'s'})`}
+            </button>
+          ) : (
+            <button type="button" className="primary" onClick={performExport} disabled={isExporting}>{isExporting ? 'Exporting...' : 'Export'}</button>
+          )}
         </div>
       </div>
     </div>
   )}
+
+  {/* ── Record Selection Modal ──────────────────────────────────────────── */}
+  {bulkSelectDialogOpen && (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'grid',placeItems:'center'}}>
+      <div style={{background:'var(--bg-primary)',padding:'16px',borderRadius:'8px',width:'380px',maxHeight:'80vh',display:'flex',flexDirection:'column',gap:'10px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <strong>Select Records</strong>
+          <div style={{display:'flex',gap:'8px'}}>
+            <button style={{fontSize:'12px'}} onClick={()=>setBulkSelectedRecordIndexes(importedRows.map((_,i)=>i))}>All</button>
+            <button style={{fontSize:'12px'}} onClick={()=>setBulkSelectedRecordIndexes([])}>Clear</button>
+          </div>
+        </div>
+        <small style={{color:'var(--text-secondary)'}}>{bulkSelectedRecordIndexes.length} of {recordCount} selected</small>
+        <div style={{overflowY:'auto',flex:1,border:'1px solid var(--border-color)',borderRadius:'4px'}}>
+          {importedRows.slice(bulkSelectPage * 100, (bulkSelectPage + 1) * 100).map((row, indexOffset) => {
+            const i = bulkSelectPage * 100 + indexOffset;
+            return (
+              <label key={i} style={{display:'flex',gap:'8px',alignItems:'center',padding:'6px 10px',cursor:'pointer',borderBottom:'1px solid var(--border-color)',fontSize:'12px'}}>
+                <input type="checkbox" checked={bulkSelectedRecordIndexes.includes(i)} onChange={e=>{setBulkSelectedRecordIndexes(prev=>e.target.checked?[...prev,i]:prev.filter(x=>x!==i));}}/>
+                <span style={{flex:1}}>{getRecordDisplayLabel(row as Record<string,unknown>,i)}</span>
+                <span style={{color:'var(--text-secondary)'}}>{i+1}</span>
+              </label>
+            );
+          })}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:'12px'}}>
+          <span>Page {bulkSelectPage + 1} of {Math.ceil(recordCount / 100)}</span>
+          <div style={{display:'flex',gap:'8px'}}>
+            <button disabled={bulkSelectPage === 0} onClick={() => setBulkSelectPage(p => p - 1)}>Prev 100</button>
+            <button disabled={(bulkSelectPage + 1) * 100 >= recordCount} onClick={() => setBulkSelectPage(p => p + 1)}>Next 100</button>
+          </div>
+        </div>
+        <div style={{display:'flex',justifyContent:'flex-end',gap:'8px'}}>
+          <button onClick={()=>setBulkSelectDialogOpen(false)}>Done</button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Bulk Progress Overlay ───────────────────────────────────────────── */}
+  {bulkProgress && (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:998,display:'grid',placeItems:'center'}}>
+      <div style={{background:'var(--bg-primary)',padding:'24px',borderRadius:'8px',width:'360px',display:'flex',flexDirection:'column',gap:'12px',textAlign:'center'}}>
+        <strong>Generating personalized cards…</strong>
+        <p style={{margin:0,fontSize:'13px',color:'var(--text-secondary)'}}>{bulkProgress.label}</p>
+        <p style={{margin:0,fontSize:'13px'}}>{bulkProgress.current} / {bulkProgress.total}</p>
+        <div style={{background:'var(--bg-secondary)',borderRadius:'4px',height:'8px',overflow:'hidden'}}>
+          <div style={{height:'100%',background:'var(--accent-color,#6c63ff)',width:`${(bulkProgress.current/bulkProgress.total)*100}%`,transition:'width 0.2s'}}/>
+        </div>
+        <button type="button" onClick={()=>{bulkCancelRef.current?.cancel();setStatus('Cancellation requested…');}}>Cancel</button>
+      </div>
+    </div>
+  )}
+
+  {/* ── Bulk Result Summary ─────────────────────────────────────────────── */}
+  {bulkResult && !bulkProgress && (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:997,display:'grid',placeItems:'center'}} onClick={()=>setBulkResult(null)}>
+      <div style={{background:'var(--bg-primary)',padding:'20px',borderRadius:'8px',width:'360px',display:'flex',flexDirection:'column',gap:'10px'}} onClick={e=>e.stopPropagation()}>
+        <strong>Generation {bulkResult.cancelled?'Cancelled':'Complete'}</strong>
+        <p style={{margin:0,fontSize:'13px'}}>✓ {bulkResult.succeededItems} succeeded · ✗ {bulkResult.failedItems} failed{bulkResult.cancelled?' · Cancelled':''}</p>
+        {bulkResult.failures.length > 0 && (
+          <details><summary style={{fontSize:'12px',cursor:'pointer'}}>View failures ({bulkResult.failures.length})</summary>
+            <ul style={{fontSize:'11px',margin:'4px 0',paddingLeft:'16px',maxHeight:'100px',overflowY:'auto'}}>
+              {bulkResult.failures.map((f,i)=><li key={i}>Record {f.recordIndex+1}: {f.message}</li>)}
+            </ul>
+          </details>
+        )}
+        <button onClick={()=>setBulkResult(null)}>Dismiss</button>
+      </div>
+    </div>
+  )}
+
   {exportRasterTargets.length > 0 && exportHost && createPortal(
     <div className="card-export-raster-root raster-export-root" aria-hidden="true" style={{ position: 'fixed', top: '-9999px', left: '-9999px', opacity: 0, pointerEvents: 'none' }}>
       {exportRasterTargets.map(a => {
@@ -557,7 +881,7 @@ export function CardDesigner(){
 }
 
 type Op={mode:'MOVE';lastX:number;lastY:number;ids:string[]}|{mode:'RESIZE';element:DesignElement;anchor:'NW'|'N'|'NE'|'E'|'SE'|'S'|'SW'|'W';startX:number;startY:number;keepAspect:boolean}|{mode:'ROTATE';element:DesignElement;startAngle:number;startRotation:number};
-function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,mutate,commitMutate,beginHistoryTransaction,endHistoryTransaction,snapEnabled,gridSnapEnabled,guideSnapEnabled,showRulers,showGrid,gridSizeMm}:{artboard:Artboard;assets:DesignTemplate['sharedAssets'];zoom:number;selection:DesignSelectionState;setSelection:(s:DesignSelectionState)=>void;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;commitMutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;beginHistoryTransaction:()=>void;endHistoryTransaction:()=>void;snapEnabled:boolean;gridSnapEnabled:boolean;guideSnapEnabled:boolean;showRulers:boolean;showGrid:boolean;gridSizeMm:number}){
+function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,mutate,commitMutate,beginHistoryTransaction,endHistoryTransaction,snapEnabled,gridSnapEnabled,guideSnapEnabled,showRulers,showGrid,showHiddenElements,gridSizeMm}:{artboard:Artboard;assets:DesignTemplate['sharedAssets'];zoom:number;selection:DesignSelectionState;setSelection:(s:DesignSelectionState)=>void;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;commitMutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;beginHistoryTransaction:()=>void;endHistoryTransaction:()=>void;snapEnabled:boolean;gridSnapEnabled:boolean;guideSnapEnabled:boolean;showRulers:boolean;showGrid:boolean;showHiddenElements:boolean;gridSizeMm:number}){
  const canvas=useRef<HTMLDivElement|null>(null);const interaction=useRef<Op|null>(null);const marquee=useRef<{startX:number;startY:number;add:boolean}|null>(null);const guideDrag=useRef<{id:string;orientation:'VERTICAL'|'HORIZONTAL';creating:boolean}|null>(null);const [guidePreview,setGuidePreview]=useState<{orientation:'VERTICAL'|'HORIZONTAL';positionMm:number}|null>(null);const [marqueeRect,setMarqueeRect]=useState<DesignRectMm|null>(null);const [snapGuides,setSnapGuides]=useState<SnapGuideIndicator[]>([]);
  const point=(e:React.PointerEvent)=>{const r=canvas.current!.getBoundingClientRect();return{xMm:(e.clientX-r.left)/r.width*artboard.widthMm,yMm:(e.clientY-r.top)/r.height*artboard.heightMm};};
  const downCanvas=(e:React.PointerEvent<HTMLDivElement>)=>{if(e.target!==e.currentTarget&&!(e.target as HTMLElement).classList.contains('card-artboard-empty-state'))return;if(e.button!==0)return;const p=point(e);e.currentTarget.setPointerCapture(e.pointerId);marquee.current={startX:p.xMm,startY:p.yMm,add:e.shiftKey};setMarqueeRect({xMm:p.xMm,yMm:p.yMm,widthMm:0,heightMm:0});if(!e.shiftKey)setSelection(emptySelection(artboard.id));};
@@ -574,7 +898,7 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,mutate,
   {artboard.guides.map(guide=><div key={guide.id} className={`card-user-guide ${guide.orientation==='VERTICAL'?'vertical':'horizontal'} ${guide.locked?'locked':''}`} style={guide.orientation==='VERTICAL'?{left:guide.positionMm*MM_TO_CSS_PX}:{top:guide.positionMm*MM_TO_CSS_PX}} title={`${guide.locked?'Locked ':''}${guide.orientation.toLowerCase()} guide · ${normalizeDisplayValue(mmToUnit(guide.positionMm,artboard.displayUnit))} ${artboard.displayUnit==='MM'?'mm':'in'} · double click to delete`} onDoubleClick={ev=>{ev.stopPropagation();if(!guide.locked)commitMutate(t=>deleteGuide(t,artboard.id,guide.id));}} onPointerDown={ev=>{if(ev.button!==0||guide.locked)return;capture(ev);beginHistoryTransaction();guideDrag.current={id:guide.id,orientation:guide.orientation,creating:false};}}/>)}
   {guidePreview&&<div className={`card-user-guide preview ${guidePreview.orientation==='VERTICAL'?'vertical':'horizontal'}`} style={guidePreview.orientation==='VERTICAL'?{left:guidePreview.positionMm*MM_TO_CSS_PX}:{top:guidePreview.positionMm*MM_TO_CSS_PX}}/>}
   {artboard.elements.length===0&&<div className="card-artboard-empty-state"><strong>{artboard.name}</strong><span>Add text, shapes or images from the left panel</span><small>Every element uses the shared Selection & Transform Engine.</small></div>}
-  {artboard.elements.filter(e=>e.visible).map(e=>{const isSelected=selection.elementIds.includes(e.id);return <div key={e.id} data-element-id={e.id} className={`card-design-element-shell has-visual type-${e.type.toLowerCase()} ${isSelected?'selected':''} ${e.locked?'locked':''}`} style={{left:e.position.xMm*MM_TO_CSS_PX,top:e.position.yMm*MM_TO_CSS_PX,width:e.size.widthMm*MM_TO_CSS_PX,height:e.size.heightMm*MM_TO_CSS_PX,transform:`rotate(${e.rotationDeg}deg)`,opacity:e.opacity,zIndex:e.zIndex}} onPointerDown={ev=>{if(ev.button!==0)return;capture(ev);const p=point(ev),groupIds=expandElementIdsToGroups(artboard,[e.id]),toggle=ev.ctrlKey||ev.metaKey||ev.shiftKey;let next:DesignSelectionState;if(toggle){const remove=groupIds.every(gid=>selection.elementIds.includes(gid));next=selection;for(const gid of groupIds)if(remove===next.elementIds.includes(gid))next=toggleSelection(next,gid);if(!remove)next={...next,primaryElementId:e.id};}else next=isSelected?selection:{artboardId:artboard.id,elementIds:groupIds,primaryElementId:e.id};setSelection(next);if(!toggle&&!e.locked&&next.elementIds.includes(e.id)){beginHistoryTransaction();interaction.current={mode:'MOVE',lastX:p.xMm,lastY:p.yMm,ids:expandElementIdsToGroups(artboard,next.elementIds)};}}}>
+  {artboard.elements.filter(e=>e.visible && (!e.runtimeHidden || showHiddenElements)).map(e=>{const isSelected=selection.elementIds.includes(e.id);return <div key={e.id} data-element-id={e.id} className={`card-design-element-shell has-visual type-${e.type.toLowerCase()} ${isSelected?'selected':''} ${e.locked?'locked':''} ${e.runtimeHidden?'ghosted':''}`} style={{left:e.position.xMm*MM_TO_CSS_PX,top:e.position.yMm*MM_TO_CSS_PX,width:e.size.widthMm*MM_TO_CSS_PX,height:e.size.heightMm*MM_TO_CSS_PX,transform:`rotate(${e.rotationDeg}deg)`,opacity:e.runtimeHidden?e.opacity*0.4:e.opacity,zIndex:e.zIndex,outline:e.runtimeHidden?'1px dashed var(--accent-color)':undefined}} onPointerDown={ev=>{if(ev.button!==0)return;capture(ev);const p=point(ev),groupIds=expandElementIdsToGroups(artboard,[e.id]),toggle=ev.ctrlKey||ev.metaKey||ev.shiftKey;let next:DesignSelectionState;if(toggle){const remove=groupIds.every(gid=>selection.elementIds.includes(gid));next=selection;for(const gid of groupIds)if(remove===next.elementIds.includes(gid))next=toggleSelection(next,gid);if(!remove)next={...next,primaryElementId:e.id};}else next=isSelected?selection:{artboardId:artboard.id,elementIds:groupIds,primaryElementId:e.id};setSelection(next);if(!toggle&&!e.locked&&next.elementIds.includes(e.id)){beginHistoryTransaction();interaction.current={mode:'MOVE',lastX:p.xMm,lastY:p.yMm,ids:expandElementIdsToGroups(artboard,next.elementIds)};}}}>
     <ElementVisual element={e} assets={assets} mutate={commitMutate} artboardId={artboard.id}/>
     {isSelected&&!e.locked&&<><i className="card-rotation-stem"/><i className="card-rotation-handle" onPointerDown={ev=>{capture(ev);const p=point(ev),c={xMm:e.position.xMm+e.size.widthMm/2,yMm:e.position.yMm+e.size.heightMm/2};beginHistoryTransaction();interaction.current={mode:'ROTATE',element:e,startAngle:Math.atan2(p.yMm-c.yMm,p.xMm-c.xMm),startRotation:e.rotationDeg};}}/>{(['nw','n','ne','e','se','s','sw','w'] as const).map(h=><i key={h} className={`card-transform-handle ${h}`} onPointerDown={ev=>{capture(ev);const p=point(ev);beginHistoryTransaction();interaction.current={mode:'RESIZE',element:e,anchor:h.toUpperCase() as Op extends {mode:'RESIZE';anchor:infer A}?A:never,startX:p.xMm,startY:p.yMm,keepAspect:ev.shiftKey||(e.type==='IMAGE'&&e.maintainAspectRatio===true)};}}/>)}</>}
    </div>})}
@@ -613,7 +937,7 @@ function LayerPanel({artboard,selection,setSelection,mutate,duplicateSelected,gr
             </div>
           </button>
           <div className="card-layer-mini">
-            <button title={layer.visible?'Hide':'Show'} onClick={()=>mutate(t=>group?setGroupVisibility(t,artboard.id,group.id,!layer.visible):setElementVisibility(t,artboard.id,layer.id,!layer.visible))}>{layer.visible?<Eye size={12}/>:<EyeOff size={12}/>}</button>
+            <button title={layer.visible?(layer.runtimeHidden?'Hidden by condition':'Hide'):'Show'} style={{color: layer.runtimeHidden?'var(--accent-color)':undefined}} onClick={()=>mutate(t=>group?setGroupVisibility(t,artboard.id,group.id,!layer.visible):setElementVisibility(t,artboard.id,layer.id,!layer.visible))}>{layer.visible?(layer.runtimeHidden?<EyeOff size={12}/>:<Eye size={12}/>):<EyeOff size={12}/>}</button>
             <button title={layer.locked?'Unlock':'Lock'} onClick={()=>mutate(t=>group?setGroupLocked(t,artboard.id,group.id,!layer.locked):setElementLocked(t,artboard.id,layer.id,!layer.locked))}>{layer.locked?<Lock size={12}/>:<Unlock size={12}/>}</button>
             <button title="Bring forward" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'FORWARD'))}><ArrowUp size={12}/></button>
             <button title="Send backward" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'BACKWARD'))}><ArrowDown size={12}/></button>
@@ -642,7 +966,18 @@ function ElementVisual({element,assets,mutate,artboardId}:{element:DesignElement
     const tinted=kind==='VECTOR_SVG'&&src&&(dynamicSource || asset?.metadata?.recolorable===true)&&element.tintColor;
     return <div className="card-svg-visual" style={{border:strokeCss(element.stroke),filter:dropShadowCss(element.shadow)}}>{kind==='VECTOR_SVG'&&src?(tinted?<div className="card-svg-tint" style={{backgroundColor:element.tintColor,maskImage:`url("${src}")`,WebkitMaskImage:`url("${src}")`}}/>:<img src={src} alt={element.name} draggable={false}/>):<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}</div>;
   }
+  if (element.type === 'QR') {
+    return <QrVisual element={element as QrDesignElement} />;
+  }
  return <div className="card-unsupported-element">{element.type}</div>;
+}
+
+function QrVisual({element}:{element:QrDesignElement}){
+  const value = element.value || "QR";
+  const size = Math.min(element.size.widthMm, element.size.heightMm) * MM_TO_CSS_PX;
+  return <div className="card-qr-visual" style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',filter:'shadow' in element ? dropShadowCss((element as any).shadow) : undefined}}>
+    <QRCode value={value} size={size} fgColor={element.foreground} bgColor={element.background} level={element.errorCorrection} style={{height:"auto",maxWidth:"100%",width:"100%"}} />
+  </div>;
 }
 
 function ShapeVisual({element}:{element:ShapeDesignElement}){const gradientId=`gradient-${element.id.replace(/[^a-zA-Z0-9_-]/g,'')}`,fill=element.fill.type==='SOLID'?element.fill.color:element.fill.type==='LINEAR_GRADIENT'?`url(#${gradientId})`:'transparent',fillOpacity=element.fill.type==='SOLID'?(element.fill.opacity??1):1,stroke=element.stroke.style==='NONE'?'none':colorWithOpacity(element.stroke.color,element.stroke.opacity??1),sw=Math.max(.4,element.stroke.widthMm*MM_TO_CSS_PX),dash=element.stroke.style==='DASHED'?'6 4':element.stroke.style==='DOTTED'?'2 3':undefined;const common={fill,fillOpacity,stroke,strokeWidth:sw,strokeDasharray:dash,vectorEffect:'non-scaling-stroke' as const};return <svg className="card-shape-visual" style={{filter:dropShadowCss(element.shadow)}} viewBox="0 0 100 100" preserveAspectRatio="none">{element.fill.type==='LINEAR_GRADIENT'&&<defs><linearGradient id={gradientId} gradientTransform={`rotate(${element.fill.gradient.angleDeg} .5 .5)`}>{element.fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} stopOpacity={stop.opacity??1}/>)}</linearGradient></defs>}{shapeNode(element,common)}</svg>;}
@@ -665,7 +1000,8 @@ function ElementProperties({element,asset,artboard,mutate,availableFields,dataso
   <Section sectionKey="GENERAL" title="General">
     <div className="card-property-note"><strong>{element.name}</strong><span>{element.type}{element.locked?' · Locked':''}</span></div>
   </Section>
-  {element.type==='TEXT'&&<AdvancedTextProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SHAPE'&&<AdvancedShapeProperties element={element} update={update}/>} {element.type==='IMAGE'&&<AdvancedImageProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SVG'&&<SvgProperties element={element} asset={asset} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='QR'&&<AdvancedQrProperties element={element as QrDesignElement} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='BARCODE'&&<AdvancedBarcodeProperties element={element as BarcodeDesignElement} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} 
+  {element.type==='TEXT'&&<AdvancedTextProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SHAPE'&&<AdvancedShapeProperties element={element} update={update}/>} {element.type==='IMAGE'&&<AdvancedImageProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SVG'&&<SvgProperties element={element} asset={asset} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='QR'&&<AdvancedQrProperties element={element as QrDesignElement} update={update} availableFields={availableFields} />} {element.type==='BARCODE'&&<AdvancedBarcodeProperties element={element as BarcodeDesignElement} update={update} availableFields={availableFields} />} 
+  <ConditionalVisibilityProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>
   {(element.type==='IMAGE'||element.type==='SVG')&&<Section sectionKey="ADVANCED" title="Print Quality"><ElementPrintQuality element={element} asset={asset} print={artboard.print}/></Section>} 
   <Section sectionKey="TRANSFORM" title="Transform"><div className="card-property-grid">{num('X (mm)',element.position.xMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:v,yMm:element.position.yMm})))}{num('Y (mm)',element.position.yMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:element.position.xMm,yMm:v})))}{num('Width (mm)',element.size.widthMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:v,heightMm:element.size.heightMm})))}{num('Height (mm)',element.size.heightMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:element.size.widthMm,heightMm:v})))}</div>{num('Rotation (°)',element.rotationDeg,v=>mutate(t=>rotateElement(t,artboardId,element.id,v)))}</Section>
   <Section sectionKey="TRANSFORM" title="Align to Artboard"><div className="card-layer-action-grid card-align-grid"><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'LEFT','ARTBOARD'))}>Left</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'HCENTER','ARTBOARD'))}>H Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'RIGHT','ARTBOARD'))}>Right</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'TOP','ARTBOARD'))}>Top</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'VCENTER','ARTBOARD'))}>V Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'BOTTOM','ARTBOARD'))}>Bottom</button><button disabled={element.locked} onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboardId,[element.id],'BOTH'))}>Center Both</button></div></Section>
@@ -675,6 +1011,84 @@ function ElementProperties({element,asset,artboard,mutate,availableFields,dataso
 function OpacityControl({value,onChange}:{value:number;onChange:(value:number)=>void}){const percent=Math.round(clamp(value,0,1)*100);return <label>Opacity<div className="card-range-row"><input type="range" min="0" max="100" value={percent} onChange={e=>onChange(Number(e.target.value)/100)}/><input type="number" min="0" max="100" value={percent} onChange={e=>onChange(clamp(Number(e.target.value)||0,0,100)/100)}/><span>%</span></div></label>}
 function ShadowControls({shadow,onChange}:{shadow?:DesignShadow;onChange:(shadow:DesignShadow)=>void}){const s=shadow??DEFAULT_DESIGN_SHADOW,patch=(p:Partial<DesignShadow>)=>onChange({...s,...p});return <div className="card-property-details"><label className="card-check-row"><input type="checkbox" checked={s.enabled} onChange={e=>patch({enabled:e.target.checked})}/>Enabled</label>{s.enabled&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round(s.opacity*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label><label>Blur (mm)<input type="number" min="0" step=".1" value={s.blurMm} onChange={e=>patch({blurMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Offset X (mm)<input type="number" step=".1" value={s.offsetXmm} onChange={e=>patch({offsetXmm:Number(e.target.value)||0})}/></label><label>Offset Y (mm)<input type="number" step=".1" value={s.offsetYmm} onChange={e=>patch({offsetYmm:Number(e.target.value)||0})}/></label></div></>}</div>}
 function BorderControls({stroke,onChange}:{stroke?:ShapeDesignElement['stroke'];onChange:(stroke:ShapeDesignElement['stroke'])=>void}){const s=stroke??{color:'#000000',widthMm:0,style:'NONE',opacity:1},patch=(p:Partial<typeof s>)=>onChange({...s,...p});return <div className="card-property-details"><label>Style<select value={s.style} onChange={e=>patch({style:e.target.value as typeof s.style})}><option value="NONE">None</option><option value="SOLID">Solid</option><option value="DASHED">Dashed</option><option value="DOTTED">Dotted</option></select></label>{s.style!=='NONE'&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Width (mm)<input type="number" min="0" step=".1" value={s.widthMm} onChange={e=>patch({widthMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round((s.opacity??1)*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></div></>}</div>}
+function ConditionalVisibilityProperties({element,update,availableFields,datasourceStatus}:{element:DesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+  const rule = element.visibilityRule;
+  const isEnabled = rule?.enabled ?? false;
+  
+  const currentField = availableFields.find(f => f.name === rule?.fieldPath);
+  const operators = useMemo(() => {
+    if (!currentField) return [];
+    const t = currentField.type;
+    if (t === 'number') return ['EQUALS','NOT_EQUALS','GREATER_THAN','GREATER_OR_EQUAL','LESS_THAN','LESS_OR_EQUAL','IS_EMPTY','IS_NOT_EMPTY'];
+    if (t === 'boolean') return ['EQUALS','NOT_EQUALS','IS_EMPTY','IS_NOT_EMPTY'];
+    if (t === 'date' || t === 'datetime') return ['EQUALS','NOT_EQUALS','BEFORE','AFTER','ON_OR_BEFORE','ON_OR_AFTER','IS_EMPTY','IS_NOT_EMPTY'];
+    return ['EQUALS','NOT_EQUALS','CONTAINS','NOT_CONTAINS','STARTS_WITH','ENDS_WITH','IS_EMPTY','IS_NOT_EMPTY'];
+  }, [currentField]);
+
+  const patch = (p: Partial<import('@document-tool/contracts').ElementVisibilityRule>) => {
+    update(e => {
+      const existing = e.visibilityRule ?? { id: crypto.randomUUID(), enabled: true, fieldPath: availableFields[0]?.name ?? '', operator: 'IS_NOT_EMPTY' };
+      return { ...e, visibilityRule: { ...existing, ...p } };
+    });
+  };
+
+  return <Section sectionKey="DATA_BINDING" title="Conditional Visibility">
+    <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+      <label className="card-check-row">
+        <input type="checkbox" checked={isEnabled} onChange={e => patch({enabled: e.target.checked})} /> Enable condition
+      </label>
+      
+      {isEnabled && (
+        availableFields.length === 0 ? (
+          <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>{datasourceStatus || 'No imported datasource available.'}</div>
+        ) : (
+          <div style={{display:'flex', flexDirection:'column', gap:'8px', paddingLeft: '20px', borderLeft: '2px solid var(--border-color)'}}>
+            <label>Field:
+              <SearchableFieldPicker 
+                availableFields={availableFields} 
+                currentFieldPath={rule?.fieldPath ?? '__NONE__'} 
+                onSelectField={val => {
+                  if (val === '__NONE__') update(e => ({ ...e, visibilityRule: undefined }));
+                  else patch({ fieldPath: val, operator: 'IS_NOT_EMPTY' });
+                }} 
+              />
+            </label>
+            {rule?.fieldPath && !currentField && <div style={{color:'red',fontSize:'11px'}}>⚠ Field not available in current datasource</div>}
+            
+            <label>Operator:
+              <select value={rule?.operator ?? 'IS_NOT_EMPTY'} onChange={e => patch({operator: e.target.value as import('@document-tool/contracts').VisibilityOperator})}>
+                {operators.map(o => <option key={o} value={o}>{o.replace(/_/g, ' ')}</option>)}
+              </select>
+            </label>
+
+            {rule?.operator !== 'IS_EMPTY' && rule?.operator !== 'IS_NOT_EMPTY' && (
+              <label>Comparison Value:
+                {currentField?.type === 'boolean' ? (
+                  <select value={String(rule?.value ?? 'true')} onChange={e => patch({value: e.target.value === 'true'})}>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                  </select>
+                ) : (
+                  <input type={currentField?.type === 'number' ? 'number' : 'text'} value={String(rule?.value ?? '')} onChange={e => {
+                    const val = currentField?.type === 'number' ? Number(e.target.value) : e.target.value;
+                    patch({value: val});
+                  }} />
+                )}
+              </label>
+            )}
+
+            <div style={{fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px'}}>
+              Current Result: <strong style={{color: element.runtimeHidden ? 'red' : 'green'}}>{element.runtimeHidden ? 'Hidden' : 'Visible'}</strong>
+            </div>
+
+            <button className="secondary" onClick={() => update(e => ({ ...e, visibilityRule: undefined }))}>Remove Condition</button>
+          </div>
+        )
+      )}
+    </div>
+  </Section>;
+}
+
 function AdvancedTextProperties({element,update,availableFields,datasourceStatus}:{element:TextDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
   const patch=(p:Partial<TextDesignElement>)=>update(e=>e.type==='TEXT'?{...e,...p}:e);
   const style=(p:Partial<TextDesignElement['style']>)=>patch({style:{...element.style,...p}});
@@ -817,7 +1231,7 @@ function SvgProperties({element,asset,update,availableFields,datasourceStatus}:{
   <Section sectionKey="APPEARANCE" title="Appearance"><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/>
   {canTint&&<label>SVG Color / Tint<div className="card-color-row"><input type="color" value={element.tintColor??'#111827'} onChange={e=>patch({tintColor:e.target.value})}/><input value={element.tintColor??''} placeholder="Original" onChange={e=>patch({tintColor:e.target.value||undefined})}/></div></label>}
   </Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
-function AdvancedQrProperties({element,update,availableFields,datasourceStatus}:{element:QrDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+function AdvancedQrProperties({element,update,availableFields}:{element:QrDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];}){
   const patch=(p:Partial<QrDesignElement>)=>update(e=>e.type==='QR'?{...e,...p}:e);
   const valueBinding=getValueBinding(element);
   const isBound=!!valueBinding;
@@ -829,27 +1243,46 @@ function AdvancedQrProperties({element,update,availableFields,datasourceStatus}:
     <label>Background Color<div className="card-color-row"><input type="color" value={element.background} onChange={e=>patch({background:e.target.value})}/><input value={element.background} onChange={e=>patch({background:e.target.value})}/></div></label>
   </Section>
   <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
-    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
-      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-        <label>Field:
-          <SearchableFieldPicker 
-            availableFields={availableFields} 
-            currentFieldPath={valueBinding?.fieldPath ?? '__NONE__'} 
-            onSelectField={val => {
-              if (val === '__NONE__') update(el => removeValueBinding(el as QrDesignElement));
-              else update(el => setValueFieldBinding(el as QrDesignElement, val));
-            }} 
-          />
-        </label>
-        {isBound&&<div style={{fontSize:'11px'}}>Fallback: {valueBinding.fallbackValue as string}</div>}
-        {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {valueBinding.fieldPath} Not available in current datasource</div>}
-        {isBound&&<button className="secondary" onClick={()=>update(el=>removeValueBinding(el as QrDesignElement))}>Remove Binding</button>}
+    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>No imported datasource available.</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+        <div className="card-property-details">
+          <label style={{marginBottom: '4px'}}>Value Source</label>
+          <div className="card-radio-group" style={{display:'flex', gap:'12px'}}>
+            <label style={{display:'flex', alignItems:'center', gap:'4px'}}><input type="radio" checked={!isBound} onChange={() => update(el => removeValueBinding(el as QrDesignElement))}/> Static Value</label>
+            <label style={{display:'flex', alignItems:'center', gap:'4px'}}><input type="radio" checked={isBound} onChange={() => {
+              if (!isBound && availableFields.length > 0) {
+                update(el => setValueFieldBinding(el as QrDesignElement, availableFields[0].name));
+              }
+            }}/> Dynamic Field</label>
+          </div>
+        </div>
+        
+        {!isBound ? (
+          <label>Value<input value={element.value} onChange={e=>patch({value:e.target.value})}/></label>
+        ) : (
+          <>
+            <label>Field:
+              <SearchableFieldPicker 
+                availableFields={availableFields} 
+                currentFieldPath={valueBinding?.fieldPath ?? '__NONE__'} 
+                onSelectField={val => {
+                  if (val === '__NONE__') update(el => removeValueBinding(el as QrDesignElement));
+                  else update(el => setValueFieldBinding(el as QrDesignElement, val));
+                }} 
+              />
+            </label>
+            <div style={{fontSize:'11px', color:'var(--text-secondary)'}}>Bound to: {valueBinding?.fieldPath}</div>
+            <div style={{fontSize:'11px', color:'var(--text-secondary)'}}>Fallback: {valueBinding?.fallbackValue as string}</div>
+            {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {valueBinding.fieldPath} Not available in current datasource</div>}
+            <button className="secondary" onClick={()=>update(el=>removeValueBinding(el as QrDesignElement))}>Remove Binding</button>
+          </>
+        )}
       </div>
     }
   </Section></>
 }
 
-function AdvancedBarcodeProperties({element,update,availableFields,datasourceStatus}:{element:BarcodeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+function AdvancedBarcodeProperties({element,update,availableFields}:{element:BarcodeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];}){
   const patch=(p:Partial<BarcodeDesignElement>)=>update(e=>e.type==='BARCODE'?{...e,...p}:e);
   const valueBinding=getValueBinding(element);
   const isBound=!!valueBinding;
@@ -861,21 +1294,40 @@ function AdvancedBarcodeProperties({element,update,availableFields,datasourceSta
     <label>Background Color<div className="card-color-row"><input type="color" value={element.background} onChange={e=>patch({background:e.target.value})}/><input value={element.background} onChange={e=>patch({background:e.target.value})}/></div></label>
   </Section>
   <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
-    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
-      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-        <label>Field:
-          <SearchableFieldPicker 
-            availableFields={availableFields} 
-            currentFieldPath={valueBinding?.fieldPath ?? '__NONE__'} 
-            onSelectField={val => {
-              if (val === '__NONE__') update(el => removeValueBinding(el as BarcodeDesignElement));
-              else update(el => setValueFieldBinding(el as BarcodeDesignElement, val));
-            }} 
-          />
-        </label>
-        {isBound&&<div style={{fontSize:'11px'}}>Fallback: {valueBinding.fallbackValue as string}</div>}
-        {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {valueBinding.fieldPath} Not available in current datasource</div>}
-        {isBound&&<button className="secondary" onClick={()=>update(el=>removeValueBinding(el as BarcodeDesignElement))}>Remove Binding</button>}
+    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>No imported datasource available.</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+        <div className="card-property-details">
+          <label style={{marginBottom: '4px'}}>Value Source</label>
+          <div className="card-radio-group" style={{display:'flex', gap:'12px'}}>
+            <label style={{display:'flex', alignItems:'center', gap:'4px'}}><input type="radio" checked={!isBound} onChange={() => update(el => removeValueBinding(el as BarcodeDesignElement))}/> Static Value</label>
+            <label style={{display:'flex', alignItems:'center', gap:'4px'}}><input type="radio" checked={isBound} onChange={() => {
+              if (!isBound && availableFields.length > 0) {
+                update(el => setValueFieldBinding(el as BarcodeDesignElement, availableFields[0].name));
+              }
+            }}/> Dynamic Field</label>
+          </div>
+        </div>
+        
+        {!isBound ? (
+          <label>Value / Data<input value={element.value} onChange={e=>patch({value:e.target.value})}/></label>
+        ) : (
+          <>
+            <label>Field:
+              <SearchableFieldPicker 
+                availableFields={availableFields} 
+                currentFieldPath={valueBinding?.fieldPath ?? '__NONE__'} 
+                onSelectField={val => {
+                  if (val === '__NONE__') update(el => removeValueBinding(el as BarcodeDesignElement));
+                  else update(el => setValueFieldBinding(el as BarcodeDesignElement, val));
+                }} 
+              />
+            </label>
+            <div style={{fontSize:'11px', color:'var(--text-secondary)'}}>Bound to: {valueBinding?.fieldPath}</div>
+            <div style={{fontSize:'11px', color:'var(--text-secondary)'}}>Fallback: {valueBinding?.fallbackValue as string}</div>
+            {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {valueBinding.fieldPath} Not available in current datasource</div>}
+            <button className="secondary" onClick={()=>update(el=>removeValueBinding(el as BarcodeDesignElement))}>Remove Binding</button>
+          </>
+        )}
       </div>
     }
   </Section></>

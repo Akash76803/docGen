@@ -7,6 +7,10 @@
     "node": ">=20 <21"
   },
   "scripts": {
+    "test:card-preview-context": "vitest run apps/desktop/test/phase668-preview-record-context.test.ts",
+    "test:card-binding-freeze": "vitest run packages/design-engine/test/phase669-dynamic-binding-freeze.test.ts",
+    "test:card-bulk-generation": "vitest run apps/desktop/test/phase670-bulk-generation-plan.test.ts",
+    "test:card-conditional-visibility": "vitest run packages/design-engine/test/phase667-conditional-visibility.test.ts",
     "test:card-bindings": "vitest run packages/design-engine/test/phase661-dynamic-binding.test.ts",
     "test:card-binding-persistence": "vitest run packages/persistence/test/phase661-binding-persistence.test.ts",
     "test:card-binding-runtime": "vitest run apps/desktop/test/phase662-data-context-binding.test.ts",
