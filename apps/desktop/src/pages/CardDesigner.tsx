@@ -1,3 +1,15 @@
+import { DesignerShell } from '../components/designer/DesignerShell.tsx';
+import { DesignerHeader } from '../components/designer/DesignerHeader.tsx';
+import { DesignerStatusBar } from '../components/designer/DesignerStatusBar.tsx';
+import { DesignerContextToolbar } from '../components/designer/DesignerContextToolbar.tsx';
+import { getDesignerToolbarMode } from '../components/designer/designerToolbarConfig.js';
+import { DesignerToolRail, type DesignerRailMode } from '../components/designer/DesignerToolRail.tsx';
+import { DesignerLeftPanel } from '../components/designer/DesignerLeftPanel.tsx';
+import { ElementLibraryPanel } from '../components/designer/ElementLibraryPanel.tsx';
+import { DesignerInspectorRail, type InspectorSectionKey } from '../components/designer/DesignerInspectorRail.tsx';
+import { DesignerInspector } from '../components/designer/DesignerInspector.tsx';
+import { InspectorSection } from '../components/designer/InspectorSection.tsx';
+import { getInspectorSections } from '../components/designer/designerInspectorConfig.ts';
 import { getArtboardRole, formatArtboardRole, getArtboardPairLabel, getArtboardSelectionState } from './artboard-ui-helpers.js';
 import { filterAvailableFields } from './field-picker-helpers.js';
 import { buildCardRenderModel, validateExportMemory, type CardExportRequest } from '@document-tool/design-engine';
@@ -6,11 +18,11 @@ import { IsolatedCardExportCanvas } from './CardExportCanvas';
 import { deliverExportedFiles } from '../services/fileDelivery.js';
 import { CardPdfExportRenderer } from '@document-tool/renderer-pdf';
 import { registerPngRenderer, registerJpegRenderer, BrowserExactPageRasterizer } from '@document-tool/renderer-image';
-import { useEffect,useMemo,useRef,useState } from 'react';
+import { useEffect,useMemo,useRef,useState,createContext,useContext } from 'react';
 import { createPortal } from 'react-dom';
-import type { Artboard,AssetReference,DesignElement,DesignShadow,DesignShapeKind,DesignTemplate,DesignUnit,ImageDesignElement,ShapeDesignElement,SvgDesignElement,TextDesignElement,ArtboardRole,DesignDataContext } from '@document-tool/contracts';
+import type { Artboard,AssetReference,DesignElement,DesignShadow,DesignShapeKind,DesignTemplate,DesignUnit,ImageDesignElement,ShapeDesignElement,SvgDesignElement,TextDesignElement,QrDesignElement,BarcodeDesignElement,ArtboardRole,DesignDataContext } from '@document-tool/contracts';
 import {
-  ARTBOARD_PRESETS,addArtboard,addAssetReference,addDesignElement,createBlankArtboard,createImageElement,createShapeElement,createTextElement,
+  ARTBOARD_PRESETS,addArtboard,addAssetReference,addDesignElement,createBlankArtboard,createImageElement,createShapeElement,createTextElement,createQrElement,createBarcodeElement,
   deleteArtboard,deleteDesignElements,duplicateArtboard,emptySelection,getSelectionBounds,mmToUnit,moveArtboard,moveElements,nextElementZIndex,
   normalizeDisplayValue,nudgeElements,renameArtboard,resizeArtboard,resizeElement,rotateElement,sanitizeSelection,selectAllSelectable,selectByMarquee,
   selectedElements,selectOnly,setArtboardBackground,setArtboardDisplayUnit,setElementPosition,toggleSelection,unitToMm,updateDesignElement,
@@ -24,11 +36,12 @@ import {
   prepareAssetImport,assetRenderKind,resolvePrintSettings,imagePrintQuality,validateArtboardPrint,requiredPixels,updateArtboardPrintSettings,
   setArtboardRole,pairArtboards,unpairArtboard,createBackSide,applyPrintSettingsToTargets,resolveArtboardBindings,
   getTextBinding,setTextFieldBinding,removeTextBinding,resolveDataContextSeeding,
-  getSourceBinding,setSourceFieldBinding,removeSourceBinding
+  getSourceBinding,setSourceFieldBinding,removeSourceBinding,
+  getValueBinding,setValueFieldBinding,removeValueBinding
 } from '@document-tool/design-engine';
 import type { DesignAlignmentReference,DesignClipboardPayload,DesignHistoryState,DesignRectMm,DesignSelectionState,DesignStyleClipboard,SnapGuideIndicator } from '@document-tool/design-engine';
 import { LocalStorageDesignTemplateRepository,LocalStorageUserAssetLibraryRepository,type UserAssetLibraryItem } from '@document-tool/persistence';
-import { ArrowDown,ArrowUp,ClipboardPaste,Copy,FilePlus2,ImagePlus,Maximize2,Minus,MonitorUp,Plus,Redo2,RotateCcw,Save,Square,Trash2,Type,Undo2,Upload,PenLine } from 'lucide-react';
+import { ArrowDown,ArrowUp,ClipboardPaste,Copy,FilePlus2,Maximize2,Minus,MonitorUp,Plus,RotateCcw,Trash2,Upload,PenLine, Type, Image as ImageIcon, Box, Shapes, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 import { loadImportWorkspace } from '../services/workspaceStore.js';
 
 const MM_TO_CSS_PX=96/25.4,MIN_ZOOM=25,MAX_ZOOM=200;
@@ -63,6 +76,10 @@ export function CardDesigner(){
  const [assetLibraryStatus,setAssetLibraryStatus]=useState('');
  const [decorativeQuery,setDecorativeQuery]=useState('');
  const [selection,setSelection]=useState<DesignSelectionState>(()=>emptySelection(''));
+ const [leftMode, setLeftMode] = useState<DesignerRailMode>('ELEMENTS');
+ const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [activeInspectorSection, setActiveInspectorSection] = useState<InspectorSectionKey>('GENERAL');
  const viewport=useRef<HTMLDivElement|null>(null);
  const pan=useRef<{x:number;y:number;left:number;top:number}|null>(null);
  const uploadRef=useRef<HTMLInputElement|null>(null);
@@ -173,6 +190,8 @@ export function CardDesigner(){
  const selectInserted=(elementId:string)=>{if(!active)return;setSelection(selectOnly(active.id,elementId));setStatus('Element added');};
  const insertText=()=>{if(!active)return;const eid=id('text');mutate(t=>addDesignElement(t,active.id,createTextElement({id:eid,name:'Text',xMm:Math.max(2,(active.widthMm-45)/2),yMm:Math.max(2,(active.heightMm-12)/2),zIndex:nextElementZIndex(t,active.id)})));selectInserted(eid);};
  const insertShape=(shape:DesignShapeKind='RECTANGLE')=>{if(!active)return;const eid=id('shape');mutate(t=>addDesignElement(t,active.id,createShapeElement(shape,{id:eid,xMm:Math.max(2,(active.widthMm-28)/2),yMm:Math.max(2,(active.heightMm-18)/2),zIndex:nextElementZIndex(t,active.id)})));selectInserted(eid);};
+ const insertQr=()=>{if(!active)return;const eid=id('qr');mutate(t=>addDesignElement(t,active.id,createQrElement({id:eid,name:'QR Code',xMm:Math.max(2,(active.widthMm-20)/2),yMm:Math.max(2,(active.heightMm-20)/2),zIndex:nextElementZIndex(t,active.id)})));selectInserted(eid);};
+ const insertBarcode=()=>{if(!active)return;const eid=id('barcode');mutate(t=>addDesignElement(t,active.id,createBarcodeElement({id:eid,name:'Barcode',xMm:Math.max(2,(active.widthMm-35)/2),yMm:Math.max(2,(active.heightMm-15)/2),zIndex:nextElementZIndex(t,active.id)})));selectInserted(eid);};
  const groupSelected=()=>{if(!active||selection.elementIds.length<2)return;const gid=id('group');mutate(t=>groupElements(t,active.id,selection.elementIds,gid,`Group ${active.groups.length+1}`));setSelection({...selection,elementIds:expandElementIdsToGroups({...active,groups:[...active.groups,{id:gid,name:`Group ${active.groups.length+1}`,elementIds:selection.elementIds}],elements:active.elements.map(e=>selection.elementIds.includes(e.id)?{...e,groupId:gid}:e)},selection.elementIds)});setStatus('Elements grouped');};
  const ungroupSelected=()=>{if(!active)return;const gids=[...new Set(selection.elementIds.map(eid=>groupForElement(active,eid)?.id).filter(Boolean) as string[])];if(!gids.length)return;mutate(t=>gids.reduce((acc,gid)=>ungroupElements(acc,active.id,gid),t));setStatus('Group removed');};
  const duplicateSelected=()=>{if(!active||!selection.elementIds.length)return;let newIds:string[]=[];mutate(t=>{const r=duplicateDesignElements(t,active.id,expandElementIdsToGroups(active,selection.elementIds),()=>id('element-copy'));newIds=r.elementIds;return r.template;});setSelection({artboardId:active.id,elementIds:newIds,primaryElementId:newIds.length > 0 ? newIds[newIds.length - 1] : undefined});setStatus('Selection duplicated');};
@@ -216,9 +235,8 @@ export function CardDesigner(){
       const orchestrator = new ExportOrchestrator({
         registry,
         resolveDocument: async (_templateId, documentGroupId) => {
-          const sourceArtboard = byId.get(documentGroupId);
-          if (!sourceArtboard) throw new Error(`Artboard ${documentGroupId} missing`);
-          const artboard = resolveArtboardBindings(sourceArtboard, dataContext);
+          const artboard = byId.get(documentGroupId);
+          if (!artboard) throw new Error(`Artboard ${documentGroupId} missing`);
           return {
             documentGroupId,
             template,
@@ -299,16 +317,18 @@ export function CardDesigner(){
         transparentBackground: exportTransparent
       };
 
-      let targets: Artboard[] = [];
-      if (exportTargetMode === 'CURRENT') targets = [activeSource];
-      else if (exportTargetMode === 'SELECTED') targets = template.artboards.filter(a => selectedArtboardIds.includes(a.id));
-      else targets = [...template.artboards];
+      let sourceTargets: Artboard[] = [];
+      if (exportTargetMode === 'CURRENT') sourceTargets = [activeSource];
+      else if (exportTargetMode === 'SELECTED') sourceTargets = template.artboards.filter(a => selectedArtboardIds.includes(a.id));
+      else sourceTargets = [...template.artboards];
 
-      if (targets.length === 0) {
+      if (sourceTargets.length === 0) {
         setStatus('Export cancelled: No artboards targeted.');
         setIsExporting(false);
         return;
       }
+
+      const targets = sourceTargets.map(t => resolveArtboardBindings(t, dataContext));
 
       if (exportFormat === 'PNG' || exportFormat === 'JPEG') {
         for (const target of targets) {
@@ -359,64 +379,144 @@ export function CardDesigner(){
     }
   };
 
- if(!active)return <div className="card-designer-loading">Preparing Card Designer…</div>;
- const selected=selectedElements(active,selection),primary=selected.find(e=>e.id===selection.primaryElementId)??selected[0];
- return <div className="card-designer-page animated-fade-in">
-  <header className="card-designer-commandbar"><div className="card-designer-title"><span className="designer-eyebrow">Visual Design Studio</span><input aria-label="Template name" value={template.name} onChange={e=>mutate(t=>({...t,name:e.target.value}))}/><span className="card-draft-badge">Draft</span></div><div className="card-designer-actions"><button title="Undo (Ctrl+Z)" onClick={undo} disabled={!historyRef.current.past.length}><Undo2 size={15}/>Undo</button><button title="Redo (Ctrl+Y)" onClick={redo} disabled={!historyRef.current.future.length}><Redo2 size={15}/>Redo</button><button title="Copy (Ctrl+C)" onClick={copySelected} disabled={!selection.elementIds.length}><Copy size={15}/>Copy</button><button title="Paste (Ctrl+V)" onClick={pasteClipboard} disabled={!clipboardRef.current}><ClipboardPaste size={15}/>Paste</button><button onClick={newDesign}><FilePlus2 size={15}/>New</button><button onClick={loadCorporateIdTemplate} title="Load editable CR80 Front + Back starter template">ID Card Template</button><button className="primary" onClick={()=>setExportDialogOpen(true)} disabled={isExporting}>{isExporting ? 'Exporting...' : 'Export'}</button><button className="primary" onClick={save}><Save size={15}/>Save</button></div></header>
-  <div className="card-designer-shell">
-   <aside className="card-artboard-panel">
-    <div className="card-elements-toolbox card-elements-primary"><div className="card-toolbox-title"><strong>Elements</strong><small>Quick tools</small></div><div className="card-tool-grid"><button onClick={insertText}><Type size={17}/><span>Text</span></button><button onClick={()=>insertShape('RECTANGLE')}><Square size={17}/><span>Shape</span></button><button onClick={()=>uploadRef.current?.click()}><ImagePlus size={17}/><span>Image</span></button></div><select aria-label="Quick shape" defaultValue="" onChange={e=>{if(e.target.value){insertShape(e.target.value as DesignShapeKind);e.currentTarget.value='';}}}><option value="">More shapes…</option>{SHAPES.map(s=><option key={s} value={s}>{shapeLabel(s)}</option>)}</select><input ref={uploadRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(f)void uploadImage(f);e.currentTarget.value='';}}/></div>
-    <details className="card-library-section card-user-asset-library" open><summary><span>My Assets</span><small>{userAssets.length} saved</small></summary><div className="card-library-body"><div className="card-user-assets-toolbar"><button className="primary" onClick={()=>assetLibraryUploadRef.current?.click()}><Upload size={14}/>Add Asset</button><small>PNG, JPG, WebP, GIF, SVG · max 2 MB</small></div><input ref={assetLibraryUploadRef} hidden type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg" onChange={e=>{if(e.target.files)void addFilesToAssetLibrary(e.target.files);e.currentTarget.value='';}}/>{assetLibraryStatus&&<div className="card-asset-library-status">{assetLibraryStatus}</div>}{userAssets.length?<div className="card-decorative-grid card-user-assets-grid">{userAssets.map(asset=><div key={asset.id} className="card-user-asset-card"><button className="card-user-asset-insert" title={`Insert ${asset.name}`} onClick={()=>insertUserAsset(asset)}><span className="card-decorative-thumb"><img src={asset.source} alt=""/></span><span>{asset.name}</span></button><div className="card-user-asset-actions"><button title="Rename asset" onClick={()=>void renameUserAsset(asset)}><PenLine size={12}/></button><button className="danger" title="Delete from library" onClick={()=>void deleteUserAsset(asset)}><Trash2 size={12}/></button></div></div>)}</div>:<div className="card-empty-library"><strong>Your reusable asset library is empty.</strong><span>Add logos, florals, icons or SVG artwork once and reuse them across designs.</span></div>}</div></details>
-    <details className="card-library-section" open><summary><span>Starter Templates</span><small>{DESIGN_STARTER_TEMPLATES.length} designs</small></summary><div className="card-library-body"><div className="card-starter-template-list">{DESIGN_STARTER_TEMPLATES.map(starter=><button key={starter.id} className="card-starter-template-button" onClick={()=>loadStarterTemplate(starter.id)}><strong>{starter.name}</strong><span>{starter.category} · {starter.description}</span></button>)}</div></div></details>
-    <details className="card-library-section" open><summary><span>Floral & Decorative</span><small>{decorativeVisibleCount}/{DECORATIVE_ASSETS.length} assets · folder wise</small></summary><div className="card-library-body"><div className="card-library-toolbar"><input className="card-library-search" placeholder="Search floral assets" value={decorativeQuery} onChange={e=>setDecorativeQuery(e.target.value)}/><small className="card-library-hint">Organized into folders for faster finding and reuse.</small></div>{decorativeGroups.length?<div className="card-library-folders">{decorativeGroups.map(group=><details key={group.key} className="card-library-folder" open><summary><span>{group.key}</span><small>{group.items.length}</small></summary><div className="card-decorative-grid card-library-folder-grid">{group.items.map(asset=><button key={asset.id} title={asset.name} onClick={()=>insertDecoration(asset.id)}><span className="card-decorative-thumb"><img src={asset.source} alt=""/></span><span>{asset.name}</span></button>)}</div></details>)}</div>:<div className="card-empty-library"><strong>No floral assets found.</strong><span>Try another keyword or clear the search.</span></div>}</div></details>
-    <details className="card-library-section card-artboards-section" open>
-      <summary><span>Artboards</span><small>{artboards.length} surface{artboards.length===1?'':'s'}</small></summary>
-      <div className="card-library-body">
-        <div className="card-artboard-batch-panel">
-          <button onClick={add} title="Add new artboard"><Plus size={14}/> Add</button>
-          <button onClick={duplicate} disabled={!selectedArtboardIds.length} title="Duplicate selected"><Copy size={14}/> Duplicate</button>
-          <div className="spacer"/>
-          <button onClick={()=>mutate(t=>moveArtboard(t,active.id,-1))} disabled={active.order===0||selectedArtboardIds.length>1} title="Move Up"><ArrowUp size={14}/></button>
-          <button onClick={()=>mutate(t=>moveArtboard(t,active.id,1))} disabled={active.order===artboards.length-1||selectedArtboardIds.length>1} title="Move Down"><ArrowDown size={14}/></button>
-          <button className="danger" onClick={remove} disabled={!selectedArtboardIds.length} title="Delete selected"><Trash2 size={14}/></button>
-        </div>
-        <div className="card-artboard-list">
-          {artboards.map((a,i)=>{
-            const { isActive, isSelected } = getArtboardSelectionState(a.id, active.id, selectedArtboardIds);
-            const role = getArtboardRole(a.role);
-            const roleStr = formatArtboardRole(a.role);
-            const pairInfo = getArtboardPairLabel(a.role, a.pairId);
-            return (
-              <div key={a.id} className={`card-artboard-item ${isActive?'active':''} ${isSelected?'selected':''}`} onClick={()=>chooseArtboard(a.id, false)}>
-                <label className="card-artboard-checkbox" onClick={e=>e.stopPropagation()} title="Select for batch actions">
-                  <input type="checkbox" aria-label={`Select ${a.name}`} checked={isSelected} onChange={()=>chooseArtboard(a.id, true)}/>
-                </label>
-                <div className="card-artboard-info">
-                  <div className="card-artboard-name-row">
-                    <span className="card-artboard-index">{i+1}</span>
-                    <strong className="card-artboard-name" title={a.name}>{a.name}</strong>
-                  </div>
-                  <div className="card-artboard-meta">
-                    <span className={`card-artboard-role role-${role.toLowerCase()}`}>{roleStr}</span>
-                    <span className="card-artboard-dims" aria-label={`Size ${sizeText(a)}`}>{sizeText(a)}</span>
-                  </div>
-                  {pairInfo && <div className="card-artboard-pair" aria-label={pairInfo}><span>↔</span> {pairInfo}</div>}
-                </div>
+  if(!active)return <div className="card-designer-loading">Preparing Card Designer…</div>;
+  const selected=selectedElements(active,selection),primary=selected.find(e=>e.id===selection.primaryElementId)??selected[0];
+  const toolbarMode = getDesignerToolbarMode(selected.map(e => e.type), selected.length);
+  return (
+    <DesignerShell
+      header={
+        <DesignerHeader
+          title={template.name}
+          onTitleChange={newTitle => mutate(t => ({ ...t, name: newTitle }))}
+          statusLabel="Draft"
+          canUndo={historyRef.current.past.length > 0}
+          canRedo={historyRef.current.future.length > 0}
+          canCopy={selection.elementIds.length > 0}
+          canPaste={!!clipboardRef.current}
+          onUndo={undo}
+          onRedo={redo}
+          onCopy={copySelected}
+          onPaste={pasteClipboard}
+          onNew={newDesign}
+          onTemplateAction={loadCorporateIdTemplate}
+          onSave={save}
+          onExport={() => setExportDialogOpen(true)}
+        />
+      }
+      toolbar={
+        <DesignerContextToolbar
+          mode={toolbarMode}
+          sourceArtboard={activeSource || active}
+          sourceElements={selected.map(e => (activeSource?.elements || []).find(se => se.id === e.id) || e)}
+          mutate={mutate}
+          onGroupSelected={groupSelected}
+          onUngroupSelected={ungroupSelected}
+        />
+      }
+      statusBar={
+        <DesignerStatusBar
+          artboardLabel={`${active.name} (${active.widthMm}×${active.heightMm}mm)`}
+          selectionLabel={selection.elementIds.length ? `${selection.elementIds.length} selected` : undefined}
+          zoomPercent={zoom}
+        />
+      }
+    >
+      <div className="card-designer-page animated-fade-in" style={{ height: '100%', width: '100%', minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+
+    <div className="dg-designer-main">
+      <DesignerToolRail activeMode={leftMode} onModeChange={m => { setLeftMode(m); setLeftPanelCollapsed(false); }} />
+      <DesignerLeftPanel title={leftMode === 'ELEMENTS' ? 'Elements' : leftMode === 'ASSETS' ? 'Assets & Templates' : leftMode === 'DATA' ? 'Data' : leftMode === 'LAYERS' ? 'Layers' : 'Artboards'} collapsed={leftPanelCollapsed} onCollapse={() => setLeftPanelCollapsed(true)} activeMode={leftMode}>
+        {leftMode === 'ELEMENTS' && (
+          <ElementLibraryPanel
+            onInsertText={insertText}
+            onInsertShape={(shape) => insertShape(shape)}
+            onUploadImage={() => uploadRef.current?.click()}
+            onAddQr={insertQr}
+            onAddBarcode={insertBarcode}
+            availableShapes={SHAPES}
+          />
+        )}
+        {leftMode === 'ASSETS' && (
+          <>
+            <details className="card-library-section card-user-asset-library" open><summary><span>My Assets</span><small>{userAssets.length} saved</small></summary><div className="card-library-body"><div className="card-user-assets-toolbar"><button className="primary" onClick={()=>assetLibraryUploadRef.current?.click()}><Upload size={14}/>Add Asset</button><small>PNG, JPG, WebP, GIF, SVG · max 2 MB</small></div><input ref={assetLibraryUploadRef} hidden type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg" onChange={e=>{if(e.target.files)void addFilesToAssetLibrary(e.target.files);e.currentTarget.value='';}}/>{assetLibraryStatus&&<div className="card-asset-library-status">{assetLibraryStatus}</div>}{userAssets.length?<div className="card-decorative-grid card-user-assets-grid">{userAssets.map(asset=><div key={asset.id} className="card-user-asset-card"><button className="card-user-asset-insert" title={`Insert ${asset.name}`} onClick={()=>insertUserAsset(asset)}><span className="card-decorative-thumb"><img src={asset.source} alt=""/></span><span>{asset.name}</span></button><div className="card-user-asset-actions"><button title="Rename asset" onClick={()=>void renameUserAsset(asset)}><PenLine size={12}/></button><button className="danger" title="Delete from library" onClick={()=>void deleteUserAsset(asset)}><Trash2 size={12}/></button></div></div>)}</div>:<div className="card-empty-library"><strong>Your reusable asset library is empty.</strong><span>Add logos, florals, icons or SVG artwork once and reuse them across designs.</span></div>}</div></details>
+            <details className="card-library-section" open><summary><span>Starter Templates</span><small>{DESIGN_STARTER_TEMPLATES.length} designs</small></summary><div className="card-library-body"><div className="card-starter-template-list">{DESIGN_STARTER_TEMPLATES.map(starter=><button key={starter.id} className="card-starter-template-button" onClick={()=>loadStarterTemplate(starter.id)}><strong>{starter.name}</strong><span>{starter.category} · {starter.description}</span></button>)}</div></div></details>
+            <details className="card-library-section" open><summary><span>Floral & Decorative</span><small>{decorativeVisibleCount}/{DECORATIVE_ASSETS.length} assets · folder wise</small></summary><div className="card-library-body"><div className="card-library-toolbar"><input className="card-library-search" placeholder="Search floral assets" value={decorativeQuery} onChange={e=>setDecorativeQuery(e.target.value)}/><small className="card-library-hint">Organized into folders for faster finding and reuse.</small></div>{decorativeGroups.length?<div className="card-library-folders">{decorativeGroups.map(group=><details key={group.key} className="card-library-folder" open><summary><span>{group.key}</span><small>{group.items.length}</small></summary><div className="card-decorative-grid card-library-folder-grid">{group.items.map(asset=><button key={asset.id} title={asset.name} onClick={()=>insertDecoration(asset.id)}><span className="card-decorative-thumb"><img src={asset.source} alt=""/></span><span>{asset.name}</span></button>)}</div></details>)}</div>:<div className="card-empty-library"><strong>No floral assets found.</strong><span>Try another keyword or clear the search.</span></div>}</div></details>
+          </>
+        )}
+        {leftMode === 'DATA' && (
+          <div className="card-library-section">
+            <div className="card-library-body">
+              <strong>Datasource Status</strong>
+              <p>{datasourceStatus}</p>
+              <p>{availableFields.length} available fields</p>
+            </div>
+          </div>
+        )}
+        {leftMode === 'LAYERS' && (
+          <LayerPanel artboard={active} selection={selection} setSelection={setSelection} mutate={mutate} duplicateSelected={duplicateSelected} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/>
+        )}
+        {leftMode === 'ARTBOARDS' && (
+          <div className="card-library-section card-artboards-section">
+            <div className="card-library-body">
+              <div className="card-artboard-batch-panel">
+                <button onClick={add} title="Add new artboard"><Plus size={14}/> Add</button>
+                <button onClick={duplicate} disabled={!selectedArtboardIds.length} title="Duplicate selected"><Copy size={14}/> Duplicate</button>
+                <div className="spacer"/>
+                <button onClick={()=>mutate(t=>moveArtboard(t,active.id,-1))} disabled={active.order===0||selectedArtboardIds.length>1} title="Move Up"><ArrowUp size={14}/></button>
+                <button onClick={()=>mutate(t=>moveArtboard(t,active.id,1))} disabled={active.order===artboards.length-1||selectedArtboardIds.length>1} title="Move Down"><ArrowDown size={14}/></button>
+                <button className="danger" onClick={remove} disabled={!selectedArtboardIds.length} title="Delete selected"><Trash2 size={14}/></button>
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </details>
-    <LayerPanel artboard={active} selection={selection} setSelection={setSelection} mutate={mutate} duplicateSelected={duplicateSelected} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/>
-   </aside>
+              <div className="card-artboard-list">
+                {artboards.map((a,i)=>{
+                  const { isActive, isSelected } = getArtboardSelectionState(a.id, active.id, selectedArtboardIds);
+                  const role = getArtboardRole(a.role);
+                  const roleStr = formatArtboardRole(a.role);
+                  const pairInfo = getArtboardPairLabel(a.role, a.pairId);
+                  return (
+                    <div key={a.id} className={`card-artboard-item ${isActive?'active':''} ${isSelected?'selected':''}`} onClick={()=>chooseArtboard(a.id, false)}>
+                      <label className="card-artboard-checkbox" onClick={e=>e.stopPropagation()} title="Select for batch actions">
+                        <input type="checkbox" aria-label={`Select ${a.name}`} checked={isSelected} onChange={()=>chooseArtboard(a.id, true)}/>
+                      </label>
+                      <div className="card-artboard-info">
+                        <div className="card-artboard-name-row">
+                          <span className="card-artboard-index">{i+1}</span>
+                          <strong className="card-artboard-name" title={a.name}>{a.name}</strong>
+                        </div>
+                        <div className="card-artboard-meta">
+                          <span className={`card-artboard-role role-${role.toLowerCase()}`}>{roleStr}</span>
+                          <span className="card-artboard-dims" aria-label={`Size ${sizeText(a)}`}>{sizeText(a)}</span>
+                        </div>
+                        {pairInfo && <div className="card-artboard-pair" aria-label={pairInfo}><span>↔</span> {pairInfo}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </DesignerLeftPanel>
+      <div className="dg-designer-legacy-workspace">
+        <input ref={uploadRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(f)void uploadImage(f);e.currentTarget.value='';}}/>
    <section className="card-canvas-column"><div className="card-canvas-toolbar"><div className="canvas-artboard-name"><MonitorUp size={15}/><strong>{active.name}</strong><span>{active.widthMm} × {active.heightMm} mm</span></div><div className="canvas-zoom-controls"><button className={snapEnabled?'active':''} title="Smart snapping. Hold Alt while dragging to temporarily bypass." onClick={()=>setSnapEnabled(v=>!v)}>Snap {snapEnabled?'On':'Off'}</button><label className="card-toolbar-check" title="Show measurement rulers around the artboard."><input type="checkbox" checked={showRulers} onChange={e=>setShowRulers(e.target.checked)}/>Rulers</label><label className="card-toolbar-check" title="Show editor-only grid."><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/>Grid</label><label className="card-toolbar-check" title="Snap elements to the configured grid."><input type="checkbox" checked={gridSnapEnabled} onChange={e=>setGridSnapEnabled(e.target.checked)}/>Snap Grid</label><label className="card-toolbar-check" title="Snap elements to custom guides."><input type="checkbox" checked={guideSnapEnabled} onChange={e=>setGuideSnapEnabled(e.target.checked)}/>Snap Guides</label><label className="card-grid-size-control" title="Grid spacing"><span>Grid</span><input type="number" min="0.5" step="0.5" value={normalizeDisplayValue(mmToUnit(gridSizeMm,active.displayUnit))} onChange={e=>{const next=unitToMm(Number(e.target.value),active.displayUnit);if(Number.isFinite(next)&&next>=0.5)setGridSizeMm(next);}}/><small>{active.displayUnit==='MM'?'mm':'in'}</small></label><button title="Lock or unlock all guides" className={active.guides.length&&active.guides.every(g=>g.locked)?'active':''} onClick={()=>mutate(t=>setAllGuidesLocked(t,active.id,!active.guides.every(g=>g.locked)))} disabled={!active.guides.length}>{active.guides.length&&active.guides.every(g=>g.locked)?'Unlock Guides':'Lock Guides'}</button><button title="Clear unlocked guides" onClick={()=>mutate(t=>clearGuides(t,active.id))} disabled={!active.guides.some(g=>!g.locked)}>Clear Guides</button><button onClick={()=>setZoom(z=>clamp(z-10,MIN_ZOOM,MAX_ZOOM))}><Minus size={15}/></button><span>{zoom}%</span><button onClick={()=>setZoom(z=>clamp(z+10,MIN_ZOOM,MAX_ZOOM))}><Plus size={15}/></button><button onClick={()=>setZoom(100)}><RotateCcw size={14}/>Actual</button><button onClick={fit}><Maximize2 size={14}/>Fit</button></div></div>
     <div ref={viewport} className={`card-canvas-viewport ${space?'pan-ready':''}`} onPointerDown={e=>{if(!space&&e.button!==1)return;const v=viewport.current;if(!v)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);pan.current={x:e.clientX,y:e.clientY,left:v.scrollLeft,top:v.scrollTop};}} onPointerMove={e=>{const v=viewport.current,p=pan.current;if(!v||!p)return;v.scrollLeft=p.left-(e.clientX-p.x);v.scrollTop=p.top-(e.clientY-p.y);}} onPointerUp={()=>pan.current=null} onPointerCancel={()=>pan.current=null}><div className="card-canvas-stage"><CardArtboardCanvas artboard={active} assets={template.sharedAssets} zoom={zoom} selection={selection} setSelection={setSelection} mutate={mutateTransient} commitMutate={mutate} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} showRulers={showRulers} showGrid={showGrid} gridSizeMm={gridSizeMm}/></div></div>
     <footer className="card-canvas-status"><span>{status}</span><span>{selection.elementIds.length?`${selection.elementIds.length} selected · Delete removes · Arrow nudge · Shift+Arrow 5 mm`:'Ctrl+Z/Y undo/redo · Ctrl+C/V copy/paste · Ctrl+D duplicate · Hold Space + drag to pan'}</span></footer>
    </section>
-    <aside className="card-properties-panel"><div className="card-panel-heading"><div><strong>{primary?'Element Properties':selectedArtboardIds.length>1?'Batch Artboard Properties':'Artboard Properties'}</strong><small>{primary?'Content, style & transform':'Physical canvas settings'}</small></div></div>{primary&&<div className="card-style-actions"><button onClick={copyStyle}>Copy Style</button><button onClick={pasteStyle} disabled={!styleClipboardRef.current}>Paste Style</button><button onClick={resetStyle}>Reset Style</button></div>}{selected.length>1?<><BatchOpacityProperties elements={selected} artboard={active} mutate={mutate}/><MultiSelectionProperties elements={selected} artboard={active} mutate={mutate} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/></>:primary?<ElementProperties element={primary} asset={primary.type==='IMAGE'||primary.type==='SVG'?template.sharedAssets.find(asset=>asset.id===primary.assetId):undefined} artboard={active} mutate={mutate} availableFields={availableFields} datasourceStatus={datasourceStatus}/>:selectedArtboardIds.length>1?<MultiArtboardProperties artboards={template.artboards.filter(a=>selectedArtboardIds.includes(a.id))} mutate={mutate}/>:<><Properties artboard={active} template={template} mutate={mutate}/><PrintProperties artboard={active} assets={template.sharedAssets} mutate={mutate}/></>}
-    <PreviewDataPanel dataContext={dataContext} setDataContext={setDataContext} previewContextSource={previewContextSource} setPreviewContextSource={setPreviewContextSource} importedRecord={importedRecord} />
-    </aside>
+    {(()=>{
+      const availableSectionsForSelection = getInspectorSections(primary?.type);
+      const effectiveInspectorSection = availableSectionsForSelection.includes(activeInspectorSection) ? activeInspectorSection : 'GENERAL';
+      return <InspectorContext.Provider value={effectiveInspectorSection}>
+      <div className="dg-designer-inspector-layout">
+        <DesignerInspector collapsed={inspectorCollapsed}>
+          {primary&&effectiveInspectorSection==='GENERAL'&&<div className="card-style-actions"><button onClick={copyStyle}>Copy Style</button><button onClick={pasteStyle} disabled={!styleClipboardRef.current}>Paste Style</button><button onClick={resetStyle}>Reset Style</button></div>}
+          {selected.length>1?<><BatchOpacityProperties elements={selected} artboard={active} mutate={mutate}/><MultiSelectionProperties elements={selected} artboard={active} mutate={mutate} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/></>:primary?<ElementProperties element={primary} asset={primary.type==='IMAGE'||primary.type==='SVG'?template.sharedAssets.find(asset=>asset.id===primary.assetId):undefined} artboard={active} mutate={mutate} availableFields={availableFields} datasourceStatus={datasourceStatus}/>:selectedArtboardIds.length>1?<MultiArtboardProperties artboards={template.artboards.filter(a=>selectedArtboardIds.includes(a.id))} mutate={mutate}/>:<><Properties artboard={active} template={template} mutate={mutate}/><PrintProperties artboard={active} assets={template.sharedAssets} mutate={mutate}/></>}
+          {effectiveInspectorSection==='DATA_BINDING'&&<PreviewDataPanel dataContext={dataContext} setDataContext={setDataContext} previewContextSource={previewContextSource} setPreviewContextSource={setPreviewContextSource} importedRecord={importedRecord} />}
+        </DesignerInspector>
+        <DesignerInspectorRail activeSection={effectiveInspectorSection} onSectionChange={(s: InspectorSectionKey) => { setActiveInspectorSection(s); setInspectorCollapsed(false); }} availableSections={availableSectionsForSelection} onCollapse={() => setInspectorCollapsed(true)} />
+      </div>
+      </InspectorContext.Provider>;
+    })()}
+    </div>
    </div>
   {exportDialogOpen && (
     <div className="export-dialog-overlay" style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:999,display:'grid',placeItems:'center'}}>
@@ -453,7 +553,7 @@ export function CardDesigner(){
     </div>,
     exportHost
   )}
- </div>;
+ </div></DesignerShell>);
 }
 
 type Op={mode:'MOVE';lastX:number;lastY:number;ids:string[]}|{mode:'RESIZE';element:DesignElement;anchor:'NW'|'N'|'NE'|'E'|'SE'|'S'|'SW'|'W';startX:number;startY:number;keepAspect:boolean}|{mode:'ROTATE';element:DesignElement;startAngle:number;startRotation:number};
@@ -484,8 +584,44 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,mutate,
 }
 
 function LayerPanel({artboard,selection,setSelection,mutate,duplicateSelected,groupSelected,ungroupSelected}:{artboard:Artboard;selection:DesignSelectionState;setSelection:(s:DesignSelectionState)=>void;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;duplicateSelected:()=>void;groupSelected:()=>void;ungroupSelected:()=>void}){
- const layers=orderedLayers(artboard);const selectedSet=new Set(selection.elementIds);const selectedGroups=[...new Set(selection.elementIds.map(id=>groupForElement(artboard,id)?.id).filter(Boolean) as string[])];
- return <div className="card-layers-panel"><div className="card-panel-heading"><div><strong>Layers</strong><small>{layers.length} element{layers.length===1?'':'s'}</small></div></div><div className="card-layer-actions"><button onClick={duplicateSelected} disabled={!selection.elementIds.length}>Duplicate</button><button onClick={groupSelected} disabled={selection.elementIds.length<2||selectedGroups.length>0}>Group</button><button onClick={ungroupSelected} disabled={!selectedGroups.length}>Ungroup</button></div><div className="card-layer-list">{layers.length?layers.map(layer=>{const group=groupForElement(artboard,layer.id);return <div key={layer.id} className={`card-layer-row ${selectedSet.has(layer.id)?'active':''}`}><button className="card-layer-main" onClick={()=>setSelection({artboardId:artboard.id,elementIds:expandElementIdsToGroups(artboard,[layer.id]),primaryElementId:layer.id})}><span>{layer.type}</span><input aria-label={`Rename ${layer.name}`} value={layer.name} onClick={e=>e.stopPropagation()} onChange={e=>mutate(t=>renameElement(t,artboard.id,layer.id,e.target.value))}/>{group&&<small>{group.name}</small>}</button><div className="card-layer-mini"><button title={layer.visible?'Hide':'Show'} onClick={()=>mutate(t=>group?setGroupVisibility(t,artboard.id,group.id,!layer.visible):setElementVisibility(t,artboard.id,layer.id,!layer.visible))}>{layer.visible?'◉':'○'}</button><button title={layer.locked?'Unlock':'Lock'} onClick={()=>mutate(t=>group?setGroupLocked(t,artboard.id,group.id,!layer.locked):setElementLocked(t,artboard.id,layer.id,!layer.locked))}>{layer.locked?'🔒':'🔓'}</button><button title="Bring forward" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'FORWARD'))}>↑</button><button title="Send backward" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'BACKWARD'))}>↓</button><button title="Bring to front" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'FRONT'))}>⇈</button><button title="Send to back" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'BACK'))}>⇊</button></div></div>}):<div className="card-layer-empty">Add an element to create the first layer.</div>}</div></div>;
+  const layers=orderedLayers(artboard);const selectedSet=new Set(selection.elementIds);const selectedGroups=[...new Set(selection.elementIds.map(id=>groupForElement(artboard,id)?.id).filter(Boolean) as string[])];
+  const getLayerIcon = (type: string) => {
+    switch (type) {
+      case 'TEXT': return <Type size={14} />;
+      case 'IMAGE': return <ImageIcon size={14} />;
+      case 'SVG': return <PenLine size={14} />;
+      case 'SHAPE': return <Box size={14} />;
+      default: return <Shapes size={14} />;
+    }
+  };
+  return <div className="card-layers-panel">
+    <div className="card-panel-heading"><div><strong>Layers</strong><small>{layers.length} element{layers.length===1?'':'s'}</small></div></div>
+    <div className="card-layer-actions">
+      <button onClick={duplicateSelected} disabled={!selection.elementIds.length}>Duplicate</button>
+      <button onClick={groupSelected} disabled={selection.elementIds.length<2||selectedGroups.length>0}>Group</button>
+      <button onClick={ungroupSelected} disabled={!selectedGroups.length}>Ungroup</button>
+    </div>
+    <div className="card-layer-list">
+      {layers.length?layers.map(layer=>{
+        const group=groupForElement(artboard,layer.id);
+        return <div key={layer.id} className={`card-layer-row ${selectedSet.has(layer.id)?'active':''}`}>
+          <button className="card-layer-main" onClick={()=>setSelection({artboardId:artboard.id,elementIds:expandElementIdsToGroups(artboard,[layer.id]),primaryElementId:layer.id})}>
+            <div className="card-layer-icon">{getLayerIcon(layer.type)}</div>
+            <div className="card-layer-content">
+              <input aria-label={`Rename ${layer.name}`} value={layer.name || ''} placeholder={layer.type} onClick={e=>e.stopPropagation()} onChange={e=>mutate(t=>renameElement(t,artboard.id,layer.id,e.target.value))}/>
+              {group&&<span className="card-layer-group">{group.name}</span>}
+            </div>
+          </button>
+          <div className="card-layer-mini">
+            <button title={layer.visible?'Hide':'Show'} onClick={()=>mutate(t=>group?setGroupVisibility(t,artboard.id,group.id,!layer.visible):setElementVisibility(t,artboard.id,layer.id,!layer.visible))}>{layer.visible?<Eye size={12}/>:<EyeOff size={12}/>}</button>
+            <button title={layer.locked?'Unlock':'Lock'} onClick={()=>mutate(t=>group?setGroupLocked(t,artboard.id,group.id,!layer.locked):setElementLocked(t,artboard.id,layer.id,!layer.locked))}>{layer.locked?<Lock size={12}/>:<Unlock size={12}/>}</button>
+            <button title="Bring forward" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'FORWARD'))}><ArrowUp size={12}/></button>
+            <button title="Send backward" onClick={()=>mutate(t=>moveLayer(t,artboard.id,layer.id,'BACKWARD'))}><ArrowDown size={12}/></button>
+          </div>
+        </div>
+      }):<div className="card-layer-empty">Add an element to create the first layer.</div>}
+    </div>
+  </div>;
 }
 
 function ElementVisual({element,assets,mutate,artboardId}:{element:DesignElement;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string}){
@@ -512,21 +648,33 @@ function ElementVisual({element,assets,mutate,artboardId}:{element:DesignElement
 function ShapeVisual({element}:{element:ShapeDesignElement}){const gradientId=`gradient-${element.id.replace(/[^a-zA-Z0-9_-]/g,'')}`,fill=element.fill.type==='SOLID'?element.fill.color:element.fill.type==='LINEAR_GRADIENT'?`url(#${gradientId})`:'transparent',fillOpacity=element.fill.type==='SOLID'?(element.fill.opacity??1):1,stroke=element.stroke.style==='NONE'?'none':colorWithOpacity(element.stroke.color,element.stroke.opacity??1),sw=Math.max(.4,element.stroke.widthMm*MM_TO_CSS_PX),dash=element.stroke.style==='DASHED'?'6 4':element.stroke.style==='DOTTED'?'2 3':undefined;const common={fill,fillOpacity,stroke,strokeWidth:sw,strokeDasharray:dash,vectorEffect:'non-scaling-stroke' as const};return <svg className="card-shape-visual" style={{filter:dropShadowCss(element.shadow)}} viewBox="0 0 100 100" preserveAspectRatio="none">{element.fill.type==='LINEAR_GRADIENT'&&<defs><linearGradient id={gradientId} gradientTransform={`rotate(${element.fill.gradient.angleDeg} .5 .5)`}>{element.fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} stopOpacity={stop.opacity??1}/>)}</linearGradient></defs>}{shapeNode(element,common)}</svg>;}
 function shapeNode(element:ShapeDesignElement,common:Record<string,unknown>){switch(element.shape){case'RECTANGLE':return <rect x="1" y="1" width="98" height="98" {...common}/>;case'ROUNDED_RECTANGLE':return <rect x="1" y="1" width="98" height="98" rx={Math.min(48,(element.cornerRadiusMm??3)*4)} ry={Math.min(48,(element.cornerRadiusMm??3)*4)} {...common}/>;case'CIRCLE':case'ELLIPSE':return <ellipse cx="50" cy="50" rx="48" ry="48" {...common}/>;case'LINE':return <line x1="2" y1="50" x2="98" y2="50" {...common} fill="none"/>;case'TRIANGLE':return <polygon points="50,2 98,98 2,98" {...common}/>;case'ARROW':return <polygon points="2,35 62,35 62,15 98,50 62,85 62,65 2,65" {...common}/>;case'STAR':return <polygon points="50,2 61,36 97,36 68,57 79,92 50,71 21,92 32,57 3,36 39,36" {...common}/>;case'POLYGON':return <polygon points="25,3 75,3 98,50 75,97 25,97 2,50" {...common}/>;case'RIBBON':return <polygon points="2,20 20,20 20,8 80,8 80,20 98,20 88,50 98,80 80,80 80,92 20,92 20,80 2,80 12,50" {...common}/>;case'BADGE':return <polygon points="50,2 62,14 79,9 86,25 97,37 88,52 92,69 76,77 67,94 50,87 33,94 24,77 8,69 12,52 3,37 14,25 21,9 38,14" {...common}/>;default:return null;}}
 
+const InspectorContext = createContext<InspectorSectionKey>('GENERAL');
+
+function Section({ sectionKey, title, children }: { sectionKey: InspectorSectionKey; title: string; children: React.ReactNode }) {
+  const active = useContext(InspectorContext);
+  if (active !== sectionKey) return null;
+  return <InspectorSection sectionKey={sectionKey} title={title}>{children}</InspectorSection>;
+}
+
+
 function ElementProperties({element,asset,artboard,mutate,availableFields,datasourceStatus}:{element:DesignElement;asset?:AssetReference;artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
  const artboardId=artboard.id;
  const num=(label:string,value:number,onChange:(v:number)=>void,step='0.1')=><label>{label}<input type="number" step={step} value={normalizeDisplayValue(value)} disabled={element.locked} onChange={e=>{const v=Number(e.target.value);if(Number.isFinite(v))onChange(v);}}/></label>;
  const update=(fn:(e:DesignElement)=>DesignElement)=>mutate(t=>updateDesignElement(t,artboardId,element.id,fn));
- return <div className="card-property-sections"><div className="card-property-note"><strong>{element.name}</strong><span>{element.type}{element.locked?' · Locked':''}</span></div>
-  {element.type==='TEXT'&&<AdvancedTextProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SHAPE'&&<AdvancedShapeProperties element={element} update={update}/>} {element.type==='IMAGE'&&<AdvancedImageProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SVG'&&<SvgProperties element={element} asset={asset} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} 
-  {(element.type==='IMAGE'||element.type==='SVG')&&<ElementPrintQuality element={element} asset={asset} print={artboard.print}/>} 
-  <details className="card-property-details"><summary>Transform</summary><div className="card-property-grid">{num('X (mm)',element.position.xMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:v,yMm:element.position.yMm})))}{num('Y (mm)',element.position.yMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:element.position.xMm,yMm:v})))}{num('Width (mm)',element.size.widthMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:v,heightMm:element.size.heightMm})))}{num('Height (mm)',element.size.heightMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:element.size.widthMm,heightMm:v})))}</div>{num('Rotation (°)',element.rotationDeg,v=>mutate(t=>rotateElement(t,artboardId,element.id,v)))}</details>
-  <details className="card-property-details"><summary>Align to Artboard</summary><div className="card-layer-action-grid card-align-grid"><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'LEFT','ARTBOARD'))}>Left</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'HCENTER','ARTBOARD'))}>H Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'RIGHT','ARTBOARD'))}>Right</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'TOP','ARTBOARD'))}>Top</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'VCENTER','ARTBOARD'))}>V Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'BOTTOM','ARTBOARD'))}>Bottom</button><button disabled={element.locked} onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboardId,[element.id],'BOTH'))}>Center Both</button></div></details>
-  <button className="card-delete-element" disabled={element.locked} onClick={()=>mutate(t=>deleteDesignElements(t,artboardId,[element.id]))}><Trash2 size={14}/>Delete Element</button>
+ return <div className="card-property-sections">
+  <Section sectionKey="GENERAL" title="General">
+    <div className="card-property-note"><strong>{element.name}</strong><span>{element.type}{element.locked?' · Locked':''}</span></div>
+  </Section>
+  {element.type==='TEXT'&&<AdvancedTextProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SHAPE'&&<AdvancedShapeProperties element={element} update={update}/>} {element.type==='IMAGE'&&<AdvancedImageProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SVG'&&<SvgProperties element={element} asset={asset} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='QR'&&<AdvancedQrProperties element={element as QrDesignElement} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='BARCODE'&&<AdvancedBarcodeProperties element={element as BarcodeDesignElement} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} 
+  {(element.type==='IMAGE'||element.type==='SVG')&&<Section sectionKey="ADVANCED" title="Print Quality"><ElementPrintQuality element={element} asset={asset} print={artboard.print}/></Section>} 
+  <Section sectionKey="TRANSFORM" title="Transform"><div className="card-property-grid">{num('X (mm)',element.position.xMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:v,yMm:element.position.yMm})))}{num('Y (mm)',element.position.yMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:element.position.xMm,yMm:v})))}{num('Width (mm)',element.size.widthMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:v,heightMm:element.size.heightMm})))}{num('Height (mm)',element.size.heightMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:element.size.widthMm,heightMm:v})))}</div>{num('Rotation (°)',element.rotationDeg,v=>mutate(t=>rotateElement(t,artboardId,element.id,v)))}</Section>
+  <Section sectionKey="TRANSFORM" title="Align to Artboard"><div className="card-layer-action-grid card-align-grid"><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'LEFT','ARTBOARD'))}>Left</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'HCENTER','ARTBOARD'))}>H Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'RIGHT','ARTBOARD'))}>Right</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'TOP','ARTBOARD'))}>Top</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'VCENTER','ARTBOARD'))}>V Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'BOTTOM','ARTBOARD'))}>Bottom</button><button disabled={element.locked} onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboardId,[element.id],'BOTH'))}>Center Both</button></div></Section>
+  <Section sectionKey="ADVANCED" title="Actions"><button className="card-delete-element" disabled={element.locked} onClick={()=>mutate(t=>deleteDesignElements(t,artboardId,[element.id]))}><Trash2 size={14}/>Delete Element</button></Section>
  </div>;
 }
 function OpacityControl({value,onChange}:{value:number;onChange:(value:number)=>void}){const percent=Math.round(clamp(value,0,1)*100);return <label>Opacity<div className="card-range-row"><input type="range" min="0" max="100" value={percent} onChange={e=>onChange(Number(e.target.value)/100)}/><input type="number" min="0" max="100" value={percent} onChange={e=>onChange(clamp(Number(e.target.value)||0,0,100)/100)}/><span>%</span></div></label>}
-function ShadowControls({shadow,onChange}:{shadow?:DesignShadow;onChange:(shadow:DesignShadow)=>void}){const s=shadow??DEFAULT_DESIGN_SHADOW,patch=(p:Partial<DesignShadow>)=>onChange({...s,...p});return <details className="card-property-details"><summary>Shadow</summary><label className="card-check-row"><input type="checkbox" checked={s.enabled} onChange={e=>patch({enabled:e.target.checked})}/>Enabled</label>{s.enabled&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round(s.opacity*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label><label>Blur (mm)<input type="number" min="0" step=".1" value={s.blurMm} onChange={e=>patch({blurMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Offset X (mm)<input type="number" step=".1" value={s.offsetXmm} onChange={e=>patch({offsetXmm:Number(e.target.value)||0})}/></label><label>Offset Y (mm)<input type="number" step=".1" value={s.offsetYmm} onChange={e=>patch({offsetYmm:Number(e.target.value)||0})}/></label></div></>}</details>}
-function BorderControls({stroke,onChange}:{stroke?:ShapeDesignElement['stroke'];onChange:(stroke:ShapeDesignElement['stroke'])=>void}){const s=stroke??{color:'#000000',widthMm:0,style:'NONE',opacity:1},patch=(p:Partial<typeof s>)=>onChange({...s,...p});return <details className="card-property-details"><summary>Border</summary><label>Style<select value={s.style} onChange={e=>patch({style:e.target.value as typeof s.style})}><option value="NONE">None</option><option value="SOLID">Solid</option><option value="DASHED">Dashed</option><option value="DOTTED">Dotted</option></select></label>{s.style!=='NONE'&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Width (mm)<input type="number" min="0" step=".1" value={s.widthMm} onChange={e=>patch({widthMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round((s.opacity??1)*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></div></>}</details>}
+function ShadowControls({shadow,onChange}:{shadow?:DesignShadow;onChange:(shadow:DesignShadow)=>void}){const s=shadow??DEFAULT_DESIGN_SHADOW,patch=(p:Partial<DesignShadow>)=>onChange({...s,...p});return <div className="card-property-details"><label className="card-check-row"><input type="checkbox" checked={s.enabled} onChange={e=>patch({enabled:e.target.checked})}/>Enabled</label>{s.enabled&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round(s.opacity*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label><label>Blur (mm)<input type="number" min="0" step=".1" value={s.blurMm} onChange={e=>patch({blurMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Offset X (mm)<input type="number" step=".1" value={s.offsetXmm} onChange={e=>patch({offsetXmm:Number(e.target.value)||0})}/></label><label>Offset Y (mm)<input type="number" step=".1" value={s.offsetYmm} onChange={e=>patch({offsetYmm:Number(e.target.value)||0})}/></label></div></>}</div>}
+function BorderControls({stroke,onChange}:{stroke?:ShapeDesignElement['stroke'];onChange:(stroke:ShapeDesignElement['stroke'])=>void}){const s=stroke??{color:'#000000',widthMm:0,style:'NONE',opacity:1},patch=(p:Partial<typeof s>)=>onChange({...s,...p});return <div className="card-property-details"><label>Style<select value={s.style} onChange={e=>patch({style:e.target.value as typeof s.style})}><option value="NONE">None</option><option value="SOLID">Solid</option><option value="DASHED">Dashed</option><option value="DOTTED">Dotted</option></select></label>{s.style!=='NONE'&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Width (mm)<input type="number" min="0" step=".1" value={s.widthMm} onChange={e=>patch({widthMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round((s.opacity??1)*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></div></>}</div>}
 function AdvancedTextProperties({element,update,availableFields,datasourceStatus}:{element:TextDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
   const patch=(p:Partial<TextDesignElement>)=>update(e=>e.type==='TEXT'?{...e,...p}:e);
   const style=(p:Partial<TextDesignElement['style']>)=>patch({style:{...element.style,...p}});
@@ -569,8 +717,8 @@ function AdvancedTextProperties({element,update,availableFields,datasourceStatus
     }
   };
   
-  return <><details className="card-property-details" open><summary>Typography</summary><label>Content<textarea ref={textareaRef} value={element.text} onChange={e=>patch({text:e.target.value})}/></label><label>Font<select value={element.style.fontFamily} onChange={e=>style({fontFamily:e.target.value})}>{['Arial','Helvetica','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].map(f=><option key={f}>{f}</option>)}</select></label><div className="card-property-grid"><label>Size (pt)<input type="number" min="1" value={element.style.fontSizePt} onChange={e=>style({fontSizePt:Math.max(1,Number(e.target.value)||1)})}/></label><label>Weight<select value={element.style.fontWeight} onChange={e=>style({fontWeight:Number(e.target.value)})}>{[300,400,500,600,700,800].map(w=><option key={w} value={w}>{w}</option>)}</select></label></div><div className="card-segmented-control triple"><button className={element.style.italic?'active':''} onClick={()=>style({italic:!element.style.italic})}>Italic</button><button className={element.style.underline?'active':''} onClick={()=>style({underline:!element.style.underline})}>Underline</button><button className={element.style.fontWeight>=700?'active':''} onClick={()=>style({fontWeight:element.style.fontWeight>=700?400:700})}>Bold</button></div><label>Alignment<select value={element.style.alignment} onChange={e=>style({alignment:e.target.value as TextDesignElement['style']['alignment']})}><option value="LEFT">Left</option><option value="CENTER">Center</option><option value="RIGHT">Right</option></select></label><div className="card-property-grid"><label>Line height<input type="number" min=".5" step=".1" value={element.style.lineHeight} onChange={e=>style({lineHeight:Math.max(.5,Number(e.target.value)||1.2)})}/></label><label>Letter spacing<input type="number" step=".1" value={element.style.letterSpacingPt} onChange={e=>style({letterSpacingPt:Number(e.target.value)||0})}/></label></div></details>
-  <details className="card-property-details" open><summary>Dynamic Binding</summary>
+  return <><Section sectionKey="TYPOGRAPHY" title="Typography"><label>Content<textarea ref={textareaRef} value={element.text} onChange={e=>patch({text:e.target.value})}/></label><label>Font<select value={element.style.fontFamily} onChange={e=>style({fontFamily:e.target.value})}>{['Arial','Helvetica','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].map(f=><option key={f}>{f}</option>)}</select></label><div className="card-property-grid"><label>Size (pt)<input type="number" min="1" value={element.style.fontSizePt} onChange={e=>style({fontSizePt:Math.max(1,Number(e.target.value)||1)})}/></label><label>Weight<select value={element.style.fontWeight} onChange={e=>style({fontWeight:Number(e.target.value)})}>{[300,400,500,600,700,800].map(w=><option key={w} value={w}>{w}</option>)}</select></label></div><div className="card-segmented-control triple"><button className={element.style.italic?'active':''} onClick={()=>style({italic:!element.style.italic})}>Italic</button><button className={element.style.underline?'active':''} onClick={()=>style({underline:!element.style.underline})}>Underline</button><button className={element.style.fontWeight>=700?'active':''} onClick={()=>style({fontWeight:element.style.fontWeight>=700?400:700})}>Bold</button></div><label>Alignment<select value={element.style.alignment} onChange={e=>style({alignment:e.target.value as TextDesignElement['style']['alignment']})}><option value="LEFT">Left</option><option value="CENTER">Center</option><option value="RIGHT">Right</option></select></label><div className="card-property-grid"><label>Line height<input type="number" min=".5" step=".1" value={element.style.lineHeight} onChange={e=>style({lineHeight:Math.max(.5,Number(e.target.value)||1.2)})}/></label><label>Letter spacing<input type="number" step=".1" value={element.style.letterSpacingPt} onChange={e=>style({letterSpacingPt:Number(e.target.value)||0})}/></label></div></Section>
+  <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
     {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
       <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
         <label>Binding Mode:
@@ -612,16 +760,17 @@ function AdvancedTextProperties({element,update,availableFields,datasourceStatus
         )}
       </div>
     }
-  </details>
-  <details className="card-property-details" open><summary>Appearance</summary><label>Text color<div className="card-color-row"><input type="color" value={element.style.color} onChange={e=>style({color:e.target.value})}/><input value={element.style.color} onChange={e=>style({color:e.target.value})}/></div></label><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></details><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
-function AdvancedShapeProperties({element,update}:{element:ShapeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void}){const patch=(p:Partial<ShapeDesignElement>)=>update(e=>e.type==='SHAPE'?{...e,...p}:e),mode=element.fill.type==='NONE'?'NONE':element.fill.type==='LINEAR_GRADIENT'?'LINEAR_GRADIENT':'SOLID',solid=element.fill.type==='SOLID'?element.fill:{type:'SOLID' as const,color:'#dbeafe',opacity:1},gradient=element.fill.type==='LINEAR_GRADIENT'?element.fill.gradient:{type:'LINEAR' as const,angleDeg:0,stops:[{offset:0,color:'#2563eb'},{offset:100,color:'#dbeafe'}]},setGradient=(p:Partial<typeof gradient>)=>patch({fill:{type:'LINEAR_GRADIENT',gradient:{...gradient,...p}}}),setStop=(index:number,p:Partial<(typeof gradient.stops)[number]>)=>setGradient({stops:gradient.stops.map((s,i)=>i===index?{...s,...p}:s)});return <><details className="card-property-details" open><summary>Appearance</summary><label>Shape<select value={element.shape} onChange={e=>patch({shape:e.target.value as DesignShapeKind})}>{SHAPES.map(s=><option key={s} value={s}>{shapeLabel(s)}</option>)}</select></label><label>Fill<select value={mode} onChange={e=>patch({fill:e.target.value==='NONE'?{type:'NONE'}:e.target.value==='LINEAR_GRADIENT'?{type:'LINEAR_GRADIENT',gradient}:solid})}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear Gradient</option></select></label>{mode==='SOLID'&&<label>Fill color<div className="card-color-row"><input type="color" value={solid.color} onChange={e=>patch({fill:{...solid,color:e.target.value}})}/><input value={solid.color} readOnly/></div></label>}{mode==='LINEAR_GRADIENT'&&<div className="card-gradient-editor"><label>Angle (°)<input type="number" min="0" max="360" value={gradient.angleDeg} onChange={e=>setGradient({angleDeg:clamp(Number(e.target.value)||0,0,360)})}/></label>{gradient.stops.map((stop,index)=><div className="card-gradient-stop" key={index}><input type="color" value={stop.color} onChange={e=>setStop(index,{color:e.target.value})}/><input aria-label="Stop position" type="number" min="0" max="100" value={stop.offset} onChange={e=>setStop(index,{offset:clamp(Number(e.target.value)||0,0,100)})}/><button disabled={index===0} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index-1)})}>↑</button><button disabled={index===gradient.stops.length-1} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index+1)})}>↓</button><button disabled={gradient.stops.length<=2} onClick={()=>setGradient({stops:gradient.stops.filter((_,i)=>i!==index)})}>×</button></div>)}<button onClick={()=>setGradient({stops:[...gradient.stops,{offset:100,color:'#ffffff'}]})}>Add Stop</button></div>}<OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/>{(element.shape==='RECTANGLE'||element.shape==='ROUNDED_RECTANGLE')&&<label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label>}</details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
+  </Section>
+  <Section sectionKey="APPEARANCE" title="Appearance"><label>Text color<div className="card-color-row"><input type="color" value={element.style.color} onChange={e=>style({color:e.target.value})}/><input value={element.style.color} onChange={e=>style({color:e.target.value})}/></div></label><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></Section>
+  <Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
+function AdvancedShapeProperties({element,update}:{element:ShapeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void}){const patch=(p:Partial<ShapeDesignElement>)=>update(e=>e.type==='SHAPE'?{...e,...p}:e),mode=element.fill.type==='NONE'?'NONE':element.fill.type==='LINEAR_GRADIENT'?'LINEAR_GRADIENT':'SOLID',solid=element.fill.type==='SOLID'?element.fill:{type:'SOLID' as const,color:'#dbeafe',opacity:1},gradient=element.fill.type==='LINEAR_GRADIENT'?element.fill.gradient:{type:'LINEAR' as const,angleDeg:0,stops:[{offset:0,color:'#2563eb'},{offset:100,color:'#dbeafe'}]},setGradient=(p:Partial<typeof gradient>)=>patch({fill:{type:'LINEAR_GRADIENT',gradient:{...gradient,...p}}}),setStop=(index:number,p:Partial<(typeof gradient.stops)[number]>)=>setGradient({stops:gradient.stops.map((s,i)=>i===index?{...s,...p}:s)});return <><Section sectionKey="APPEARANCE" title="Appearance"><label>Shape<select value={element.shape} onChange={e=>patch({shape:e.target.value as DesignShapeKind})}>{SHAPES.map(s=><option key={s} value={s}>{shapeLabel(s)}</option>)}</select></label><label>Fill<select value={mode} onChange={e=>patch({fill:e.target.value==='NONE'?{type:'NONE'}:e.target.value==='LINEAR_GRADIENT'?{type:'LINEAR_GRADIENT',gradient}:solid})}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear Gradient</option></select></label>{mode==='SOLID'&&<label>Fill color<div className="card-color-row"><input type="color" value={solid.color} onChange={e=>patch({fill:{...solid,color:e.target.value}})}/><input value={solid.color} readOnly/></div></label>}{mode==='LINEAR_GRADIENT'&&<div className="card-gradient-editor"><label>Angle (°)<input type="number" min="0" max="360" value={gradient.angleDeg} onChange={e=>setGradient({angleDeg:clamp(Number(e.target.value)||0,0,360)})}/></label>{gradient.stops.map((stop,index)=><div className="card-gradient-stop" key={index}><input type="color" value={stop.color} onChange={e=>setStop(index,{color:e.target.value})}/><input aria-label="Stop position" type="number" min="0" max="100" value={stop.offset} onChange={e=>setStop(index,{offset:clamp(Number(e.target.value)||0,0,100)})}/><button disabled={index===0} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index-1)})}>↑</button><button disabled={index===gradient.stops.length-1} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index+1)})}>↓</button><button disabled={gradient.stops.length<=2} onClick={()=>setGradient({stops:gradient.stops.filter((_,i)=>i!==index)})}>×</button></div>)}<button onClick={()=>setGradient({stops:[...gradient.stops,{offset:100,color:'#ffffff'}]})}>Add Stop</button></div>}<OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></Section><Section sectionKey="APPEARANCE" title="Border"><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
 function AdvancedImageProperties({element,update,availableFields,datasourceStatus}:{element:ImageDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
   const patch=(p:Partial<ImageDesignElement>)=>update(e=>e.type==='IMAGE'?{...e,...p}:e);
   const sourceBinding=getSourceBinding(element);
   const isBound=!!sourceBinding;
   const isMissingField=isBound&&sourceBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===sourceBinding.fieldPath);
-  return <><details className="card-property-details" open><summary>Image</summary><label>Fit<select value={element.fit} onChange={e=>patch({fit:e.target.value as ImageDesignElement['fit']})}><option value="FIT">Fit</option><option value="FILL">Fill</option><option value="STRETCH">Stretch</option></select></label><div className="card-segmented-control"><button className={element.flipX?'active':''} onClick={()=>patch({flipX:!element.flipX})}>Flip X</button><button className={element.flipY?'active':''} onClick={()=>patch({flipY:!element.flipY})}>Flip Y</button></div><label className="card-check-row"><input type="checkbox" checked={element.maintainAspectRatio??true} onChange={e=>patch({maintainAspectRatio:e.target.checked})}/>Lock aspect ratio</label></details>
-  <details className="card-property-details" open><summary>Dynamic Binding</summary>
+  return <><Section sectionKey="APPEARANCE" title="Image"><label>Fit<select value={element.fit} onChange={e=>patch({fit:e.target.value as ImageDesignElement['fit']})}><option value="FIT">Fit</option><option value="FILL">Fill</option><option value="STRETCH">Stretch</option></select></label><div className="card-segmented-control"><button className={element.flipX?'active':''} onClick={()=>patch({flipX:!element.flipX})}>Flip X</button><button className={element.flipY?'active':''} onClick={()=>patch({flipY:!element.flipY})}>Flip Y</button></div><label className="card-check-row"><input type="checkbox" checked={element.maintainAspectRatio??true} onChange={e=>patch({maintainAspectRatio:e.target.checked})}/>Lock aspect ratio</label></Section>
+  <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
     {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
       <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
         <label>Source Field:
@@ -639,14 +788,14 @@ function AdvancedImageProperties({element,update,availableFields,datasourceStatu
         {isBound&&<button className="secondary" onClick={()=>update(el=>removeSourceBinding(el as ImageDesignElement))}>Remove Binding</button>}
       </div>
     }
-  </details>
-  <details className="card-property-details" open><summary>Appearance</summary><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
+  </Section>
+  <Section sectionKey="APPEARANCE" title="Appearance"><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></Section><Section sectionKey="APPEARANCE" title="Border"><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
 function SvgProperties({element,asset,update,availableFields,datasourceStatus}:{element:SvgDesignElement;asset?:AssetReference;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
   const patch=(p:Partial<SvgDesignElement>)=>update(e=>e.type==='SVG'?{...e,...p}:e),canTint=asset?.metadata?.recolorable===true;
   const sourceBinding=getSourceBinding(element);
   const isBound=!!sourceBinding;
   const isMissingField=isBound&&sourceBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===sourceBinding.fieldPath);
-  return <><details className="card-property-details" open><summary>Dynamic Binding</summary>
+  return <><Section sectionKey="DATA_BINDING" title="Dynamic Binding">
     {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
       <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
         <label>Source Field:
@@ -664,31 +813,109 @@ function SvgProperties({element,asset,update,availableFields,datasourceStatus}:{
         {isBound&&<button className="secondary" onClick={()=>update(el=>removeSourceBinding(el as SvgDesignElement))}>Remove Binding</button>}
       </div>
     }
-  </details>
-  <details className="card-property-details" open><summary>Appearance</summary><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/>{canTint&&<label>SVG Color / Tint<div className="card-color-row"><input type="color" value={element.tintColor??'#111827'} onChange={e=>patch({tintColor:e.target.value})}/><input value={element.tintColor??''} placeholder="Original" onChange={e=>patch({tintColor:e.target.value||undefined})}/></div></label>}</details><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></>}
-function BatchOpacityProperties({elements,artboard,mutate}:{elements:DesignElement[];artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const compatible=elements.filter(e=>['TEXT','SHAPE','IMAGE','SVG'].includes(e.type)),first=compatible[0]?.opacity,mixed=compatible.some(e=>Math.abs(e.opacity-(first??e.opacity))>.0001),percent=Math.round((first??1)*100);if(!compatible.length)return null;return <details className="card-property-details" open><summary>Appearance</summary><label>Opacity {mixed?'(Mixed)':''}<div className="card-range-row"><input type="range" min="0" max="100" value={mixed?100:percent} onChange={e=>mutate(t=>updateElementsOpacity(t,artboard.id,compatible.map(x=>x.id),Number(e.target.value)/100))}/><span>{mixed?'Mixed':`${percent}%`}</span></div></label></details>}
-function ElementPrintQuality({element,asset,print}:{element:ImageDesignElement|SvgDesignElement;asset?:AssetReference;print:Artboard['print']}){if(element.type==='SVG')return <details className="card-property-details" open><summary>Print Quality</summary><div className={`card-print-quality ${assetRenderKind(asset)==='VECTOR_SVG'?'good':'error'}`}><strong>{assetRenderKind(asset)==='VECTOR_SVG'?'Vector — resolution independent':asset?'Unsupported Asset':'Missing Asset'}</strong></div></details>;const quality=imagePrintQuality(element,asset,print);return <details className="card-property-details" open><summary>Print Quality</summary><div className={`card-print-quality ${quality.status.toLowerCase()}`}><strong>{quality.message}</strong><span>Source: {asset?.widthPx&&asset?.heightPx?`${asset.widthPx} × ${asset.heightPx} px`:'Dimensions unavailable'}</span><span>Placed: {normalizeDisplayValue(element.size.widthMm)} × {normalizeDisplayValue(element.size.heightMm)} mm</span><span>Effective: {quality.effectiveDpi?`${Math.round(quality.effectiveDpi)} DPI`:'Unknown'}</span></div></details>}
+  </Section>
+  <Section sectionKey="APPEARANCE" title="Appearance"><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/>
+  {canTint&&<label>SVG Color / Tint<div className="card-color-row"><input type="color" value={element.tintColor??'#111827'} onChange={e=>patch({tintColor:e.target.value})}/><input value={element.tintColor??''} placeholder="Original" onChange={e=>patch({tintColor:e.target.value||undefined})}/></div></label>}
+  </Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
+function AdvancedQrProperties({element,update,availableFields,datasourceStatus}:{element:QrDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+  const patch=(p:Partial<QrDesignElement>)=>update(e=>e.type==='QR'?{...e,...p}:e);
+  const valueBinding=getValueBinding(element);
+  const isBound=!!valueBinding;
+  const isMissingField=isBound&&valueBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===valueBinding.fieldPath);
+  return <><Section sectionKey="APPEARANCE" title="QR Code">
+    <label>Value / URL<input value={element.value} onChange={e=>patch({value:e.target.value})}/></label>
+    <label>Error Correction<select value={element.errorCorrection} onChange={e=>patch({errorCorrection:e.target.value as QrDesignElement['errorCorrection']})}><option value="L">L (7%)</option><option value="M">M (15%)</option><option value="Q">Q (25%)</option><option value="H">H (30%)</option></select></label>
+    <label>Foreground Color<div className="card-color-row"><input type="color" value={element.foreground} onChange={e=>patch({foreground:e.target.value})}/><input value={element.foreground} onChange={e=>patch({foreground:e.target.value})}/></div></label>
+    <label>Background Color<div className="card-color-row"><input type="color" value={element.background} onChange={e=>patch({background:e.target.value})}/><input value={element.background} onChange={e=>patch({background:e.target.value})}/></div></label>
+  </Section>
+  <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
+    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+        <label>Field:
+          <SearchableFieldPicker 
+            availableFields={availableFields} 
+            currentFieldPath={valueBinding?.fieldPath ?? '__NONE__'} 
+            onSelectField={val => {
+              if (val === '__NONE__') update(el => removeValueBinding(el as QrDesignElement));
+              else update(el => setValueFieldBinding(el as QrDesignElement, val));
+            }} 
+          />
+        </label>
+        {isBound&&<div style={{fontSize:'11px'}}>Fallback: {valueBinding.fallbackValue as string}</div>}
+        {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {valueBinding.fieldPath} Not available in current datasource</div>}
+        {isBound&&<button className="secondary" onClick={()=>update(el=>removeValueBinding(el as QrDesignElement))}>Remove Binding</button>}
+      </div>
+    }
+  </Section></>
+}
+
+function AdvancedBarcodeProperties({element,update,availableFields,datasourceStatus}:{element:BarcodeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+  const patch=(p:Partial<BarcodeDesignElement>)=>update(e=>e.type==='BARCODE'?{...e,...p}:e);
+  const valueBinding=getValueBinding(element);
+  const isBound=!!valueBinding;
+  const isMissingField=isBound&&valueBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===valueBinding.fieldPath);
+  return <><Section sectionKey="APPEARANCE" title="Barcode">
+    <label>Value / Data<input value={element.value} onChange={e=>patch({value:e.target.value})}/></label>
+    <label>Symbology (Static)<input value={element.symbology} readOnly disabled/></label>
+    <label>Foreground Color<div className="card-color-row"><input type="color" value={element.foreground} onChange={e=>patch({foreground:e.target.value})}/><input value={element.foreground} onChange={e=>patch({foreground:e.target.value})}/></div></label>
+    <label>Background Color<div className="card-color-row"><input type="color" value={element.background} onChange={e=>patch({background:e.target.value})}/><input value={element.background} onChange={e=>patch({background:e.target.value})}/></div></label>
+  </Section>
+  <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
+    {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+        <label>Field:
+          <SearchableFieldPicker 
+            availableFields={availableFields} 
+            currentFieldPath={valueBinding?.fieldPath ?? '__NONE__'} 
+            onSelectField={val => {
+              if (val === '__NONE__') update(el => removeValueBinding(el as BarcodeDesignElement));
+              else update(el => setValueFieldBinding(el as BarcodeDesignElement, val));
+            }} 
+          />
+        </label>
+        {isBound&&<div style={{fontSize:'11px'}}>Fallback: {valueBinding.fallbackValue as string}</div>}
+        {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {valueBinding.fieldPath} Not available in current datasource</div>}
+        {isBound&&<button className="secondary" onClick={()=>update(el=>removeValueBinding(el as BarcodeDesignElement))}>Remove Binding</button>}
+      </div>
+    }
+  </Section></>
+}
+function BatchOpacityProperties({elements,artboard,mutate}:{elements:DesignElement[];artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const compatible=elements.filter(e=>['TEXT','SHAPE','IMAGE','SVG'].includes(e.type)),first=compatible[0]?.opacity,mixed=compatible.some(e=>Math.abs(e.opacity-(first??e.opacity))>.0001),percent=Math.round((first??1)*100);if(!compatible.length)return null;return <Section sectionKey="APPEARANCE" title="Appearance"><label>Opacity {mixed?'(Mixed)':''}<div className="card-range-row"><input type="range" min="0" max="100" value={mixed?100:percent} onChange={e=>mutate(t=>updateElementsOpacity(t,artboard.id,compatible.map(x=>x.id),Number(e.target.value)/100))}/><span>{mixed?'Mixed':`${percent}%`}</span></div></label></Section>}
+function ElementPrintQuality({element,asset,print}:{element:ImageDesignElement|SvgDesignElement;asset?:AssetReference;print:Artboard['print']}){if(element.type==='SVG')return <div className={`card-print-quality ${assetRenderKind(asset)==='VECTOR_SVG'?'good':'error'}`}><strong>{assetRenderKind(asset)==='VECTOR_SVG'?'Vector — resolution independent':asset?'Unsupported Asset':'Missing Asset'}</strong></div>;const quality=imagePrintQuality(element,asset,print);return <div className={`card-print-quality ${quality.status.toLowerCase()}`}><strong>{quality.message}</strong><span>Source: {asset?.widthPx&&asset?.heightPx?`${asset.widthPx} × ${asset.heightPx} px`:'Dimensions unavailable'}</span><span>Placed: {normalizeDisplayValue(element.size.widthMm)} × {normalizeDisplayValue(element.size.heightMm)} mm</span><span>Effective: {quality.effectiveDpi?`${Math.round(quality.effectiveDpi)} DPI`:'Unknown'}</span></div>}
 function MultiSelectionProperties({elements,artboard,mutate,groupSelected,ungroupSelected}:{elements:DesignElement[];artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;groupSelected:()=>void;ungroupSelected:()=>void}){
  const [reference,setReference]=useState<DesignAlignmentReference>('SELECTION');
  const b=getSelectionBounds(elements),ids=elements.map(e=>e.id),grouped=elements.some(e=>e.groupId),unitCount=getAlignmentUnitCount(artboard,ids);
  const align=(mode:'LEFT'|'HCENTER'|'RIGHT'|'TOP'|'VCENTER'|'BOTTOM')=>mutate(t=>alignElements(t,artboard.id,ids,mode,reference));
- const distribute=(axis:'HORIZONTAL'|'VERTICAL')=>mutate(t=>distributeElements(t,artboard.id,ids,axis,reference));
- return <div className="card-property-sections"><div className="card-property-note"><strong>{elements.length} elements selected</strong><span>{unitCount} alignment unit{unitCount===1?'':'s'} · groups stay atomic · locked units stay fixed.</span></div><div className="card-layer-action-grid"><button onClick={groupSelected} disabled={grouped}>Group</button><button onClick={ungroupSelected} disabled={!grouped}>Ungroup</button><button onClick={()=>mutate(t=>scaleElements(t,artboard.id,ids,1.1))}>Scale +10%</button><button onClick={()=>mutate(t=>rotateElementsAsGroup(t,artboard.id,ids,15))}>Rotate +15°</button></div><details className="card-property-details" open><summary>Align & Distribute</summary><label>Reference<select value={reference} onChange={e=>setReference(e.target.value as DesignAlignmentReference)}><option value="SELECTION">Selection bounds</option><option value="ARTBOARD">Artboard</option></select></label><div className="card-layer-action-grid card-align-grid"><button onClick={()=>align('LEFT')}>Left</button><button onClick={()=>align('HCENTER')}>H Center</button><button onClick={()=>align('RIGHT')}>Right</button><button onClick={()=>align('TOP')}>Top</button><button onClick={()=>align('VCENTER')}>V Center</button><button onClick={()=>align('BOTTOM')}>Bottom</button><button onClick={()=>distribute('HORIZONTAL')} disabled={unitCount<3}>Distribute H</button><button onClick={()=>distribute('VERTICAL')} disabled={unitCount<3}>Distribute V</button><button onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboard.id,ids,'BOTH'))}>Center Artboard</button></div></details>{b&&<div className="card-property-grid"><label>X (mm)<input readOnly value={normalizeDisplayValue(b.xMm)}/></label><label>Y (mm)<input readOnly value={normalizeDisplayValue(b.yMm)}/></label><label>Width (mm)<input readOnly value={normalizeDisplayValue(b.widthMm)}/></label><label>Height (mm)<input readOnly value={normalizeDisplayValue(b.heightMm)}/></label></div>}</div>}
+  const distribute=(axis:'HORIZONTAL'|'VERTICAL')=>mutate(t=>distributeElements(t,artboard.id,ids,axis,reference));
+  return <div className="card-property-sections">
+  <Section sectionKey="GENERAL" title="General">
+    <div className="card-property-note"><strong>{elements.length} elements selected</strong><span>{unitCount} alignment unit{unitCount===1?'':'s'} · groups stay atomic · locked units stay fixed.</span></div>
+    <div className="card-layer-action-grid"><button onClick={groupSelected} disabled={grouped}>Group</button><button onClick={ungroupSelected} disabled={!grouped}>Ungroup</button></div>
+  </Section>
+  <Section sectionKey="TRANSFORM" title="Transform">
+    <div className="card-layer-action-grid"><button onClick={()=>mutate(t=>scaleElements(t,artboard.id,ids,1.1))}>Scale +10%</button><button onClick={()=>mutate(t=>rotateElementsAsGroup(t,artboard.id,ids,15))}>Rotate +15°</button></div>
+    <label>Reference<select value={reference} onChange={e=>setReference(e.target.value as DesignAlignmentReference)}><option value="SELECTION">Selection bounds</option><option value="ARTBOARD">Artboard</option></select></label><div className="card-layer-action-grid card-align-grid"><button onClick={()=>align('LEFT')}>Left</button><button onClick={()=>align('HCENTER')}>H Center</button><button onClick={()=>align('RIGHT')}>Right</button><button onClick={()=>align('TOP')}>Top</button><button onClick={()=>align('VCENTER')}>V Center</button><button onClick={()=>align('BOTTOM')}>Bottom</button><button onClick={()=>distribute('HORIZONTAL')} disabled={unitCount<3}>Distribute H</button><button onClick={()=>distribute('VERTICAL')} disabled={unitCount<3}>Distribute V</button><button onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboard.id,ids,'BOTH'))}>Center Artboard</button></div>
+    {b&&<div className="card-property-grid"><label>X (mm)<input readOnly value={normalizeDisplayValue(b.xMm)}/></label><label>Y (mm)<input readOnly value={normalizeDisplayValue(b.yMm)}/></label><label>Width (mm)<input readOnly value={normalizeDisplayValue(b.widthMm)}/></label><label>Height (mm)<input readOnly value={normalizeDisplayValue(b.heightMm)}/></label></div>}
+  </Section>
+  </div>}
 function MultiArtboardProperties({artboards,mutate}:{artboards:Artboard[];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){
   if(!artboards.length) return null;
   const ids=artboards.map(a=>a.id);
   const commonPrint=artboards[0]!.print;
   return <div className="card-property-sections">
-    <div className="card-property-note"><strong>{artboards.length} Artboards Selected</strong><span>Batch operations</span></div>
-    <div className="card-layer-action-grid">
-      <button onClick={()=>mutate(t=>applyPrintSettingsToTargets(t,commonPrint,'SELECTED',artboards[0]!.id,ids))}>Sync Print Settings</button>
-    </div>
+    <Section sectionKey="GENERAL" title="Batch Properties">
+      <div className="card-property-note"><strong>{artboards.length} Artboards Selected</strong><span>Batch operations</span></div>
+      <div className="card-layer-action-grid">
+        <button onClick={()=>mutate(t=>applyPrintSettingsToTargets(t,commonPrint,'SELECTED',artboards[0]!.id,ids))}>Sync Print Settings</button>
+      </div>
+    </Section>
   </div>;
 }
 function Properties({artboard,template,mutate}:{artboard:Artboard;template:DesignTemplate;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const unit=artboard.displayUnit,w=normalizeDisplayValue(mmToUnit(artboard.widthMm,unit)),h=normalizeDisplayValue(mmToUnit(artboard.heightMm,unit)),preset=ARTBOARD_PRESETS.find(p=>near(p.widthMm,artboard.widthMm)&&near(p.heightMm,artboard.heightMm));const dimensions=(nw:number,nh:number)=>{const wm=unitToMm(nw,unit),hm=unitToMm(nh,unit);if(wm>0&&hm>0&&Number.isFinite(wm)&&Number.isFinite(hm))mutate(t=>resizeArtboard(t,artboard.id,wm,hm));};
 const availableToPair=template.artboards.filter(a=>a.id!==artboard.id&&!a.pairId);
-return <div className="card-property-sections"><label>Name<input value={artboard.name} onChange={e=>{if(e.target.value.trim())mutate(t=>renameArtboard(t,artboard.id,e.target.value));}}/></label>
-<details className="card-property-details" open><summary>Artboard Role</summary>
+return <div className="card-property-sections">
+<Section sectionKey="GENERAL" title="General">
+  <label>Name<input value={artboard.name} onChange={e=>{if(e.target.value.trim())mutate(t=>renameArtboard(t,artboard.id,e.target.value));}}/></label>
   <label>Role<select value={artboard.role} onChange={e=>mutate(t=>setArtboardRole(t,artboard.id,e.target.value as ArtboardRole))}>
     <option value="GENERIC">Generic</option>
     <option value="FRONT">Front Side</option>
@@ -704,10 +931,10 @@ return <div className="card-property-sections"><label>Name<input value={artboard
       </select>}
     </div>
   )}
-</details>
-<label>Preset<select value={preset?.id??'custom'} onChange={e=>{const p=ARTBOARD_PRESETS.find(x=>x.id===e.target.value);if(p)mutate(t=>resizeArtboard(t,artboard.id,p.widthMm,p.heightMm));}}><option value="custom">Custom</option>{ARTBOARD_PRESETS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label><div className="card-property-grid"><label>Width ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={w} onChange={e=>dimensions(Number(e.target.value),h)}/></label><label>Height ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={h} onChange={e=>dimensions(w,Number(e.target.value))}/></label></div><label>Display unit<select value={unit} onChange={e=>mutate(t=>setArtboardDisplayUnit(t,artboard.id,e.target.value as DesignUnit))}><option value="MM">Millimetres (mm)</option><option value="IN">Inches (in)</option></select></label><label>Orientation<div className="card-segmented-control"><button className={artboard.widthMm>=artboard.heightMm?'active':''} onClick={()=>{if(artboard.widthMm<artboard.heightMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Landscape</button><button className={artboard.heightMm>artboard.widthMm?'active':''} onClick={()=>{if(artboard.heightMm<=artboard.widthMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Portrait</button></div></label><label>Background<div className="card-color-row"><input type="color" value={color(artboard)} onChange={e=>mutate(t=>setArtboardBackground(t,artboard.id,{type:'SOLID',color:e.target.value,opacity:1}))}/><input value={color(artboard)} readOnly/></div></label><details className="card-property-details" open><summary>Guides ({artboard.guides.length})</summary>{artboard.guides.length?<div className="card-guide-list">{artboard.guides.map(guide=><div key={guide.id} className="card-guide-row"><span>{guide.orientation==='VERTICAL'?'V':'H'}</span><input type="number" step="0.1" value={normalizeDisplayValue(mmToUnit(guide.positionMm,unit))} disabled={guide.locked} onChange={e=>mutate(t=>moveGuide(t,artboard.id,guide.id,unitToMm(Number(e.target.value),unit)))}/><small>{unit==='MM'?'mm':'in'}</small><button title={guide.locked?'Unlock guide':'Lock guide'} onClick={()=>mutate(t=>setGuideLocked(t,artboard.id,guide.id,!guide.locked))}>{guide.locked?'🔒':'🔓'}</button><button title="Delete guide" disabled={guide.locked} onClick={()=>mutate(t=>deleteGuide(t,artboard.id,guide.id))}>×</button></div>)}</div>:<div className="card-property-note"><span>Drag from the top or left ruler to create a guide.</span></div>}</details><div className="card-property-note"><strong>Phase 6.1.3</strong><span>Rulers, configurable editor grid and persistent artboard guides are active. Guides remain editor-only and feed the shared smart-snapping engine.</span></div></div>}
+</Section>
+<Section sectionKey="GENERAL" title="Dimensions"><label>Preset<select value={preset?.id??'custom'} onChange={e=>{const p=ARTBOARD_PRESETS.find(x=>x.id===e.target.value);if(p)mutate(t=>resizeArtboard(t,artboard.id,p.widthMm,p.heightMm));}}><option value="custom">Custom</option>{ARTBOARD_PRESETS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label><div className="card-property-grid"><label>Width ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={w} onChange={e=>dimensions(Number(e.target.value),h)}/></label><label>Height ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={h} onChange={e=>dimensions(w,Number(e.target.value))}/></label></div><label>Display unit<select value={unit} onChange={e=>mutate(t=>setArtboardDisplayUnit(t,artboard.id,e.target.value as DesignUnit))}><option value="MM">Millimetres (mm)</option><option value="IN">Inches (in)</option></select></label><label>Orientation<div className="card-segmented-control"><button className={artboard.widthMm>=artboard.heightMm?'active':''} onClick={()=>{if(artboard.widthMm<artboard.heightMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Landscape</button><button className={artboard.heightMm>artboard.widthMm?'active':''} onClick={()=>{if(artboard.heightMm<=artboard.widthMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Portrait</button></div></label></Section><Section sectionKey="GENERAL" title="Background"><label>Background<div className="card-color-row"><input type="color" value={color(artboard)} onChange={e=>mutate(t=>setArtboardBackground(t,artboard.id,{type:'SOLID',color:e.target.value,opacity:1}))}/><input value={color(artboard)} readOnly/></div></label></Section><Section sectionKey="GENERAL" title={`Guides (${artboard.guides.length})`}>{artboard.guides.length?<div className="card-guide-list">{artboard.guides.map(guide=><div key={guide.id} className="card-guide-row"><span>{guide.orientation==='VERTICAL'?'V':'H'}</span><input type="number" step="0.1" value={normalizeDisplayValue(mmToUnit(guide.positionMm,unit))} disabled={guide.locked} onChange={e=>mutate(t=>moveGuide(t,artboard.id,guide.id,unitToMm(Number(e.target.value),unit)))}/><small>{unit==='MM'?'mm':'in'}</small><button title={guide.locked?'Unlock guide':'Lock guide'} onClick={()=>mutate(t=>setGuideLocked(t,artboard.id,guide.id,!guide.locked))}>{guide.locked?'🔒':'🔓'}</button><button title="Delete guide" disabled={guide.locked} onClick={()=>mutate(t=>deleteGuide(t,artboard.id,guide.id))}>×</button></div>)}</div>:<div className="card-property-note"><span>Drag from the top or left ruler to create a guide.</span></div>}</Section><Section sectionKey="GENERAL" title="Notice"><div className="card-property-note"><strong>Phase 6.1.3</strong><span>Rulers, configurable editor grid and persistent artboard guides are active. Guides remain editor-only and feed the shared smart-snapping engine.</span></div></Section></div>}
 
-function PrintProperties({artboard,assets,mutate}:{artboard:Artboard;assets:AssetReference[];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const settings=resolvePrintSettings(artboard.print),preflight=useMemo(()=>validateArtboardPrint(artboard,assets),[artboard,assets]),patch=(value:Partial<Artboard['print']>)=>mutate(template=>updateArtboardPrintSettings(template,artboard.id,value)),insets=(key:'bleed'|'safeArea',label:string)=>{const current=settings[key],change=(side:keyof typeof current,value:number)=>patch({[key]:{...current,[side]:Math.max(0,value)}});return <details className="card-property-details"><summary>{label}</summary><div className="card-property-grid"><label>Top (mm)<input type="number" min="0" step=".5" value={current.topMm} onChange={e=>change('topMm',Number(e.target.value)||0)}/></label><label>Right (mm)<input type="number" min="0" step=".5" value={current.rightMm} onChange={e=>change('rightMm',Number(e.target.value)||0)}/></label><label>Bottom (mm)<input type="number" min="0" step=".5" value={current.bottomMm} onChange={e=>change('bottomMm',Number(e.target.value)||0)}/></label><label>Left (mm)<input type="number" min="0" step=".5" value={current.leftMm} onChange={e=>change('leftMm',Number(e.target.value)||0)}/></label></div></details>};return <div className="card-property-sections"><details className="card-property-details" open><summary>Print Settings</summary><label className="card-check-row"><input type="checkbox" checked={settings.showBleedInEditor} onChange={e=>patch({showBleedInEditor:e.target.checked})}/>Show Bleed</label><label className="card-check-row"><input type="checkbox" checked={settings.showSafeAreaInEditor} onChange={e=>patch({showSafeAreaInEditor:e.target.checked})}/>Show Safe Area</label><label className="card-check-row"><input type="checkbox" checked={settings.showCropMarksInEditor} onChange={e=>patch({showCropMarksInEditor:e.target.checked})}/>Show Crop Marks</label><label className="card-check-row"><input type="checkbox" checked={settings.cropMarksEnabledForExport} onChange={e=>patch({cropMarksEnabledForExport:e.target.checked})}/>Export Crop Marks</label><div className="card-property-grid"><label>Minimum DPI<input type="number" min="1" value={settings.minimumRasterDpi} onChange={e=>patch({minimumRasterDpi:Math.max(1,Number(e.target.value)||150)})}/></label><label>Preferred DPI<input type="number" min="1" value={settings.preferredRasterDpi} onChange={e=>patch({preferredRasterDpi:Math.max(1,Number(e.target.value)||300)})}/></label></div><div className="card-property-note"><span>{artboard.widthMm} × {artboard.heightMm} mm @ {settings.preferredRasterDpi} DPI</span><strong>{requiredPixels(artboard.widthMm,settings.preferredRasterDpi)} × {requiredPixels(artboard.heightMm,settings.preferredRasterDpi)} px recommended</strong></div></details>{insets('bleed','Bleed — outside trim')}{insets('safeArea','Safe Area — inside trim')}<details className="card-property-details" open><summary>Print Preflight</summary><div className="card-preflight-summary"><span className={preflight.errors?'error':'good'}>{preflight.errors} errors</span><span className={preflight.warnings?'warning':'good'}>{preflight.warnings} warnings</span></div>{preflight.issues.slice(0,6).map(issue=><div key={issue.id} className={`card-preflight-issue ${issue.severity.toLowerCase()}`}>{issue.message}</div>)}{!preflight.issues.length&&<div className="card-print-quality good"><strong>Print Ready</strong><span>Trim size and placed assets passed preflight.</span></div>}</details></div>}
+function PrintProperties({artboard,assets,mutate}:{artboard:Artboard;assets:AssetReference[];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const settings=resolvePrintSettings(artboard.print),preflight=useMemo(()=>validateArtboardPrint(artboard,assets),[artboard,assets]),patch=(value:Partial<Artboard['print']>)=>mutate(template=>updateArtboardPrintSettings(template,artboard.id,value)),insets=(key:'bleed'|'safeArea',label:string)=>{const current=settings[key],change=(side:keyof typeof current,value:number)=>patch({[key]:{...current,[side]:Math.max(0,value)}});return <Section sectionKey="GENERAL" title={label}><div className="card-property-grid"><label>Top (mm)<input type="number" min="0" step=".5" value={current.topMm} onChange={e=>change('topMm',Number(e.target.value)||0)}/></label><label>Right (mm)<input type="number" min="0" step=".5" value={current.rightMm} onChange={e=>change('rightMm',Number(e.target.value)||0)}/></label><label>Bottom (mm)<input type="number" min="0" step=".5" value={current.bottomMm} onChange={e=>change('bottomMm',Number(e.target.value)||0)}/></label><label>Left (mm)<input type="number" min="0" step=".5" value={current.leftMm} onChange={e=>change('leftMm',Number(e.target.value)||0)}/></label></div></Section>};return <div className="card-property-sections"><Section sectionKey="GENERAL" title="Print Settings"><label className="card-check-row"><input type="checkbox" checked={settings.showBleedInEditor} onChange={e=>patch({showBleedInEditor:e.target.checked})}/>Show Bleed</label><label className="card-check-row"><input type="checkbox" checked={settings.showSafeAreaInEditor} onChange={e=>patch({showSafeAreaInEditor:e.target.checked})}/>Show Safe Area</label><label className="card-check-row"><input type="checkbox" checked={settings.showCropMarksInEditor} onChange={e=>patch({showCropMarksInEditor:e.target.checked})}/>Show Crop Marks</label><label className="card-check-row"><input type="checkbox" checked={settings.cropMarksEnabledForExport} onChange={e=>patch({cropMarksEnabledForExport:e.target.checked})}/>Export Crop Marks</label><div className="card-property-grid"><label>Minimum DPI<input type="number" min="1" value={settings.minimumRasterDpi} onChange={e=>patch({minimumRasterDpi:Math.max(1,Number(e.target.value)||150)})}/></label><label>Preferred DPI<input type="number" min="1" value={settings.preferredRasterDpi} onChange={e=>patch({preferredRasterDpi:Math.max(1,Number(e.target.value)||300)})}/></label></div><div className="card-property-note"><span>{artboard.widthMm} × {artboard.heightMm} mm @ {settings.preferredRasterDpi} DPI</span><strong>{requiredPixels(artboard.widthMm,settings.preferredRasterDpi)} × {requiredPixels(artboard.heightMm,settings.preferredRasterDpi)} px recommended</strong></div></Section>{insets('bleed','Bleed — outside trim')}{insets('safeArea','Safe Area — inside trim')}<Section sectionKey="GENERAL" title="Print Preflight"><div className="card-preflight-summary"><span className={preflight.errors?'error':'good'}>{preflight.errors} errors</span><span className={preflight.warnings?'warning':'good'}>{preflight.warnings} warnings</span></div>{preflight.issues.slice(0,6).map(issue=><div key={issue.id} className={`card-preflight-issue ${issue.severity.toLowerCase()}`}>{issue.message}</div>)}{!preflight.issues.length&&<div className="card-print-quality good"><strong>Print Ready</strong><span>Trim size and placed assets passed preflight.</span></div>}</Section></div>}
 
 type RulerTick={key:string;positionMm:number;major:boolean;label:string};
 function rulerTicks(artboard:Artboard,zoom:number):{x:RulerTick[];y:RulerTick[]}{const unit=artboard.displayUnit;const pxPerMm=MM_TO_CSS_PX*zoom/100;const majorMm=unit==='MM'?(pxPerMm*10>=34?10:20):25.4;const minorMm=unit==='MM'?(pxPerMm*5>=12?5:10):6.35;const axis=(lengthMm:number,prefix:string)=>{const result:RulerTick[]=[];for(let positionMm=0;positionMm<=lengthMm+1e-6;positionMm+=minorMm){const major=Math.abs(positionMm/majorMm-Math.round(positionMm/majorMm))<1e-6;result.push({key:`${prefix}-${positionMm.toFixed(3)}`,positionMm,major,label:major?String(normalizeDisplayValue(mmToUnit(positionMm,unit))):''});}return result;};return{x:axis(artboard.widthMm,'x'),y:axis(artboard.heightMm,'y')};}

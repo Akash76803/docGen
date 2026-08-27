@@ -7,6 +7,8 @@ import type {
   ShapeDesignElement,
   TextDesignElement,
   SvgDesignElement,
+  QrDesignElement,
+  BarcodeDesignElement,
 } from '@document-tool/contracts';
 
 export interface ElementFactoryOptions {
@@ -78,6 +80,36 @@ export function createSvgElement(assetId:string, options:ElementFactoryOptions):
     size:{widthMm:options.widthMm??30,heightMm:options.heightMm??30},
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
     assetId,preserveVector:true,stroke:{color:'#000000',widthMm:0,style:'NONE',opacity:1},shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
+  };
+}
+
+export function createQrElement(options:ElementFactoryOptions):QrDesignElement {
+  return {
+    id:options.id,
+    type:'QR',
+    name:options.name??'QR Code',
+    position:{xMm:options.xMm??12,yMm:options.yMm??12},
+    size:{widthMm:options.widthMm??20,heightMm:options.heightMm??20},
+    rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
+    value:'https://example.com',
+    foreground:'#000000',
+    background:'#ffffff',
+    errorCorrection:'M',
+  };
+}
+
+export function createBarcodeElement(options:ElementFactoryOptions):BarcodeDesignElement {
+  return {
+    id:options.id,
+    type:'BARCODE',
+    name:options.name??'Barcode',
+    position:{xMm:options.xMm??12,yMm:options.yMm??12},
+    size:{widthMm:options.widthMm??35,heightMm:options.heightMm??15},
+    rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
+    value:'123456789012',
+    symbology:'CODE128',
+    foreground:'#000000',
+    background:'#ffffff',
   };
 }
 

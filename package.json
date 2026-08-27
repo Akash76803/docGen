@@ -75,7 +75,8 @@
     "test:card-field-picker": "vitest run apps/desktop/test/phase663-field-picker.test.ts",
     "test:card-field-search": "vitest run apps/desktop/test/phase663a-searchable-field-picker.test.ts",
     "test:card-dynamic-text": "vitest run packages/design-engine/test/phase664-mixed-dynamic-text.test.ts",
-    "test:card-dynamic-images": "vitest run packages/design-engine/test/phase665-dynamic-image-binding.test.ts"
+    "test:card-dynamic-images": "vitest run packages/design-engine/test/phase665-dynamic-image-binding.test.ts",
+    "test:card-dynamic-codes": "vitest run packages/design-engine/test/phase666-qr-barcode-binding.test.ts"
   },
   "workspaces": [
     "packages/*",

@@ -1,4 +1,4 @@
-import type { DesignBinding, DesignElement, TextDesignElement, ImageDesignElement, SvgDesignElement, DesignDataContext } from '@document-tool/contracts';
+import type { DesignBinding, DesignElement, TextDesignElement, ImageDesignElement, SvgDesignElement, QrDesignElement, BarcodeDesignElement, DesignDataContext } from '@document-tool/contracts';
 
 export function getTextBinding(element: DesignElement): DesignBinding | undefined {
   return element.bindings?.find(b => b.targetProperty === 'text');
@@ -59,6 +59,35 @@ export function setSourceFieldBinding<T extends ImageDesignElement | SvgDesignEl
 export function removeSourceBinding<T extends ImageDesignElement | SvgDesignElement>(element: T): T {
   if (!element.bindings) return element;
   const newBindings = element.bindings.filter(b => b.targetProperty !== 'source');
+  return {
+    ...element,
+    bindings: newBindings.length ? newBindings : undefined
+  } as T;
+}
+
+export function getValueBinding(element: DesignElement): DesignBinding | undefined {
+  return element.bindings?.find(b => b.targetProperty === 'value');
+}
+
+export function setValueFieldBinding<T extends QrDesignElement | BarcodeDesignElement>(element: T, fieldPath: string): T {
+  const currentBinding = getValueBinding(element);
+  const newBinding: DesignBinding = currentBinding
+    ? { ...currentBinding, sourceType: 'FIELD', fieldPath }
+    : {
+        id: `${element.id}-value-binding`,
+        targetProperty: 'value',
+        sourceType: 'FIELD',
+        fieldPath,
+        fallbackValue: element.value,
+      };
+
+  const bindings = [...(element.bindings || []).filter(b => b.targetProperty !== 'value'), newBinding];
+  return { ...element, bindings } as T;
+}
+
+export function removeValueBinding<T extends QrDesignElement | BarcodeDesignElement>(element: T): T {
+  if (!element.bindings) return element;
+  const newBindings = element.bindings.filter(b => b.targetProperty !== 'value');
   return {
     ...element,
     bindings: newBindings.length ? newBindings : undefined

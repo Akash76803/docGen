@@ -1,0 +1,616 @@
+/* designer.css */
+.dg-designer-shell {
+  display: grid;
+  grid-template-rows: var(--designer-header-height) var(--designer-toolbar-height, 48px) minmax(0, 1fr) var(--designer-statusbar-height);
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--color-workspace-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-ui);
+  overflow: hidden;
+}
+
+.dg-designer-shell__header {
+  grid-row: 1;
+  background-color: var(--color-panel-bg);
+  border-bottom: 1px solid var(--color-border);
+  z-index: var(--z-sticky);
+}
+
+.dg-designer-shell__toolbar {
+  grid-row: 2;
+  background-color: var(--color-panel-bg);
+  border-bottom: 1px solid var(--color-border);
+  z-index: var(--z-sticky);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.dg-designer-shell__body {
+  grid-row: 3;
+  display: flex;
+  min-width: 0;
+  min-height: 0; /* Important for flex/grid nested overflow */
+  position: relative;
+}
+
+.dg-designer-shell__status {
+  grid-row: 4;
+  background-color: var(--color-panel-bg);
+  border-top: 1px solid var(--color-border);
+  z-index: var(--z-sticky);
+}
+
+/* Header */
+.dg-designer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 var(--space-4);
+}
+
+.dg-designer-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.dg-designer-header__title {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.dg-designer-header__center {
+  display: flex;
+  justify-content: center;
+  flex: 1;
+}
+
+.dg-designer-header__right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+/* Context Toolbar */
+.dg-designer-context-toolbar {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 var(--space-4);
+  gap: var(--space-3);
+}
+
+.dg-designer-context-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dg-designer-context-toolbar__separator {
+  width: 1px;
+  height: 24px;
+  background-color: var(--color-border);
+}
+
+.dg-designer-context-toolbar__label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Base styles for simple controls in the toolbar */
+.dg-designer-context-toolbar select,
+.dg-designer-context-toolbar input[type="number"],
+.dg-designer-context-toolbar input[type="color"] {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-control-bg);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+}
+
+.dg-designer-context-toolbar input[type="color"] {
+  padding: 0 4px;
+  width: 40px;
+}
+
+.dg-toolbar-number {
+  width: 60px;
+}
+
+.dg-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.dg-toolbar-button:hover:not(:disabled) {
+  background-color: var(--color-control-hover);
+}
+
+.dg-toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dg-toolbar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.dg-toolbar-toggle:hover:not(:disabled) {
+  background-color: var(--color-control-hover);
+}
+
+.dg-toolbar-toggle.active {
+  background-color: var(--color-control-active);
+  color: var(--color-bg-base); /* Contrast if active is dark, adjust as needed */
+}
+
+/* Status Bar */
+.dg-designer-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.dg-designer-statusbar__left,
+.dg-designer-statusbar__center,
+.dg-designer-statusbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.dg-designer-statusbar__right {
+  justify-content: flex-end;
+}
+
+/* Tool Rail */
+.dg-designer-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--color-workspace-bg);
+}
+
+.dg-designer-legacy-workspace {
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) auto;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Inspector Layout */
+.dg-designer-inspector-layout {
+  display: flex;
+  height: 100%;
+  border-left: 1px solid var(--color-border);
+  background-color: var(--color-panel-bg);
+}
+
+.dg-designer-inspector {
+  display: flex;
+  flex-direction: column;
+  width: var(--designer-inspector-width, 300px);
+  height: 100%;
+  border-right: 1px solid var(--color-border);
+}
+
+.dg-designer-inspector__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dg-designer-inspector-rail {
+  display: flex;
+  flex-direction: column;
+  width: var(--designer-tool-rail-width, 56px);
+  height: 100%;
+  background-color: var(--color-panel-bg);
+  padding: var(--space-2) 0;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dg-designer-inspector-rail__top,
+.dg-designer-inspector-rail__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dg-designer-inspector-rail__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.dg-designer-inspector-rail__item:hover {
+  background-color: var(--color-control-hover);
+  color: var(--color-text-primary);
+}
+
+.dg-designer-inspector-rail__item--active {
+  background-color: var(--color-control-active);
+  color: var(--color-bg-base);
+}
+
+/* Inspector Section */
+.dg-inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dg-inspector-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dg-inspector-section__icon {
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.dg-inspector-section__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.dg-inspector-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+
+.dg-designer-tool-rail {
+  display: flex;
+  flex-direction: column;
+  width: var(--designer-tool-rail-width, 56px);
+  height: 100%;
+  background-color: var(--color-panel-bg);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-2) 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dg-designer-tool-rail__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.dg-designer-tool-rail__item:hover {
+  background-color: var(--color-control-hover);
+  color: var(--color-text-primary);
+}
+
+.dg-designer-tool-rail__item--active {
+  background-color: var(--color-control-active);
+  color: var(--color-bg-base);
+}
+
+/* Left Panel */
+.dg-designer-left-panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--designer-left-panel-width, 280px);
+  height: 100%;
+  background-color: var(--color-panel-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+.dg-designer-left-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dg-designer-left-panel__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.dg-designer-left-panel__collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.dg-designer-left-panel__collapse:hover {
+  background-color: var(--color-control-hover);
+  color: var(--color-text-primary);
+}
+
+.dg-designer-left-panel__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Element Library */
+.dg-element-library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dg-element-library__search input {
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-control-bg);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.dg-element-library__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dg-element-library__section-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.dg-element-library__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.dg-element-library__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 72px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.dg-element-library__item:hover {
+  border-color: var(--color-border-strong);
+  background-color: var(--color-control-hover);
+}
+
+.dg-element-library__item span {
+  font-size: var(--font-size-xs);
+}
+
+/* 
+ * Layers Panel Legacy UI Integration
+ * Overrides for .card-layers-panel inside the new left rail 
+ */
+.dg-designer-left-panel__content .card-layers-panel {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.dg-designer-left-panel__content .card-panel-heading {
+  display: none;
+}
+
+.dg-designer-left-panel__content .card-layer-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: 0;
+  gap: var(--space-2);
+}
+
+.dg-designer-left-panel__content .card-layer-row {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 2px;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dg-designer-left-panel__content .card-layer-row:hover {
+  background-color: var(--color-bg-base);
+  border-color: var(--color-border-strong);
+}
+
+.dg-designer-left-panel__content .card-layer-row.active {
+  background-color: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.dg-designer-left-panel__content .card-layer-main {
+  color: var(--color-text-primary);
+  min-height: 40px;
+  height: auto;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  border: none;
+  padding: 4px 8px;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.dg-designer-left-panel__content .card-layer-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.dg-designer-left-panel__content .card-layer-row.active .card-layer-icon {
+  color: var(--color-accent);
+}
+
+.dg-designer-left-panel__content .card-layer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 2px;
+}
+
+.dg-designer-left-panel__content .card-layer-main input {
+  color: var(--color-text-primary);
+  height: 20px;
+  font-size: var(--font-size-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  width: 100%;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+}
+.dg-designer-left-panel__content .card-layer-main input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg-base);
+}
+
+.dg-designer-left-panel__content .card-layer-group {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  padding-left: 4px;
+}
+
+.dg-designer-left-panel__content .card-layer-mini {
+  display: flex;
+  padding: 0 8px 8px 36px;
+  gap: var(--space-2);
+}
+
+.dg-designer-left-panel__content .card-layer-mini button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dg-designer-left-panel__content .card-layer-mini button:hover {
+  background-color: var(--color-control-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.dg-designer-left-panel__content .card-layer-actions button {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
+.dg-designer-left-panel__content .card-layer-actions button:hover:not(:disabled) {
+  background-color: var(--color-control-hover);
+}
+

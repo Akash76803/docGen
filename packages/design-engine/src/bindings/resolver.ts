@@ -117,6 +117,22 @@ export function normalizeDynamicAssetSource(value: unknown, fallbackValue: unkno
   return undefined;
 }
 
+export function normalizeDynamicCodeValue(value: unknown, fallbackValue: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim() !== '') {
+    return value;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return String(value);
+  }
+  if (typeof fallbackValue === 'string' && fallbackValue.trim() !== '') {
+    return fallbackValue;
+  }
+  return typeof fallbackValue === 'string' ? fallbackValue : undefined;
+}
+
 /**
  * Validates and normalizes the target value for a specific property on a DesignElement.
  */
@@ -168,6 +184,15 @@ export function applyResolvedValueToElement(element: DesignElement, binding: Des
       if (element.type === 'SVG') {
         if (typeof rawValue === 'string') {
           (element as any).tintColor = rawValue;
+        }
+      }
+      break;
+
+    case 'value':
+      if (element.type === 'QR' || element.type === 'BARCODE') {
+        const normalized = normalizeDynamicCodeValue(rawValue, binding.fallbackValue);
+        if (normalized !== undefined) {
+          (element as any).value = normalized;
         }
       }
       break;
