@@ -24,8 +24,8 @@ export type DesignerContextToolbarProps = {
   onGroupSelected?: () => void;
   onUngroupSelected?: () => void;
   pathEditMode?: { active: boolean; selectedNodeIds: string[] };
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
-  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
+  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
   pathSelectedSegmentIds?: string[];
   setPathSelectedSegmentIds?: (m: string[]) => void;
   onMirrorInvoked?: (axis: 'HORIZONTAL'|'VERTICAL') => void;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PathDesignElement, PathGeometry, ShapeDesignElement } from '@document-tool/contracts';
-import { deletePathSegmentRange, findTrimInterval, getPathRangeBetweenNodes, getSmartTrimIntervals, localToWorld, normalizePathFragment, splitGeometryIntoConnectedFragments, splitPathSegment, trimSegmentInterval, validatePathGeometry } from '../src/index.js';
+import { deletePathSegmentRange, erasePathWithWorldStroke, findTrimInterval, getPathRangeBetweenNodes, getSmartTrimIntervals, localToWorld, normalizePathFragment, splitGeometryIntoConnectedFragments, splitPathSegment, trimSegmentInterval, validatePathGeometry } from '../src/index.js';
 
 const stroke = { type: 'SOLID' as const, style: 'SOLID' as const, color: '#000000', widthMm: 0.5 };
 const lineGeometry = (): PathGeometry => ({
@@ -12,6 +12,22 @@ const lineElement = (): PathDesignElement => ({ id: 'target', type: 'PATH', name
 const circleElement = (): ShapeDesignElement => ({ id: 'circle', type: 'SHAPE', name: 'Circle', position: { xMm: 30, yMm: 0 }, size: { widthMm: 40, heightMm: 40 }, rotationDeg: 0, opacity: 1, visible: true, locked: false, zIndex: 1, shape: 'CIRCLE', fill: { type: 'NONE' }, stroke });
 
 describe('Phase 7.1 Smart Trimmer', () => {
+  it('erases only the path interval touched by a world-space brush stroke', () => {
+    const source = lineElement();
+    const snapshot = structuredClone(source);
+    const erased = erasePathWithWorldStroke(source, [{ xMm: 50, yMm: 15 }, { xMm: 50, yMm: 25 }], 2);
+    const fragments = splitGeometryIntoConnectedFragments(erased);
+    expect(source).toEqual(snapshot);
+    expect(fragments).toHaveLength(2);
+    expect(erased.segments).toHaveLength(2);
+    expect(validatePathGeometry(erased)).toBe(true);
+    const endpoints = erased.points.map(point => point.x).sort((a, b) => a - b);
+    expect(endpoints[0]).toBeCloseTo(0);
+    expect(endpoints[1]).toBeLessThan(50);
+    expect(endpoints[2]).toBeGreaterThan(50);
+    expect(endpoints[3]).toBeCloseTo(100);
+  });
+
   it('detects two crossings and chooses the interval under the pointer', () => {
     const intervals = getSmartTrimIntervals(lineElement(), 'line', [lineElement(), circleElement()]);
     expect(intervals).toHaveLength(3);

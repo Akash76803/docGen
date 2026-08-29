@@ -18,6 +18,39 @@ export interface TrimInterval {
   tEnd: number;
 }
 
+export interface EraserStrokePoint { xMm:number; yMm:number }
+
+/** Removes the portion of each canonical segment touched by a world-space
+ * eraser stroke. Existing trim primitives perform the actual topology edit. */
+export function erasePathWithWorldStroke(
+  element:PathDesignElement,
+  stroke:readonly EraserStrokePoint[],
+  radiusMm:number
+):PathGeometry {
+  if(!stroke.length||!Number.isFinite(radiusMm)||radiusMm<=0)return clonePathGeometry(element.geometry);
+  const distanceToStroke=(point:EraserStrokePoint)=>{
+    if(stroke.length===1)return Math.hypot(point.xMm-stroke[0]!.xMm,point.yMm-stroke[0]!.yMm);
+    let best=Infinity;
+    for(let index=1;index<stroke.length;index++){
+      const a=stroke[index-1]!,b=stroke[index]!,dx=b.xMm-a.xMm,dy=b.yMm-a.yMm,lengthSq=dx*dx+dy*dy;
+      const t=lengthSq?Math.max(0,Math.min(1,((point.xMm-a.xMm)*dx+(point.yMm-a.yMm)*dy)/lengthSq)):0;
+      best=Math.min(best,Math.hypot(point.xMm-(a.xMm+dx*t),point.yMm-(a.yMm+dy*t)));
+    }
+    return best;
+  };
+  const evaluate=(segment:PathGeometry['segments'][number],t:number)=>{
+    const from=element.geometry.points.find(point=>point.id===segment.fromPointId),to=element.geometry.points.find(point=>point.id===segment.toPointId);if(!from||!to)return null;
+    if(segment.type==='LINE')return{x:from.x+(to.x-from.x)*t,y:from.y+(to.y-from.y)*t};
+    const first=from.outHandle??from,second=to.inHandle??to,mt=1-t;
+    return{x:mt**3*from.x+3*mt**2*t*first.x+3*mt*t**2*second.x+t**3*to.x,y:mt**3*from.y+3*mt**2*t*first.y+3*mt*t**2*second.y+t**3*to.y};
+  };
+  const hits:Array<{segmentId:string;tStart:number;tEnd:number}>=[];
+  for(const segment of element.geometry.segments){const samples=120,matched:number[]=[];for(let index=0;index<=samples;index++){const t=index/samples,local=evaluate(segment,t);if(!local)continue;const world=localToWorld(local,element);if(distanceToStroke({xMm:world.x,yMm:world.y})<=radiusMm)matched.push(index);}if(matched.length){const padding=1/samples;hits.push({segmentId:segment.id,tStart:Math.max(0,matched[0]!/samples-padding),tEnd:Math.min(1,matched.at(-1)!/samples+padding)});}}
+  let geometry=clonePathGeometry(element.geometry);
+  for(const hit of hits)geometry=trimSegmentInterval(geometry,hit.segmentId,hit.tStart,hit.tEnd);
+  return geometry;
+}
+
 /**
  * Gets valid intersection-based trim intervals for a target segment.
  */

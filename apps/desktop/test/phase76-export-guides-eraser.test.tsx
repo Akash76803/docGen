@@ -29,13 +29,28 @@ describe('Phase 7.6 export fidelity, spacing guides, and eraser',()=>{
     expect(source).toContain('guide.gapMm');
   });
 
-  it('contains a sticky freeform eraser that deletes intersecting unlocked elements on release',()=>{
+  it('contains a sticky freeform eraser that trims touched vector intervals on release',()=>{
     const designer=readFileSync(resolve(process.cwd(),'apps/desktop/src/pages/CardDesigner.tsx'),'utf8');
     const library=readFileSync(resolve(process.cwd(),'apps/desktop/src/components/designer/ElementLibraryPanel.tsx'),'utf8');
     expect(library).toContain("label: 'Freeform Eraser'");
     expect(designer).toContain("mode:'ERASER_LASSO'");
     expect(designer).toContain('eraserHitsElement');
     expect(designer).toContain('data-eraser-lasso');
-    expect(designer).toContain('deleteDesignElements(t,artboard.id,hitIds)');
+    expect(designer).toContain('erasePathWithWorldStroke(pathSource,stroke,radiusMm)');
+    expect(designer).toContain('splitGeometryIntoConnectedFragments(erased)');
+    expect(designer).toContain("if(!source.visible||source.runtimeHidden||source.locked)continue");
+    expect(designer).toContain('onPointerCancel={cancelEraserStroke}');
+  });
+
+  it('contains a sticky fill bucket for solid and transparent closed regions',()=>{
+    const designer=readFileSync(resolve(process.cwd(),'apps/desktop/src/pages/CardDesigner.tsx'),'utf8');
+    const library=readFileSync(resolve(process.cwd(),'apps/desktop/src/components/designer/ElementLibraryPanel.tsx'),'utf8');
+    expect(library).toContain("label: 'Fill Bucket'");
+    expect(library).toContain('<option value="SOLID">Solid</option>');
+    expect(library).toContain('<option value="NONE">Transparent / No Fill</option>');
+    expect(designer).toContain('fillableElementContainsPoint(element,p)');
+    expect(designer).toContain("if(!closed){setStatus('Fill Bucket — boundary is open; close the path before filling')");
+    expect(designer).toContain("fillBucketType==='NONE'?{type:'NONE' as const}:{type:'SOLID' as const");
+    expect(designer).toContain("interactionMode==='FILL_BUCKET'");
   });
 });

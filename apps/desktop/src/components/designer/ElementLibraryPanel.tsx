@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser } from 'lucide-react';
+import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser, PaintBucket } from 'lucide-react';
 import { DesignShapeKind } from '@document-tool/contracts';
 
 const shapeLabel = (s: DesignShapeKind) => s.toLowerCase().split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -11,9 +11,13 @@ export type ElementLibraryPanelProps = {
   onAddQr?: () => void;
   onAddBarcode?: () => void;
   availableShapes: DesignShapeKind[];
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
   drawShapeType?: DesignShapeKind | null;
-  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  fillBucketType?: 'SOLID' | 'NONE';
+  fillBucketColor?: string;
+  onFillBucketTypeChange?: (type:'SOLID'|'NONE')=>void;
+  onFillBucketColorChange?: (color:string)=>void;
   onSetDrawShapeType?: (type: DesignShapeKind | null) => void;
   canEditPath?: boolean;
   canScissors?: boolean;
@@ -41,6 +45,7 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
   onJoin,
   canClose = false,
   onClose
+  ,fillBucketType='SOLID',fillBucketColor='#3b82f6',onFillBucketTypeChange,onFillBucketColorChange
 }) => {
   const [search, setSearch] = useState('');
 
@@ -81,6 +86,7 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
     { id: 'scissors', label: 'Scissors', tooltip: 'Split a path segment', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },
     { id: 'trimmer', label: 'Trimmer', tooltip: 'Remove a segment between intersections or points', icon: <BetweenHorizontalStart size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
     { id: 'eraser', label: 'Freeform Eraser', tooltip: 'Draw a freeform selection around unlocked elements to erase them', icon: <Eraser size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ERASER'), active: interactionMode === 'ERASER' },
+    { id: 'fill-bucket', label: 'Fill Bucket', tooltip: 'Fill a closed shape or section', icon: <PaintBucket size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FILL_BUCKET'), active: interactionMode === 'FILL_BUCKET' },
     { id: 'join-path', label: 'Join Path', tooltip: 'Join two open paths', icon: <GitMerge size={20} strokeWidth={1.5} />, action: () => onJoin?.(), disabled: !canJoin },
     { id: 'close-path', label: 'Close Path', tooltip: 'Close an open path', icon: <BoxSelect size={20} strokeWidth={1.5} />, action: () => onClose?.(), disabled: !canClose },
   ];
@@ -89,6 +95,12 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
 
   return (
     <div className="dg-element-library">
+      {interactionMode==='FILL_BUCKET'&&<div data-fill-bucket-controls style={{display:'grid',gap:8,padding:'10px',marginBottom:8,border:'1px solid var(--border-color)',borderRadius:6}}>
+        <strong style={{fontSize:12}}>Fill Bucket</strong>
+        <label style={{fontSize:11}}>Fill type<select value={fillBucketType} onChange={e=>onFillBucketTypeChange?.(e.target.value as 'SOLID'|'NONE')}><option value="SOLID">Solid</option><option value="NONE">Transparent / No Fill</option></select></label>
+        {fillBucketType==='SOLID'&&<label style={{fontSize:11}}>Color <input aria-label="Fill bucket color" type="color" value={fillBucketColor} onChange={e=>onFillBucketColorChange?.(e.target.value)}/></label>}
+        <small style={{color:'var(--text-secondary)'}}>Click a closed shape or section. Open boundaries cannot be filled.</small>
+      </div>}
       <div className="dg-element-library__search">
         <input 
           type="text" 
