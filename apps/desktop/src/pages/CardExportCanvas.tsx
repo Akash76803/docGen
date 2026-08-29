@@ -2,7 +2,7 @@ import React from 'react';
 
 import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop, DesignFill, QrDesignElement, PathDesignElement } from '@document-tool/contracts';
 import QRCode from 'react-qr-code';
-import { geometryToSvgPath, shapeToPathGeometry } from '@document-tool/design-engine';
+import { geometryToSvgPath, shapeToPathGeometry, resolveRasterImageElementSource, resolveRasterImageFillSource } from '@document-tool/design-engine';
 
 export function normalizeExportColor(value: string | undefined | null): string {
   if (!value) return 'transparent';
@@ -252,11 +252,11 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
       </div>
     );
   } else if (e.type === 'IMAGE') {
-    const asset = assets.find(a => a.id === e.assetId);
-    if (asset && asset.source) {
+    const source = resolveRasterImageElementSource(e, assets);
+    if (source) {
       content = (
         <img 
-          src={asset.source} 
+          src={source} 
           alt={e.name} 
           style={{ 
             width: '100%', 
@@ -382,7 +382,7 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
 }
 
 function ExportImageFillPattern({id,fill,assets,width,height}:{id:string;fill:Extract<DesignFill,{type:'IMAGE'}>;assets:DesignTemplate['sharedAssets'];width:number;height:number}){
-  const source=assets.find(asset=>asset.id===fill.assetId)?.source;
+  const source=resolveRasterImageFillSource(fill,assets);
   if(!source)return null;
   const preserveAspectRatio=fill.fit==='FIT'?'xMidYMid meet':fill.fit==='FILL'?'xMidYMid slice':'none';
   return <defs><pattern id={id} patternUnits="userSpaceOnUse" width={width} height={height}><image href={source} x="0" y="0" width={width} height={height} preserveAspectRatio={preserveAspectRatio}/></pattern></defs>;

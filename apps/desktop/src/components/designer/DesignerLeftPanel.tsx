@@ -11,6 +11,7 @@ export type DesignerLeftPanelProps = {
 };
 
 export const DesignerLeftPanel: React.FC<DesignerLeftPanelProps> = ({
+  activeMode,
   title,
   collapsed,
   onCollapse,
@@ -19,7 +20,7 @@ export const DesignerLeftPanel: React.FC<DesignerLeftPanelProps> = ({
   if (collapsed) return null;
 
   return (
-    <aside className="dg-designer-left-panel">
+    <aside className={`dg-designer-left-panel dg-designer-left-panel--${activeMode.toLowerCase()}`}>
       <div className="dg-designer-left-panel__header">
         <h2 className="dg-designer-left-panel__title">{title}</h2>
         <button

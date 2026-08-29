@@ -97,7 +97,8 @@ export class ExcelDataSourceAdapter implements DataSourceAdapter {
     const nullCounts = new Map<string, number>();
     let emptyRowsSkipped = 0;
 
-    for (const row of rows.slice(headerRow)) {
+    for (let rowIndex = headerRow; rowIndex < rows.length; rowIndex += 1) {
+      const row = rows[rowIndex] ?? [];
       if (isEmptyRow(row)) {
         emptyRowsSkipped += 1;
         continue;
@@ -105,7 +106,8 @@ export class ExcelDataSourceAdapter implements DataSourceAdapter {
 
       const record: NormalizedRecord = {};
       for (const header of processed.headers) {
-        const inferred = inferExcelValue(row[header.columnIndex]);
+        const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: header.columnIndex })];
+        const inferred = inferExcelCellValue(row[header.columnIndex], cell);
         record[header.key] = toNormalizedValue(inferred.value, inferred.type);
         const list = fieldTypes.get(header.key) ?? [];
         list.push(inferred.type);
@@ -163,12 +165,84 @@ export class ExcelDataSourceAdapter implements DataSourceAdapter {
   private readWorkbook(file: SourceFileInput): XLSX.WorkBook {
     try {
       if (!file.bytes || file.bytes.byteLength === 0) throw new Error('The selected Excel file is empty.');
-      return XLSX.read(file.bytes, { type: 'array', cellDates: true, cellNF: false, cellText: false });
+      // Keep Excel date cells as their raw serial numbers and retain the number format.
+      // This lets us distinguish a DATE from a DATETIME using the workbook's
+      // actual cell format instead of timezone-sensitive JavaScript Date values.
+      return XLSX.read(file.bytes, { type: 'array', cellDates: false, cellNF: true, cellText: false });
     } catch (error) {
       if (error instanceof Error && error.message === 'The selected Excel file is empty.') throw error;
       throw new Error('Unable to read this Excel workbook. The file may be corrupted or password protected.');
     }
   }
+}
+
+function inferExcelCellValue(value: unknown, cell: XLSX.CellObject | undefined): ReturnType<typeof inferExcelValue> {
+  if (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    cell?.t === 'n' &&
+    typeof cell.z === 'string' &&
+    XLSX.SSF.is_date(cell.z)
+  ) {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed && isValidExcelDateParts(parsed.y, parsed.m, parsed.d)) {
+      if (!excelDateFormatHasTime(cell.z)) {
+        return { value: formatYmd(parsed.y, parsed.m, parsed.d), type: 'date' };
+      }
+
+      return {
+        value: formatExcelDateTime(parsed.y, parsed.m, parsed.d, parsed.H, parsed.M, parsed.S, parsed.u),
+        type: 'datetime',
+      };
+    }
+  }
+
+  return inferExcelValue(value);
+}
+
+function excelDateFormatHasTime(format: string): boolean {
+  // Quoted text and escaped characters are literals. Elapsed-time tokens such as
+  // [h] / [m] / [s] are explicitly time-bearing and must remain DATETIME.
+  if (/\[(?:h+|m+|s+)\]/i.test(format)) return true;
+
+  const semantic = format
+    .replace(/"[^"]*"/g, '')
+    .replace(/\\./g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/AM\/PM|A\/P/gi, ' h ');
+
+  // `m` is ambiguous (month vs minute), so only use unambiguous hour/second
+  // tokens here. A normal date-time format containing minutes also contains an
+  // hour or second token (for example hh:mm or mm:ss).
+  return /h|s/i.test(semantic);
+}
+
+function formatYmd(year: number, month: number, day: number): string {
+  return `${String(year).padStart(4, '0')}-${pad2(month)}-${pad2(day)}`;
+}
+
+function formatExcelDateTime(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  fraction: number
+): string {
+  const milliseconds = Math.max(0, Math.min(999, Math.round((fraction || 0) * 1000)));
+  return new Date(Date.UTC(year, month - 1, day, hour, minute, second, milliseconds)).toISOString();
+}
+
+function pad2(value: number): string {
+  return String(Math.trunc(value)).padStart(2, '0');
+}
+
+function isValidExcelDateParts(year: number, month: number, day: number): boolean {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const check = new Date(Date.UTC(year, month - 1, day));
+  return check.getUTCFullYear() === year && check.getUTCMonth() === month - 1 && check.getUTCDate() === day;
 }
 
 function detectHeaderRow(sheet: XLSX.WorkSheet | undefined): number {

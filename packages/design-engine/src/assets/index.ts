@@ -1,4 +1,4 @@
-import type {AssetMetadata,AssetReference,DesignTemplate,ImageDesignElement,SvgDesignElement} from '@document-tool/contracts';
+import type {AssetMetadata,AssetReference,DesignFill,DesignTemplate,ImageDesignElement,SvgDesignElement} from '@document-tool/contracts';
 
 export const DEFAULT_SVG_WIDTH=300;
 export const DEFAULT_SVG_HEIGHT=150;
@@ -65,3 +65,22 @@ export function replaceElementAsset(template:DesignTemplate,artboardId:string,el
 export function searchAssetCatalog(assets:readonly AssetReference[],query:string):AssetReference[]{const needle=query.trim().toLowerCase();if(!needle)return [...assets];return assets.filter(asset=>[asset.name,asset.metadata?.category,asset.metadata?.subcategory,asset.metadata?.folder,asset.metadata?.format,...(asset.metadata?.tags??[])].some(value=>String(value??'').toLowerCase().includes(needle)));}
 
 export function assetRenderKind(asset:AssetReference|undefined):'VECTOR_SVG'|'RASTER_IMAGE'|'MISSING'|'UNSUPPORTED' {if(!asset)return'MISSING';if(asset.kind==='SVG'||asset.mimeType==='image/svg+xml')return'VECTOR_SVG';if(asset.kind==='IMAGE'&&asset.mimeType?.startsWith('image/'))return'RASTER_IMAGE';return'UNSUPPORTED';}
+
+
+export function resolveRasterImageElementSource(element:ImageDesignElement,assets:readonly AssetReference[]):string|undefined {
+  const runtimeSource=(element as ImageDesignElement & {source?:unknown}).source;
+  if(typeof runtimeSource==='string'&&runtimeSource.trim()!=='')return runtimeSource.trim();
+  const asset=assets.find(item=>item.id===element.assetId);
+  return assetRenderKind(asset)==='RASTER_IMAGE'&&asset?.source?asset.source:undefined;
+}
+
+export function resolveRasterImageFillSource(fill:Extract<DesignFill,{type:'IMAGE'}>,assets:readonly AssetReference[]):string|undefined {
+  const runtimeSource=(fill as Extract<DesignFill,{type:'IMAGE'}> & {source?:unknown}).source;
+  if(typeof runtimeSource==='string'&&runtimeSource.trim()!=='')return runtimeSource.trim();
+  const asset=assets.find(item=>item.id===fill.assetId);
+  if(!asset?.source)return undefined;
+  const mime=asset.mimeType?.toLowerCase();
+  const isRasterMime=!!mime&&mime.startsWith('image/')&&mime!=='image/svg+xml';
+  const isRasterKind=asset.kind==='IMAGE'||asset.kind==='LOGO';
+  return isRasterMime||isRasterKind?asset.source:undefined;
+}

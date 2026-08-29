@@ -2,7 +2,9 @@
 
 .dg-app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   background-color: var(--color-bg-base);
   color: var(--color-text-primary);
   font-family: var(--font-family-ui);
@@ -91,12 +93,19 @@
   display: flex;
   flex-direction: column;
   min-width: 0; /* Prevents flex flex-grow overflow */
+  min-height: 0; /* Allows the content scroller to shrink inside the viewport */
+  height: 100vh;
+  overflow: hidden;
 }
 
 .dg-app-content {
   flex-grow: 1;
+  min-height: 0;
   padding: var(--space-6) var(--space-8);
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 /* PageHeader Styles */

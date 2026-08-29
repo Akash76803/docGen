@@ -89,8 +89,8 @@ function validateElement(artboard:Artboard, element:DesignElement, registry:Desi
       TEXT: ['text', 'visible'],
       IMAGE: ['source', 'altText', 'visible'],
       SVG: ['source', 'tintColor', 'visible'],
-      SHAPE: ['visible'],
-      PATH: ['visible']
+      SHAPE: ['visible', 'fillImageSource'],
+      PATH: ['visible', 'fillImageSource']
     };
     
     for (const binding of element.bindings) {

@@ -1,4 +1,4 @@
-import type { DesignBinding, DesignElement, TextDesignElement, ImageDesignElement, SvgDesignElement, QrDesignElement, BarcodeDesignElement, DesignDataContext } from '@document-tool/contracts';
+import type { DesignBinding, DesignElement, TextDesignElement, ImageDesignElement, SvgDesignElement, QrDesignElement, BarcodeDesignElement, ShapeDesignElement, PathDesignElement, DesignDataContext } from '@document-tool/contracts';
 
 export function getTextBinding(element: DesignElement): DesignBinding | undefined {
   return element.bindings?.find(b => b.targetProperty === 'text');
@@ -59,6 +59,35 @@ export function setSourceFieldBinding<T extends ImageDesignElement | SvgDesignEl
 export function removeSourceBinding<T extends ImageDesignElement | SvgDesignElement>(element: T): T {
   if (!element.bindings) return element;
   const newBindings = element.bindings.filter(b => b.targetProperty !== 'source');
+  return {
+    ...element,
+    bindings: newBindings.length ? newBindings : undefined
+  } as T;
+}
+
+
+export function getFillImageSourceBinding(element: DesignElement): DesignBinding | undefined {
+  return element.bindings?.find(b => b.targetProperty === 'fillImageSource');
+}
+
+export function setFillImageSourceFieldBinding<T extends ShapeDesignElement | PathDesignElement>(element: T, fieldPath: string): T {
+  const currentBinding = getFillImageSourceBinding(element);
+  const newBinding: DesignBinding = currentBinding
+    ? { ...currentBinding, sourceType: 'FIELD', fieldPath, fallbackValue: undefined }
+    : {
+        id: `${element.id}-fill-image-source-binding`,
+        targetProperty: 'fillImageSource',
+        sourceType: 'FIELD',
+        fieldPath,
+      };
+
+  const bindings = [...(element.bindings || []).filter(b => b.targetProperty !== 'fillImageSource'), newBinding];
+  return { ...element, bindings } as T;
+}
+
+export function removeFillImageSourceBinding<T extends ShapeDesignElement | PathDesignElement>(element: T): T {
+  if (!element.bindings) return element;
+  const newBindings = element.bindings.filter(b => b.targetProperty !== 'fillImageSource');
   return {
     ...element,
     bindings: newBindings.length ? newBindings : undefined

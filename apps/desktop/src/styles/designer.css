@@ -778,3 +778,113 @@
     width: 44px;
   }
 }
+
+/* Phase 7.9 Fix 5 — dedicated scrollable Layers workspace + restored z-order toolbar */
+.dg-designer-left-panel--layers .dg-designer-left-panel__content {
+  overflow: hidden;
+  padding-bottom: var(--space-3);
+}
+
+.dg-designer-left-panel--layers .card-layers-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.dg-designer-left-panel--layers .card-layer-toolbar {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding-bottom: 8px;
+  background: var(--color-panel-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dg-designer-left-panel--layers .card-layer-actions {
+  padding: 0;
+  margin: 0 0 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dg-designer-left-panel--layers .card-layer-actions button {
+  margin-bottom: 0;
+  min-width: 0;
+  min-height: 28px;
+}
+
+.dg-designer-left-panel--layers .card-layer-order-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.dg-designer-left-panel--layers .card-layer-order-actions button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 3px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.dg-designer-left-panel--layers .card-layer-order-actions button span {
+  margin-left: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dg-designer-left-panel--layers .card-layer-order-actions button:hover:not(:disabled) {
+  background: var(--color-control-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.dg-designer-left-panel--layers .card-layer-order-actions button:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+.dg-designer-left-panel--layers .card-layer-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 8px 2px 16px 0;
+}
+
+.dg-designer-left-panel--layers .card-layer-list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.dg-designer-left-panel--layers .card-layer-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text-muted) 38%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+@media (max-height: 760px) {
+  .dg-designer-left-panel--layers .card-layer-main {
+    min-height: 34px;
+  }
+  .dg-designer-left-panel--layers .card-layer-mini {
+    padding-bottom: 5px;
+  }
+  .dg-designer-left-panel--layers .card-layer-order-actions button {
+    min-height: 28px;
+  }
+}
