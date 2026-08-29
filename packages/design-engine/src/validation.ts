@@ -39,6 +39,7 @@ export function validateDesignTemplate(template:DesignTemplate, registry:DesignE
   }
   for (const artboard of template.artboards ?? []) for (const element of artboard.elements) {
     if ((element.type==='IMAGE'||element.type==='SVG') && !assetIds.has(element.assetId)) error({code:'ASSET_REFERENCE_MISSING',message:`Element references missing asset: ${element.assetId}`,artboardId:artboard.id,elementId:element.id});
+    if ((element.type==='SHAPE'||element.type==='PATH') && element.fill.type==='IMAGE' && !assetIds.has(element.fill.assetId)) error({code:'ASSET_REFERENCE_MISSING',message:`Element image fill references missing asset: ${element.fill.assetId}`,artboardId:artboard.id,elementId:element.id});
   }
   const errors=issues.filter(i=>i.severity==='ERROR'); const warnings=issues.filter(i=>i.severity==='WARNING');
   return {valid:errors.length===0,errors,warnings};
@@ -88,7 +89,8 @@ function validateElement(artboard:Artboard, element:DesignElement, registry:Desi
       TEXT: ['text', 'visible'],
       IMAGE: ['source', 'altText', 'visible'],
       SVG: ['source', 'tintColor', 'visible'],
-      SHAPE: ['visible']
+      SHAPE: ['visible'],
+      PATH: ['visible']
     };
     
     for (const binding of element.bindings) {

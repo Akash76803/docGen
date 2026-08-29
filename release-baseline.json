@@ -1,13 +1,14 @@
 {
-  "phase": "5.0 Production Stabilization",
+  "phase": "7.8 Shape Image Fill",
   "status": "RELEASE_CANDIDATE",
-  "featureFreeze": true,
+  "featureFreeze": false,
   "version": "1.0.0-rc.1",
   "releaseChannel": "rc",
   "sourceRoot": "E:\\Project\\Document Generator",
   "fidelityContract": "4.16",
   "workspaceSchemaVersion": 1,
   "features": [
+    { "name": "Shape/PATH Image Fill", "status": "NEEDS_TEST" },
     { "name": "Template Builder", "status": "NEEDS_TEST" },
     { "name": "Excel/CSV Import", "status": "NEEDS_TEST" },
     { "name": "Data Mapping and Grouping", "status": "STABLE" },

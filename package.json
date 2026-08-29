@@ -10,6 +10,7 @@
     "test:card-preview-context": "vitest run apps/desktop/test/phase668-preview-record-context.test.ts",
     "test:card-binding-freeze": "vitest run packages/design-engine/test/phase669-dynamic-binding-freeze.test.ts",
     "test:card-bulk-generation": "vitest run apps/desktop/test/phase670-bulk-generation-plan.test.ts",
+    "test:card-combined-bulk-pdf": "vitest run apps/desktop/test/phase671-combined-bulk-pdf.test.ts",
     "test:card-conditional-visibility": "vitest run packages/design-engine/test/phase667-conditional-visibility.test.ts",
     "test:card-bindings": "vitest run packages/design-engine/test/phase661-dynamic-binding.test.ts",
     "test:card-binding-persistence": "vitest run packages/persistence/test/phase661-binding-persistence.test.ts",
@@ -87,8 +88,10 @@
     "apps/*"
   ],
   "devDependencies": {
-    "typescript": "^5.5.4",
     "@tauri-apps/cli": "^1.6.0",
+    "@testing-library/react": "^16.3.3",
+    "happy-dom": "^20.11.12",
+    "typescript": "^5.5.4",
     "vitest": "^1.6.0"
   }
 }

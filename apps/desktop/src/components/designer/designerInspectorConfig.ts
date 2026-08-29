@@ -16,6 +16,7 @@ export function getInspectorSections(elementType?: DesignElement['type']): Inspe
     case 'BARCODE':
       return ['GENERAL', 'TRANSFORM', 'APPEARANCE', 'DATA_BINDING', 'ADVANCED'];
     case 'SHAPE':
+    case 'PATH':
       return ['GENERAL', 'TRANSFORM', 'APPEARANCE', 'ADVANCED'];
     default:
       return ['GENERAL', 'TRANSFORM', 'APPEARANCE', 'ADVANCED'];

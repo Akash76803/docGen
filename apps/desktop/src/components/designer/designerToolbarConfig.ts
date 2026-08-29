@@ -1,4 +1,4 @@
-export type DesignerToolbarMode = 'NONE' | 'ARTBOARD' | 'TEXT' | 'IMAGE' | 'SVG' | 'SHAPE' | 'MULTI';
+export type DesignerToolbarMode = 'NONE' | 'ARTBOARD' | 'TEXT' | 'IMAGE' | 'SVG' | 'SHAPE' | 'PATH' | 'MULTI';
 
 export function getDesignerToolbarMode(elementTypes: string[], selectionCount: number): DesignerToolbarMode {
   if (selectionCount === 0) {
@@ -15,6 +15,7 @@ export function getDesignerToolbarMode(elementTypes: string[], selectionCount: n
     case 'IMAGE': return 'IMAGE';
     case 'SVG': return 'SVG';
     case 'SHAPE': return 'SHAPE';
+    case 'PATH': return 'PATH';
     default: return 'NONE';
   }
 }

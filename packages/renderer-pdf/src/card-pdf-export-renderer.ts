@@ -54,8 +54,11 @@ export class CardPdfExportRenderer implements DocumentRenderer {
 
     const bytes = buildPdf(pages, images);
     
+    const baseFileName = request.fileName || 'Card_Export';
+    const finalFileName = baseFileName.toLowerCase().endsWith('.pdf') ? baseFileName : `${baseFileName}.pdf`;
+    
     return {
-      files: [{ fileName: request.fileName || 'Card_Export.pdf', mimeType: 'application/pdf', bytes }],
+      files: [{ fileName: finalFileName, mimeType: 'application/pdf', bytes }],
       pageCount: pages.length,
       warnings: []
     };

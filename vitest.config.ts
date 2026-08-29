@@ -6,8 +6,9 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
-    include: ['packages/**/test/**/*.test.ts', 'apps/**/test/**/*.test.ts'],
+    include: ['packages/**/test/**/*.test.ts', 'apps/**/test/**/*.test.ts', 'packages/**/test/**/*.test.tsx', 'apps/**/test/**/*.test.tsx'],
     environment: 'node',
+    setupFiles: ['./test/setup-canvas.ts'],
   },
   resolve: {
     alias: {

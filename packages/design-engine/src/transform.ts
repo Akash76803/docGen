@@ -1,4 +1,5 @@
-import type { Artboard, DesignElement, DesignPoint, DesignSize, DesignTemplate } from '@document-tool/contracts';
+import type { Artboard, DesignElement, DesignPoint, DesignSize, DesignTemplate, PathDesignElement } from '@document-tool/contracts';
+import { scalePathGeometry } from './pathUtils.js';
 
 export const DEFAULT_MIN_ELEMENT_SIZE_MM = 0.5;
 export const DEFAULT_NUDGE_MM = 0.5;
@@ -76,6 +77,13 @@ export function resizeElement(template:DesignTemplate,artboardId:string,elementI
     else if(anchor==='N'||anchor==='S')x=e.position.xMm+(e.size.widthMm-width)/2;
     if(anchor.includes('N'))y=e.position.yMm+(e.size.heightMm-height);
     else if(anchor==='E'||anchor==='W')y=e.position.yMm+(e.size.heightMm-height)/2;
+    
+    if (e.type === 'PATH' && e.size.widthMm > 0 && e.size.heightMm > 0) {
+      const scaleX = width / e.size.widthMm;
+      const scaleY = height / e.size.heightMm;
+      return {...e, position:{xMm:x,yMm:y}, size:{widthMm:width,heightMm:height}, geometry: scalePathGeometry((e as PathDesignElement).geometry, scaleX, scaleY)};
+    }
+    
     return {...e,position:{xMm:x,yMm:y},size:{widthMm:width,heightMm:height}};
   })}));
 }

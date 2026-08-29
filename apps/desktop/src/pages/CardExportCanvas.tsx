@@ -1,7 +1,8 @@
 import React from 'react';
 
-import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop, QrDesignElement } from '@document-tool/contracts';
+import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop, DesignFill, QrDesignElement, PathDesignElement } from '@document-tool/contracts';
 import QRCode from 'react-qr-code';
+import { geometryToSvgPath, shapeToPathGeometry } from '@document-tool/design-engine';
 
 export function normalizeExportColor(value: string | undefined | null): string {
   if (!value) return 'transparent';
@@ -31,7 +32,7 @@ function normalizeShadow(shadow?: DesignShadow): string {
 
 function normalizeGradient(gradient?: DesignLinearGradient): string {
   if (!gradient || gradient.stops.length === 0) return 'none';
-  const stops = gradient.stops.map((s: DesignGradientStop) => `${normalizeExportColor(s.color)} ${s.offset * 100}%`).join(', ');
+  const stops = gradient.stops.map((s: DesignGradientStop) => `${normalizeExportColor(s.color)} ${s.offset}%`).join(', ');
   return `linear-gradient(${gradient.angleDeg ?? 90}deg, ${stops})`;
 }
 
@@ -61,7 +62,7 @@ export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artbo
 
   return (
     <div data-artboard-id={artboard.id} style={canvasStyle}>
-      {artboard.elements.filter(e => e.visible && !e.runtimeHidden).map(e => (
+      {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => e.visible && !e.runtimeHidden).map(e => (
         <IsolatedExportElement key={e.id} element={e} assets={assets} mmToPx={MM_TO_CSS_PX} />
       ))}
     </div>
@@ -140,13 +141,16 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
       </div>
     );
   } else if (e.type === 'SHAPE') {
+    const imagePatternId = `${e.id}-image-fill`;
     const bg = e.fill.type === 'SOLID' 
       ? normalizeExportColor(e.fill.color) 
       : e.fill.type === 'LINEAR_GRADIENT' 
         ? `url(#${e.id}-grad)`
+        : e.fill.type === 'IMAGE'
+          ? `url(#${imagePatternId})`
         : 'transparent';
     
-    const fillOpacity = e.fill.type === 'SOLID' ? (e.fill.opacity ?? 1) : 1;
+    const fillOpacity = e.fill.type === 'SOLID' || e.fill.type === 'IMAGE' ? (e.fill.opacity ?? 1) : 1;
     const stroke = e.stroke.style === 'NONE' ? 'none' : normalizeExportColor(e.stroke.color);
     const sw = e.stroke.style === 'NONE' ? 0 : e.stroke.widthMm * mmToPx;
     const dash = e.stroke.style === 'DASHED' ? '6 4' : e.stroke.style === 'DOTTED' ? '2 3' : undefined;
@@ -160,35 +164,92 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
       strokeDasharray: dash,
       vectorEffect: 'non-scaling-stroke' as const
     };
-
-    let shapeNode = null;
-    switch(e.shape) {
-      case 'RECTANGLE': shapeNode = <rect x="1" y="1" width="98" height="98" {...common} />; break;
-      case 'ROUNDED_RECTANGLE': shapeNode = <rect x="1" y="1" width="98" height="98" rx={Math.min(48, (e.cornerRadiusMm ?? 3) * 4)} ry={Math.min(48, (e.cornerRadiusMm ?? 3) * 4)} {...common} />; break;
-      case 'CIRCLE':
-      case 'ELLIPSE': shapeNode = <ellipse cx="50" cy="50" rx="48" ry="48" {...common} />; break;
-      case 'LINE': shapeNode = <line x1="2" y1="50" x2="98" y2="50" {...common} fill="none" />; break;
-      case 'TRIANGLE': shapeNode = <polygon points="50,2 98,98 2,98" {...common} />; break;
-      case 'ARROW': shapeNode = <polygon points="2,35 62,35 62,15 98,50 62,85 62,65 2,65" {...common} />; break;
-      case 'STAR': shapeNode = <polygon points="50,2 61,36 97,36 68,57 79,92 50,71 21,92 32,57 3,36 39,36" {...common} />; break;
-      case 'POLYGON': shapeNode = <polygon points="25,3 75,3 98,50 75,97 25,97 2,50" {...common} />; break;
-      case 'RIBBON': shapeNode = <polygon points="2,20 20,20 20,8 80,8 80,20 98,20 88,50 98,80 80,80 80,92 20,92 20,80 2,80 12,50" {...common} />; break;
-      case 'BADGE': shapeNode = <polygon points="50,2 62,14 79,9 86,25 97,37 88,52 92,69 76,77 67,94 50,87 33,94 24,77 8,69 12,52 3,37 14,25 21,9 38,14" {...common} />; break;
+    let shapeNode: React.ReactNode;
+    if (e.shape === 'ROUNDED_RECTANGLE') {
+      shapeNode = <rect x="1" y="1" width="98" height="98" rx={Math.min(48, (e.cornerRadiusMm ?? 3) * 4)} ry={Math.min(48, (e.cornerRadiusMm ?? 3) * 4)} {...common} />;
+    } else if (e.shape === 'LINE') {
+      shapeNode = <line x1="2" y1="50" x2="98" y2="50" {...common} fill="none" />;
+    } else {
+      const geometry = shapeToPathGeometry(e.shape, { widthMm: 100, heightMm: 100 });
+      shapeNode = <path d={geometryToSvgPath(geometry)} {...common} fill={geometry.closed ? bg : 'none'} />;
     }
 
+    const shapeLabel = e.label?.enabled ? e.label : undefined;
     content = (
-      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ filter: shadow !== 'none' ? `drop-shadow(${shadow})` : undefined, overflow: 'visible' }}>
-        {e.fill.type === 'LINEAR_GRADIENT' && (
-          <defs>
-            <linearGradient id={`${e.id}-grad`} gradientTransform={`rotate(${e.fill.gradient.angleDeg ?? 90} .5 .5)`}>
-              {e.fill.gradient.stops.map((stop: DesignGradientStop, i: number) => (
-                <stop key={i} offset={`${stop.offset * 100}%`} stopColor={normalizeExportColor(stop.color)} stopOpacity={stop.opacity ?? 1} />
-              ))}
-            </linearGradient>
-          </defs>
-        )}
-        {shapeNode}
-      </svg>
+      <div style={{ position:'relative', width:'100%', height:'100%' }}>
+        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position:'absolute', inset:0, filter: shadow !== 'none' ? `drop-shadow(${shadow})` : undefined, overflow: 'visible', transform:`scale(${e.flipX?-1:1},${e.flipY?-1:1})` }}>
+          {e.fill.type === 'LINEAR_GRADIENT' && (
+            <defs>
+              <linearGradient id={`${e.id}-grad`} gradientTransform={`rotate(${e.fill.gradient.angleDeg ?? 90} .5 .5)`}>
+                {e.fill.gradient.stops.map((stop: DesignGradientStop, i: number) => (
+                  <stop key={i} offset={`${stop.offset}%`} stopColor={normalizeExportColor(stop.color)} stopOpacity={stop.opacity ?? 1} />
+                ))}
+              </linearGradient>
+            </defs>
+          )}
+          {e.fill.type === 'IMAGE' && <ExportImageFillPattern id={imagePatternId} fill={e.fill} assets={assets} width={100} height={100}/>} 
+          {shapeNode}
+        </svg>
+        {shapeLabel && <div style={{position:'absolute',inset:`${shapeLabel.paddingMm*mmToPx}px`,display:'flex',alignItems:shapeLabel.verticalAlignment==='TOP'?'flex-start':shapeLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:shapeLabel.alignment==='LEFT'?'flex-start':shapeLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:shapeLabel.fontFamily,fontSize:`${shapeLabel.fontSizePt}pt`,fontWeight:shapeLabel.fontWeight,fontStyle:shapeLabel.italic?'italic':'normal',textDecoration:shapeLabel.underline?'underline':'none',color:normalizeExportColor(shapeLabel.color),lineHeight:shapeLabel.lineHeight,textAlign:shapeLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{shapeLabel.text}</div>}
+      </div>
+    );
+  } else if (e.type === 'PATH') {
+    const pathElement = e as PathDesignElement;
+    const gradientId = `export-gradient-${pathElement.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const imagePatternId = `export-image-${pathElement.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const fill = pathElement.fill.type === 'SOLID'
+      ? normalizeExportColor(pathElement.fill.color)
+      : pathElement.fill.type === 'LINEAR_GRADIENT'
+        ? `url(#${gradientId})`
+        : pathElement.fill.type === 'IMAGE'
+          ? `url(#${imagePatternId})`
+        : 'transparent';
+    const fillOpacity = pathElement.fill.type === 'SOLID' || pathElement.fill.type === 'IMAGE' ? (pathElement.fill.opacity ?? 1) : 1;
+    const stroke = pathElement.stroke.style === 'NONE' ? 'none' : normalizeExportColor(pathElement.stroke.color);
+    const strokeWidth = pathElement.stroke.style === 'NONE' ? 0 : pathElement.stroke.widthMm;
+    const strokeDasharray = pathElement.stroke.style === 'DASHED'
+      ? `${2 / Math.max(mmToPx, 0.001)} ${1.2 / Math.max(mmToPx, 0.001)}`
+      : pathElement.stroke.style === 'DOTTED'
+        ? `${0.7 / Math.max(mmToPx, 0.001)} ${1 / Math.max(mmToPx, 0.001)}`
+        : undefined;
+    const d = geometryToSvgPath(pathElement.geometry);
+    const widthMm = Math.max(pathElement.size.widthMm, 0.1);
+    const heightMm = Math.max(pathElement.size.heightMm, 0.1);
+    const shadow = normalizeShadow(pathElement.shadow);
+    const pathLabel=pathElement.label?.enabled?pathElement.label:undefined;
+    content = (
+      <div style={{position:'relative',width:'100%',height:'100%'}}>
+        <svg
+          data-export-path-id={pathElement.id}
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${widthMm} ${heightMm}`}
+          preserveAspectRatio="none"
+          style={{ position:'absolute', inset:0, overflow: 'visible', filter: shadow !== 'none' ? `drop-shadow(${shadow})` : undefined }}
+        >
+          {pathElement.fill.type === 'LINEAR_GRADIENT' && (
+            <defs>
+              <linearGradient id={gradientId} gradientTransform={`rotate(${pathElement.fill.gradient.angleDeg ?? 90} .5 .5)`}>
+                {pathElement.fill.gradient.stops.map((stop: DesignGradientStop, index: number) => (
+                  <stop key={index} offset={`${stop.offset}%`} stopColor={normalizeExportColor(stop.color)} stopOpacity={stop.opacity ?? 1} />
+                ))}
+              </linearGradient>
+            </defs>
+          )}
+          {pathElement.fill.type === 'IMAGE' && <ExportImageFillPattern id={imagePatternId} fill={pathElement.fill} assets={assets} width={widthMm} height={heightMm}/>} 
+          <path
+            d={d}
+            fill={fill}
+            fillOpacity={fillOpacity}
+            stroke={stroke}
+            strokeOpacity={pathElement.stroke.opacity ?? 1}
+            strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        {pathLabel&&<div style={{position:'absolute',inset:`${pathLabel.paddingMm*mmToPx}px`,display:'flex',alignItems:pathLabel.verticalAlignment==='TOP'?'flex-start':pathLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:pathLabel.alignment==='LEFT'?'flex-start':pathLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:pathLabel.fontFamily,fontSize:`${pathLabel.fontSizePt}pt`,fontWeight:pathLabel.fontWeight,fontStyle:pathLabel.italic?'italic':'normal',textDecoration:pathLabel.underline?'underline':'none',color:normalizeExportColor(pathLabel.color),lineHeight:pathLabel.lineHeight,textAlign:pathLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{pathLabel.text}</div>}
+      </div>
     );
   } else if (e.type === 'IMAGE') {
     const asset = assets.find(a => a.id === e.assetId);
@@ -318,4 +379,11 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
       {content}
     </div>
   );
+}
+
+function ExportImageFillPattern({id,fill,assets,width,height}:{id:string;fill:Extract<DesignFill,{type:'IMAGE'}>;assets:DesignTemplate['sharedAssets'];width:number;height:number}){
+  const source=assets.find(asset=>asset.id===fill.assetId)?.source;
+  if(!source)return null;
+  const preserveAspectRatio=fill.fit==='FIT'?'xMidYMid meet':fill.fit==='FILL'?'xMidYMid slice':'none';
+  return <defs><pattern id={id} patternUnits="userSpaceOnUse" width={width} height={height}><image href={source} x="0" y="0" width={width} height={height} preserveAspectRatio={preserveAspectRatio}/></pattern></defs>;
 }

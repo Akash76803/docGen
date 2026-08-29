@@ -25,6 +25,6 @@ export function getElementRegistrationKey(element:DesignElement):string {
 
 export function createDefaultDesignElementRegistry():DesignElementRegistry {
   const registry=new DesignElementRegistry();
-  for (const key of ['TEXT','SHAPE','IMAGE','SVG','QR','BARCODE']) registry.register({key});
+  for (const key of ['TEXT','SHAPE','IMAGE','SVG','QR','BARCODE','PATH']) registry.register({key});
   return registry;
 }

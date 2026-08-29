@@ -19,7 +19,19 @@ export function setElementLocked(template:DesignTemplate,artboardId:string,eleme
 }
 export type LayerMove='FORWARD'|'BACKWARD'|'FRONT'|'BACK';
 export function moveLayer(template:DesignTemplate,artboardId:string,elementId:string,move:LayerMove):DesignTemplate{
- return updateArtboard(template,artboardId,a=>{const asc=normalize(a.elements);const i=asc.findIndex(e=>e.id===elementId);if(i<0)return a;let target=i;if(move==='FORWARD')target=Math.min(asc.length-1,i+1);if(move==='BACKWARD')target=Math.max(0,i-1);if(move==='FRONT')target=asc.length-1;if(move==='BACK')target=0;if(target===i)return {...a,elements:asc};const next=[...asc], [item]=next.splice(i,1);next.splice(target,0,item!);return{...a,elements:next.map((e,zIndex)=>({...e,zIndex}))};});
+ return moveLayers(template,artboardId,[elementId],move);
+}
+export function moveLayers(template:DesignTemplate,artboardId:string,elementIds:readonly string[],move:LayerMove):DesignTemplate{
+ const ids=new Set(elementIds);if(!ids.size)return template;
+ return updateArtboard(template,artboardId,a=>{const asc=normalize(a.elements);if(!asc.some(e=>ids.has(e.id)))return a;let next=[...asc];
+  if(move==='FRONT'||move==='BACK'){const selected=next.filter(e=>ids.has(e.id)),rest=next.filter(e=>!ids.has(e.id));next=move==='FRONT'?[...rest,...selected]:[...selected,...rest];}
+  else if(move==='FORWARD'){for(let i=next.length-2;i>=0;i--)if(ids.has(next[i]!.id)&&!ids.has(next[i+1]!.id))[next[i],next[i+1]]=[next[i+1]!,next[i]!];}
+  else {for(let i=1;i<next.length;i++)if(ids.has(next[i]!.id)&&!ids.has(next[i-1]!.id))[next[i-1],next[i]]=[next[i]!,next[i-1]!];}
+  return{...a,elements:next.map((e,zIndex)=>({...e,zIndex}))};});
+}
+export function replaceElementsAtLayer(template:DesignTemplate,artboardId:string,sourceIds:readonly string[],replacements:readonly DesignElement[]):DesignTemplate{
+ const ids=new Set(sourceIds);if(!ids.size)return template;
+ return updateArtboard(template,artboardId,a=>{const asc=normalize(a.elements),sources=asc.filter(e=>ids.has(e.id));if(!sources.length)return a;const topZ=Math.max(...sources.map(e=>e.zIndex));const rest=asc.filter(e=>!ids.has(e.id));const insertion=rest.filter(e=>e.zIndex<topZ).length;const next=[...rest];next.splice(insertion,0,...replacements);return{...a,elements:next.map((e,zIndex)=>({...e,zIndex}))};});
 }
 export function duplicateDesignElements(template:DesignTemplate,artboardId:string,elementIds:readonly string[],idFactory:(sourceId:string)=>string,offset:DesignPoint={xMm:2,yMm:2}):{template:DesignTemplate;elementIds:string[]}{
  const art=template.artboards.find(a=>a.id===artboardId);if(!art)return{template,elementIds:[]};const ids=new Set(elementIds);const sources=art.elements.filter(e=>ids.has(e.id));if(!sources.length)return{template,elementIds:[]};const maxZ=art.elements.length?Math.max(...art.elements.map(e=>e.zIndex)): -1;const map=new Map<string,string>();sources.forEach(e=>map.set(e.id,idFactory(e.id)));const groupMap=new Map<string,string>();for(const g of art.groups){if(g.elementIds.some(x=>ids.has(x)))groupMap.set(g.id,idFactory(g.id));}

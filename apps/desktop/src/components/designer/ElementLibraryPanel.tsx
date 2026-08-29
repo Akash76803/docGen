@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, Square, ImagePlus, QrCode, Barcode } from 'lucide-react';
+import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser } from 'lucide-react';
 import { DesignShapeKind } from '@document-tool/contracts';
 
 const shapeLabel = (s: DesignShapeKind) => s.toLowerCase().split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -11,21 +11,45 @@ export type ElementLibraryPanelProps = {
   onAddQr?: () => void;
   onAddBarcode?: () => void;
   availableShapes: DesignShapeKind[];
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
+  drawShapeType?: DesignShapeKind | null;
+  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  onSetDrawShapeType?: (type: DesignShapeKind | null) => void;
+  canEditPath?: boolean;
+  canScissors?: boolean;
+  canTrim?: boolean;
+  canJoin?: boolean;
+  onJoin?: () => void;
+  canClose?: boolean;
+  onClose?: () => void;
 };
 
 export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
   onInsertText,
-  onInsertShape,
   onUploadImage,
   onAddQr,
   onAddBarcode,
-  availableShapes
+  availableShapes,
+  interactionMode = 'SELECT',
+  drawShapeType = null,
+  onSetInteractionMode,
+  onSetDrawShapeType,
+  canEditPath = false,
+  canScissors = false,
+  canTrim = false,
+  canJoin = false,
+  onJoin,
+  canClose = false,
+  onClose
 }) => {
   const [search, setSearch] = useState('');
 
   const basicElements = [
     { id: 'text', label: 'Text', icon: <Type size={20} strokeWidth={1.5} />, action: onInsertText },
-    { id: 'shape', label: 'Shape', icon: <Square size={20} strokeWidth={1.5} />, action: () => onInsertShape('RECTANGLE') },
+    { id: 'shape', label: 'Shape', icon: <Square size={20} strokeWidth={1.5} />, action: () => {
+      onSetDrawShapeType?.('RECTANGLE');
+      onSetInteractionMode?.('DRAW_SHAPE');
+    }, active: interactionMode === 'DRAW_SHAPE' && drawShapeType === 'RECTANGLE' },
     { id: 'image', label: 'Image', icon: <ImagePlus size={20} strokeWidth={1.5} />, action: onUploadImage }
   ];
 
@@ -37,13 +61,31 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
   const filteredDynamic = dynamicElements.filter(e => e.label.toLowerCase().includes(search.toLowerCase()) || e.id.includes(search.toLowerCase()));
   
   const shapes = availableShapes.map(s => ({
-    id: `shape-${s}`,
+    id: `shape-${s.toLowerCase()}`,
     label: shapeLabel(s),
     icon: <Square size={20} strokeWidth={1.5} />,
-    action: () => onInsertShape(s)
+    action: () => {
+      onSetDrawShapeType?.(s);
+      onSetInteractionMode?.('DRAW_SHAPE');
+    },
+    active: interactionMode === 'DRAW_SHAPE' && drawShapeType === s
   }));
   
-  const filteredShapes = shapes.filter(s => s.label.toLowerCase().includes(search.toLowerCase()) && s.id !== 'shape-RECTANGLE');
+  const filteredShapes = shapes.filter(s => s.label.toLowerCase().includes(search.toLowerCase()) && s.id !== 'shape-rectangle');
+
+  const utilityElements = [
+    { id: 'select', label: 'Select Tool', tooltip: 'Exit the active drawing or trimming tool', icon: <MousePointer2 size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SELECT'), active: interactionMode === 'SELECT' },
+    { id: 'flexible-line', label: 'Flexible Line', tooltip: 'Draw and bend editable lines', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FLEXIBLE_LINE'), active: interactionMode === 'FLEXIBLE_LINE' },
+    { id: 'pen', label: 'Pen Tool', tooltip: 'Draw custom paths', icon: <PenTool size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('PEN'), active: interactionMode === 'PEN' },
+    { id: 'edit-path', label: 'Edit Path', tooltip: 'Edit path nodes and curves', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('EDIT_PATH'), active: interactionMode === 'EDIT_PATH', disabled: !canEditPath },
+    { id: 'scissors', label: 'Scissors', tooltip: 'Split a path segment', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },
+    { id: 'trimmer', label: 'Trimmer', tooltip: 'Remove a segment between intersections or points', icon: <BetweenHorizontalStart size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
+    { id: 'eraser', label: 'Freeform Eraser', tooltip: 'Draw a freeform selection around unlocked elements to erase them', icon: <Eraser size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ERASER'), active: interactionMode === 'ERASER' },
+    { id: 'join-path', label: 'Join Path', tooltip: 'Join two open paths', icon: <GitMerge size={20} strokeWidth={1.5} />, action: () => onJoin?.(), disabled: !canJoin },
+    { id: 'close-path', label: 'Close Path', tooltip: 'Close an open path', icon: <BoxSelect size={20} strokeWidth={1.5} />, action: () => onClose?.(), disabled: !canClose },
+  ];
+
+  const filteredUtility = utilityElements.filter(e => e.label.toLowerCase().includes(search.toLowerCase()) || e.id.includes(search.toLowerCase()) || (search.toLowerCase() === 'trim' && e.id === 'trimmer'));
 
   return (
     <div className="dg-element-library">
@@ -91,6 +133,26 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
           <div className="dg-element-library__grid">
             {filteredDynamic.map(el => (
               <button key={el.id} className="dg-element-library__item" onClick={el.action} title={`Add ${el.label}`}>
+                {el.icon}
+                <span>{el.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(filteredUtility.length > 0 || search === '') && utilityElements.some(e => filteredUtility.includes(e)) && (
+        <div className="dg-element-library__section">
+          <h3 className="dg-element-library__section-title">Utility</h3>
+          <div className="dg-element-library__grid">
+            {filteredUtility.map(el => (
+              <button 
+                key={el.id} 
+                className={`dg-element-library__item ${el.active ? 'active' : ''}`} 
+                onClick={el.action} 
+                disabled={el.disabled}
+                title={el.disabled ? (el.id === 'edit-path' || el.id === 'scissors' || el.id === 'trimmer' ? 'Select exactly 1 path to use this tool' : el.id === 'join-path' ? 'Select exactly 2 open paths to join' : el.id === 'close-path' ? 'Select exactly 1 open path to close' : el.tooltip) : el.tooltip}
+              >
                 {el.icon}
                 <span>{el.label}</span>
               </button>

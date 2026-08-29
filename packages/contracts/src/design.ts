@@ -6,8 +6,8 @@ export type DesignUnit = 'MM' | 'IN';
 export type DesignHorizontalAlignment = 'LEFT' | 'CENTER' | 'RIGHT';
 export type DesignVerticalAlignment = 'TOP' | 'CENTER' | 'BOTTOM';
 export type GuideOrientation = 'HORIZONTAL' | 'VERTICAL';
-export type DesignElementKind = 'TEXT' | 'SHAPE' | 'IMAGE' | 'SVG' | 'QR' | 'BARCODE' | 'CUSTOM';
-export type DesignShapeKind = 'RECTANGLE' | 'ROUNDED_RECTANGLE' | 'CIRCLE' | 'ELLIPSE' | 'LINE' | 'TRIANGLE' | 'ARROW' | 'STAR' | 'POLYGON' | 'RIBBON' | 'BADGE';
+export type DesignElementKind = 'TEXT' | 'SHAPE' | 'IMAGE' | 'SVG' | 'QR' | 'BARCODE' | 'PATH' | 'CUSTOM';
+export type DesignShapeKind = 'RECTANGLE' | 'SQUARE' | 'ROUNDED_RECTANGLE' | 'CAPSULE' | 'CIRCLE' | 'ELLIPSE' | 'LINE' | 'TRIANGLE' | 'RIGHT_TRIANGLE' | 'DIAMOND' | 'PENTAGON' | 'HEXAGON' | 'OCTAGON' | 'TRAPEZOID' | 'PARALLELOGRAM' | 'ARROW' | 'DOUBLE_ARROW' | 'CURVED_ARROW' | 'CHEVRON' | 'DOUBLE_CHEVRON' | 'STAR' | 'POLYGON' | 'HEART' | 'CLOUD' | 'SPEECH_BUBBLE' | 'CALLOUT' | 'DOCUMENT' | 'CYLINDER' | 'CROSS' | 'PLUS' | 'BANNER' | 'SHIELD' | 'RIBBON' | 'BADGE' | 'HALF_CIRCLE' | 'ARC' | 'BRACKET' | 'LABEL_TAG' | 'FLEXIBLE_LINE';
 export type DesignBindingSource = 'FIELD' | 'CALCULATED' | 'STATIC';
 
 export type ArtboardRole = 'FRONT' | 'BACK' | 'INSIDE' | 'OUTSIDE' | 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM' | 'GENERIC';
@@ -166,6 +166,21 @@ export interface TextDesignElement extends BaseDesignElement {
   textBindingMode?:'FULL'|'TEMPLATE';
 }
 
+export interface ShapeTextStyle {
+  text:string;
+  enabled:boolean;
+  fontFamily:string;
+  fontSizePt:number;
+  fontWeight:number;
+  italic:boolean;
+  underline:boolean;
+  color:string;
+  alignment:DesignHorizontalAlignment;
+  verticalAlignment:DesignVerticalAlignment;
+  paddingMm:number;
+  lineHeight:number;
+}
+
 export interface ShapeDesignElement extends BaseDesignElement {
   type:'SHAPE';
   shape:DesignShapeKind;
@@ -174,6 +189,43 @@ export interface ShapeDesignElement extends BaseDesignElement {
   cornerRadiusMm?:number;
   points?:DesignPoint[];
   shadow?:DesignShadow;
+  label?:ShapeTextStyle;
+  flipX?:boolean;
+  flipY?:boolean;
+}
+
+export type PathPointMode = 'CORNER' | 'SMOOTH' | 'SYMMETRIC';
+
+export interface PathPoint {
+  id: string;
+  x: number;
+  y: number;
+  inHandle?: { x: number; y: number };
+  outHandle?: { x: number; y: number };
+  mode?: PathPointMode;
+}
+
+export type PathSegment = 
+  | { id: string; type: 'LINE'; fromPointId: string; toPointId: string; }
+  | { id: string; type: 'CUBIC_BEZIER'; fromPointId: string; toPointId: string; };
+
+export interface PathGeometry {
+  points: PathPoint[];
+  segments: PathSegment[];
+  closed: boolean;
+  subpaths?: {
+    closed: boolean;
+    segmentIds: string[];
+  }[];
+}
+
+export interface PathDesignElement extends BaseDesignElement {
+  type: 'PATH';
+  geometry: PathGeometry;
+  fill: DesignFill;
+  stroke: DesignStroke;
+  shadow?: DesignShadow;
+  label?: ShapeTextStyle;
 }
 
 export interface ImageDesignElement extends BaseDesignElement {
@@ -195,6 +247,8 @@ export interface SvgDesignElement extends BaseDesignElement {
   stroke?:DesignStroke;
   shadow?:DesignShadow;
   tintColor?:string;
+  flipX?:boolean;
+  flipY?:boolean;
 }
 
 export interface QrDesignElement extends BaseDesignElement {
@@ -220,7 +274,7 @@ export interface CustomDesignElement extends BaseDesignElement {
   props:Record<string,unknown>;
 }
 
-export type DesignElement = TextDesignElement|ShapeDesignElement|ImageDesignElement|SvgDesignElement|QrDesignElement|BarcodeDesignElement|CustomDesignElement;
+export type DesignElement = TextDesignElement|ShapeDesignElement|ImageDesignElement|SvgDesignElement|QrDesignElement|BarcodeDesignElement|PathDesignElement|CustomDesignElement;
 
 export interface ArtboardPrintSettings {
   bleed:DesignInsets;

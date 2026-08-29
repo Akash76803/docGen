@@ -197,6 +197,12 @@ export class BulkCancellationToken {
   private _cancelled = false;
   get cancelled(): boolean { return this._cancelled; }
   cancel(): void { this._cancelled = true; }
+  
+  // ExportCancellationToken compliance
+  get isCancellationRequested(): boolean { return this._cancelled; }
+  throwIfCancellationRequested(): void {
+    if (this._cancelled) throw new Error('Export was cancelled.');
+  }
 }
 
 // ─── Safe Record Label for UI ─────────────────────────────────────────────────

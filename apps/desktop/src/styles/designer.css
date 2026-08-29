@@ -614,3 +614,167 @@
   background-color: var(--color-control-hover);
 }
 
+
+/* Phase 7.7 Fix 1 — compact, reliably scrollable side panels */
+.dg-designer-main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dg-designer-left-panel {
+  flex: 0 0 var(--designer-left-panel-width, 280px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dg-designer-left-panel__header {
+  flex: 0 0 48px;
+}
+
+.dg-designer-left-panel__content {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: 72px;
+}
+
+.dg-designer-left-panel__content::-webkit-scrollbar,
+.dg-designer-inspector__content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dg-designer-left-panel__content::-webkit-scrollbar-thumb,
+.dg-designer-inspector__content::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text-muted) 38%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+.dg-designer-inspector-layout {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.dg-designer-inspector {
+  flex: 0 0 var(--designer-inspector-width, 300px);
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.dg-designer-inspector__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: 88px;
+}
+
+.dg-designer-inspector-rail {
+  flex: 0 0 var(--designer-tool-rail-width, 56px);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Denser element palette: keep more shapes visible without sacrificing hit targets. */
+.dg-element-library {
+  min-height: max-content;
+  gap: var(--space-3);
+}
+
+.dg-element-library__grid {
+  gap: 6px;
+}
+
+.dg-element-library__item {
+  min-width: 0;
+  height: 62px;
+  padding: 5px 3px;
+  gap: 5px;
+}
+
+.dg-element-library__item span {
+  width: 100%;
+  padding: 0 2px;
+  text-align: center;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+/* Inspector controls must never grow wider than the inspector or hide lower controls. */
+.dg-designer-inspector__content .card-property-sections,
+.dg-designer-inspector__content .card-property-details,
+.dg-designer-inspector__content .dg-inspector-section,
+.dg-designer-inspector__content .dg-inspector-section__body {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dg-designer-inspector__content .card-property-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dg-designer-inspector__content input,
+.dg-designer-inspector__content select,
+.dg-designer-inspector__content textarea,
+.dg-designer-inspector__content button {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.dg-designer-inspector__content textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  overflow-y: auto;
+}
+
+/* Keep the appearance/text inspector usable on short laptop windows. */
+@media (max-height: 760px) {
+  .dg-designer-left-panel__content,
+  .dg-designer-inspector__content {
+    padding-top: 8px;
+    padding-bottom: 64px;
+  }
+
+  .dg-element-library__item {
+    height: 58px;
+  }
+
+  .dg-inspector-section__body {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dg-designer-left-panel {
+    flex-basis: 230px;
+    width: 230px;
+  }
+
+  .dg-designer-inspector {
+    flex-basis: 270px;
+    width: 270px;
+  }
+
+  .dg-designer-inspector-rail {
+    flex-basis: 44px;
+    width: 44px;
+  }
+}
