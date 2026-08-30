@@ -34,7 +34,7 @@ describe('Phase 7.0 Utility Tools UI', () => {
     expect(screen.getByText('Pen Tool')).toBeDefined();
     expect(screen.getByText('Edit Path')).toBeDefined();
     expect(screen.getByText('Scissors')).toBeDefined();
-    expect(screen.getByText('Trimmer')).toBeDefined();
+    expect(screen.getByText('Erase Segment')).toBeDefined();
     expect(screen.getByText('Join Path')).toBeDefined();
     expect(screen.getByText('Close Path')).toBeDefined();
   });
@@ -51,7 +51,7 @@ describe('Phase 7.0 Utility Tools UI', () => {
     
     expect((screen.getByText('Edit Path').closest('button') as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByText('Scissors').closest('button') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByText('Trimmer').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Erase Segment').closest('button') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('Join Path is disabled unless two open PATHs are selected', () => {
@@ -75,7 +75,7 @@ describe('Phase 7.0 Utility Tools UI', () => {
     const searchInput = screen.getByPlaceholderText('Search elements...');
     fireEvent.change(searchInput, { target: { value: 'trim' } });
     
-    expect(screen.getByText('Trimmer')).toBeDefined();
+    expect(screen.getByText('Erase Segment')).toBeDefined();
     expect(screen.queryByText('Scissors')).toBeNull();
     expect(screen.queryByText('Pen Tool')).toBeNull();
   });
@@ -92,7 +92,7 @@ describe('Phase 7.0 Utility Tools UI', () => {
     fireEvent.click(screen.getByText('Scissors').closest('button')!);
     expect(defaultProps.onSetInteractionMode).toHaveBeenCalledWith('SCISSORS');
 
-    fireEvent.click(screen.getByText('Trimmer').closest('button')!);
+    fireEvent.click(screen.getByText('Erase Segment').closest('button')!);
     expect(defaultProps.onSetInteractionMode).toHaveBeenCalledWith('TRIMMER');
 
     fireEvent.click(screen.getByText('Join Path').closest('button')!);

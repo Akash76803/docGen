@@ -20,11 +20,14 @@ export interface DesignStroke { color:string; widthMm:number; style:'SOLID'|'DAS
 export interface DesignShadow { enabled:boolean; offsetXmm:number; offsetYmm:number; blurMm:number; color:string; opacity:number; }
 export interface DesignGradientStop { offset:number; color:string; opacity?:number; }
 export interface DesignLinearGradient { type:'LINEAR'; angleDeg:number; stops:DesignGradientStop[]; }
+export interface DesignRadialGradient { type:'RADIAL'; centerXPercent:number; centerYPercent:number; stops:DesignGradientStop[]; }
 export type DesignFill =
   | { type:'NONE' }
   | { type:'SOLID'; color:string; opacity?:number }
   | { type:'LINEAR_GRADIENT'; gradient:DesignLinearGradient }
-  | { type:'IMAGE'; assetId:string; fit:'FIT'|'FILL'|'STRETCH'; opacity?:number };
+  | { type:'RADIAL_GRADIENT'; gradient:DesignRadialGradient }
+  | { type:'IMAGE'; assetId:string; fit:'FIT'|'FILL'|'STRETCH'|'TILE'; opacity?:number; tileSizeMm?:number; positionXPercent?:number; positionYPercent?:number }
+  | { type:'PATTERN'; pattern:'DOTS'|'GRID'|'DIAGONAL'; foreground:string; background:string; scaleMm?:number; opacity?:number };
 
 export interface DesignBindingFormat {
   type?: 'TEXT' | 'NUMBER' | 'DATE' | 'DATETIME' | 'CURRENCY' | 'PERCENT';
@@ -103,7 +106,14 @@ export interface Guide {
   orientation:GuideOrientation;
   positionMm:number;
   locked?:boolean;
+  color?:string;
+  style?:'SOLID'|'DASHED'|'DOTTED';
 }
+
+export interface ArtboardBorder { enabled:boolean; color:string; widthMm:number; style:'SOLID'|'DASHED'|'DOTTED'; offsetMm:number; radiusMm:number; }
+export interface ArtboardEditorSettings { showGrid:boolean; gridSizeMm:number; gridColor?:string; gridSnapEnabled:boolean; showRulers:boolean; guideSnapEnabled:boolean; rulerOrigin:DesignPoint; }
+export interface ArtboardWatermark { enabled:boolean; type:'TEXT'|'IMAGE'; text?:string; assetId?:string; color?:string; opacity:number; rotationDeg:number; fontSizePt?:number; scalePercent?:number; tiled?:boolean; spacingMm?:number; zOrder:'BEHIND'|'ABOVE'; }
+export interface ArtboardColorSettings { previewMode:'RGB'|'CMYK'; warnOnRgbExport?:boolean; }
 
 export type VisibilityOperator = 
   | 'EQUALS' | 'NOT_EQUALS'
@@ -304,6 +314,10 @@ export interface Artboard {
   heightMm:number;
   displayUnit:DesignUnit;
   background:DesignFill;
+  border?:ArtboardBorder;
+  editor?:ArtboardEditorSettings;
+  watermark?:ArtboardWatermark;
+  colorSettings?:ArtboardColorSettings;
   print:ArtboardPrintSettings;
   guides:Guide[];
   groups:DesignGroup[];

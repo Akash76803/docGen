@@ -36,6 +36,23 @@ function normalizeGradient(gradient?: DesignLinearGradient): string {
   return `linear-gradient(${gradient.angleDeg ?? 90}deg, ${stops})`;
 }
 
+export function artboardFillStyle(fill: DesignFill, assets: DesignTemplate['sharedAssets']): React.CSSProperties {
+  if (fill.type === 'NONE') return { backgroundColor: 'transparent' };
+  if (fill.type === 'SOLID') return { backgroundColor: normalizeExportColor(fill.color) };
+  if (fill.type === 'LINEAR_GRADIENT') return { backgroundImage: normalizeGradient(fill.gradient) };
+  if (fill.type === 'RADIAL_GRADIENT') {
+    const stops=fill.gradient.stops.map(s=>`${normalizeExportColor(s.color)} ${s.offset}%`).join(', ');
+    return {backgroundImage:`radial-gradient(circle at ${fill.gradient.centerXPercent}% ${fill.gradient.centerYPercent}%, ${stops})`};
+  }
+  if (fill.type === 'PATTERN') {
+    const size=Math.max(1,fill.scaleMm??4)*96/25.4,fg=normalizeExportColor(fill.foreground),base=normalizeExportColor(fill.background);
+    const image=fill.pattern==='DOTS'?`radial-gradient(${fg} 1px, transparent 1px)`:fill.pattern==='DIAGONAL'?`repeating-linear-gradient(45deg, transparent 0 5px, ${fg} 5px 6px)`:`linear-gradient(${fg} 1px, transparent 1px),linear-gradient(90deg,${fg} 1px,transparent 1px)`;
+    return {backgroundColor:base,backgroundImage:image,backgroundSize:`${size}px ${size}px`};
+  }
+  const source=resolveRasterImageFillSource(fill,assets),alpha=Math.max(0,Math.min(1,fill.opacity??1));
+  return source?{backgroundColor:'#ffffff',backgroundImage:`linear-gradient(rgba(255,255,255,${1-alpha}),rgba(255,255,255,${1-alpha})),url("${source}")`,backgroundRepeat:fill.fit==='TILE'?'repeat':'no-repeat',backgroundSize:fill.fit==='FIT'?'100% 100%,contain':fill.fit==='STRETCH'?'100% 100%,100% 100%':fill.fit==='TILE'?`100% 100%,${Math.max(1,fill.tileSizeMm??20)*96/25.4}px`:'100% 100%,cover',backgroundPosition:`center,${fill.positionXPercent??50}% ${fill.positionYPercent??50}%`}:{};
+}
+
 function normalizeStroke(stroke: any | undefined, mmToPx: number): string {
   if (!stroke || !stroke.widthMm || stroke.style === 'NONE') return 'none';
   return `${stroke.widthMm * mmToPx}px solid ${normalizeExportColor(stroke.color)}`;
@@ -44,17 +61,10 @@ function normalizeStroke(stroke: any | undefined, mmToPx: number): string {
 export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artboard, assets: DesignTemplate['sharedAssets'] }) {
   const MM_TO_CSS_PX = 96 / 25.4;
   
-  const bg = artboard.background.type === 'SOLID' 
-    ? normalizeExportColor(artboard.background.color) 
-    : artboard.background.type === 'LINEAR_GRADIENT' 
-      ? normalizeGradient(artboard.background.gradient) 
-      : 'transparent';
-
   const canvasStyle: React.CSSProperties = {
     width: `${artboard.widthMm * MM_TO_CSS_PX}px`,
     height: `${artboard.heightMm * MM_TO_CSS_PX}px`,
-    backgroundColor: artboard.background.type === 'SOLID' ? bg : undefined,
-    backgroundImage: artboard.background.type === 'LINEAR_GRADIENT' ? bg : undefined,
+    ...artboardFillStyle(artboard.background,assets),
     position: 'relative',
     overflow: 'hidden',
     boxSizing: 'border-box'
@@ -62,12 +72,16 @@ export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artbo
 
   return (
     <div data-artboard-id={artboard.id} style={canvasStyle}>
+      {artboard.border?.enabled&&<div style={{position:'absolute',inset:`${artboard.border.offsetMm*MM_TO_CSS_PX}px`,border:`${artboard.border.widthMm*MM_TO_CSS_PX}px ${artboard.border.style.toLowerCase()} ${artboard.border.color}`,borderRadius:`${artboard.border.radiusMm*MM_TO_CSS_PX}px`,boxSizing:'border-box',zIndex:artboard.watermark?.zOrder==='BEHIND'?1:999999,pointerEvents:'none'}}/>}
+      {artboard.watermark?.enabled&&<ArtboardWatermark artboard={artboard} assets={assets}/>}
       {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => e.visible && !e.runtimeHidden).map(e => (
         <IsolatedExportElement key={e.id} element={e} assets={assets} mmToPx={MM_TO_CSS_PX} />
       ))}
     </div>
   );
 }
+
+function ArtboardWatermark({artboard,assets}:{artboard:Artboard;assets:DesignTemplate['sharedAssets']}){const w=artboard.watermark!;const asset=assets.find(a=>a.id===w.assetId);const content=w.type==='IMAGE'&&asset?<img src={asset.source} style={{width:`${w.scalePercent??35}%`,maxHeight:'80%',objectFit:'contain'}}/>:<span style={{fontSize:`${w.fontSizePt??28}pt`,color:w.color??'#64748b',fontWeight:600}}>{w.text??'DRAFT'}</span>;return <div style={{position:'absolute',inset:0,zIndex:w.zOrder==='BEHIND'?0:999998,pointerEvents:'none',opacity:w.opacity,display:'flex',alignItems:'center',justifyContent:'center',transform:`rotate(${w.rotationDeg}deg)`,overflow:'hidden'}}>{content}</div>}
 
 export function resolveDesignElementGeometry(e: DesignElement) {
   return {

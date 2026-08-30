@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser, PaintBucket } from 'lucide-react';
+import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser, PaintBucket, Slice } from 'lucide-react';
 import { DesignShapeKind } from '@document-tool/contracts';
 
 const shapeLabel = (s: DesignShapeKind) => s.toLowerCase().split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -11,9 +11,9 @@ export type ElementLibraryPanelProps = {
   onAddQr?: () => void;
   onAddBarcode?: () => void;
   availableShapes: DesignShapeKind[];
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT';
   drawShapeType?: DesignShapeKind | null;
-  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT') => void;
   fillBucketType?: 'SOLID' | 'NONE';
   fillBucketColor?: string;
   onFillBucketTypeChange?: (type:'SOLID'|'NONE')=>void;
@@ -81,10 +81,11 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
   const utilityElements = [
     { id: 'select', label: 'Select Tool', tooltip: 'Exit the active drawing or trimming tool', icon: <MousePointer2 size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SELECT'), active: interactionMode === 'SELECT' },
     { id: 'flexible-line', label: 'Flexible Line', tooltip: 'Draw and bend editable lines', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FLEXIBLE_LINE'), active: interactionMode === 'FLEXIBLE_LINE' },
+    { id: 'split', label: 'Split', tooltip: 'Split — draw a line across a shape to divide it into separate, independently editable parts', icon: <Slice size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SPLIT'), active: interactionMode === 'SPLIT' },
     { id: 'pen', label: 'Pen Tool', tooltip: 'Draw custom paths', icon: <PenTool size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('PEN'), active: interactionMode === 'PEN' },
     { id: 'edit-path', label: 'Edit Path', tooltip: 'Edit path nodes and curves', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('EDIT_PATH'), active: interactionMode === 'EDIT_PATH', disabled: !canEditPath },
-    { id: 'scissors', label: 'Scissors', tooltip: 'Split a path segment', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },
-    { id: 'trimmer', label: 'Trimmer', tooltip: 'Remove a segment between intersections or points', icon: <BetweenHorizontalStart size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
+    { id: 'scissors', label: 'Scissors', tooltip: 'Scissors — insert a node by cutting one path segment at the clicked point', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },
+    { id: 'trimmer', label: 'Erase Segment', tooltip: 'Erase Segment — remove the path interval between intersections or selected points', icon: <BetweenHorizontalStart size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
     { id: 'eraser', label: 'Freeform Eraser', tooltip: 'Draw a freeform selection around unlocked elements to erase them', icon: <Eraser size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ERASER'), active: interactionMode === 'ERASER' },
     { id: 'fill-bucket', label: 'Fill Bucket', tooltip: 'Fill a closed shape or section', icon: <PaintBucket size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FILL_BUCKET'), active: interactionMode === 'FILL_BUCKET' },
     { id: 'join-path', label: 'Join Path', tooltip: 'Join two open paths', icon: <GitMerge size={20} strokeWidth={1.5} />, action: () => onJoin?.(), disabled: !canJoin },

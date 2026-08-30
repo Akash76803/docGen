@@ -24,6 +24,7 @@ export * from './booleanUtils.js';
 export * from './trimmerUtils.js';
 
 export * from './snapping.js';
+export * from './pointSnapping.js';
 
 export * from './decorative-assets.js';
 

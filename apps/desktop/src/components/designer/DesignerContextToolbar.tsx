@@ -24,8 +24,8 @@ export type DesignerContextToolbarProps = {
   onGroupSelected?: () => void;
   onUngroupSelected?: () => void;
   pathEditMode?: { active: boolean; selectedNodeIds: string[] };
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
-  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT';
+  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT') => void;
   pathSelectedSegmentIds?: string[];
   setPathSelectedSegmentIds?: (m: string[]) => void;
   onMirrorInvoked?: (axis: 'HORIZONTAL'|'VERTICAL') => void;
@@ -216,10 +216,10 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
           <>
             <div className="dg-designer-context-toolbar__separator" />
             <div className="dg-designer-context-toolbar__group">
-              <button className="dg-toolbar-button" title="Boolean Union" onClick={() => doBooleanOperation('UNION')}>Union</button>
-              <button className="dg-toolbar-button" title="Boolean Subtract" onClick={() => doBooleanOperation('SUBTRACT')}>Subtract</button>
-              <button className="dg-toolbar-button" title="Boolean Intersect" onClick={() => doBooleanOperation('INTERSECT')}>Intersect</button>
-              <button className="dg-toolbar-button" title="Boolean Exclude" onClick={() => doBooleanOperation('EXCLUDE')}>Exclude</button>
+              <button className="dg-toolbar-button" title="Union — combine two closed paths into one shape" onClick={() => doBooleanOperation('UNION')}>Union</button>
+              <button className="dg-toolbar-button" title="Subtract — remove the top/cutter path area from the bottom/base path" onClick={() => doBooleanOperation('SUBTRACT')}>Subtract</button>
+              <button className="dg-toolbar-button" title="Intersect — keep only the overlapping area of two paths" onClick={() => doBooleanOperation('INTERSECT')}>Intersect</button>
+              <button className="dg-toolbar-button" title="Exclude — remove the overlapping area while keeping non-overlapping parts" onClick={() => doBooleanOperation('EXCLUDE')}>Exclude</button>
             </div>
           </>
         )}
@@ -388,9 +388,9 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
         
         <div className="dg-designer-context-toolbar__group">
           {interactionMode === 'SCISSORS' ? (
-             <button className="dg-toolbar-button active" onClick={() => setInteractionMode?.('SELECT')}>Exit Scissors</button>
+             <button className="dg-toolbar-button active" title="Scissors — insert a node by cutting one path segment at the clicked point" onClick={() => setInteractionMode?.('SELECT')}>Exit Scissors</button>
           ) : (
-             <button className="dg-toolbar-button" onClick={() => setInteractionMode?.('SCISSORS')}>Scissors</button>
+             <button className="dg-toolbar-button" title="Scissors — insert a node by cutting one path segment at the clicked point" onClick={() => setInteractionMode?.('SCISSORS')}>Scissors</button>
           )}
         </div>
         

@@ -49,7 +49,8 @@ describe('Phase 7.6 export fidelity, spacing guides, and eraser',()=>{
     expect(library).toContain('<option value="SOLID">Solid</option>');
     expect(library).toContain('<option value="NONE">Transparent / No Fill</option>');
     expect(designer).toContain('fillableElementContainsPoint(element,p)');
-    expect(designer).toContain("if(!closed){setStatus('Fill Bucket — boundary is open; close the path before filling')");
+    expect(designer).toContain('const closedGeometry=fillableClosedGeometry(element)');
+    expect(designer).toContain('geometry:closedGeometry,fill');
     expect(designer).toContain("fillBucketType==='NONE'?{type:'NONE' as const}:{type:'SOLID' as const");
     expect(designer).toContain("interactionMode==='FILL_BUCKET'");
   });
