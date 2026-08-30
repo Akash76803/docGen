@@ -740,6 +740,18 @@ export function shapeToPathGeometry(shapeType: string, sizeMm: {widthMm: number,
     );
   } else if (shapeType === 'CLOUD') {
     addClosedPolygon([{x:w*.1,y:h*.7},{x:0,y:h*.52},{x:w*.12,y:h*.35},{x:w*.28,y:h*.36},{x:w*.38,y:h*.12},{x:w*.6,y:h*.08},{x:w*.72,y:h*.28},{x:w*.9,y:h*.3},{x:w,y:h*.5},{x:w*.9,y:h*.72}]);
+  } else if (shapeType === 'WAVE') {
+    const ids=Array.from({length:6},()=>crypto.randomUUID());
+    points.push(
+      {id:ids[0]!,x:0,y:h*.25,mode:'SMOOTH',outHandle:{x:w*.16,y:0}},
+      {id:ids[1]!,x:w*.5,y:h*.25,mode:'SMOOTH',inHandle:{x:w*.34,y:h*.5},outHandle:{x:w*.66,y:0}},
+      {id:ids[2]!,x:w,y:h*.25,mode:'CORNER',inHandle:{x:w*.84,y:h*.5}},
+      {id:ids[3]!,x:w,y:h*.75,mode:'SMOOTH',outHandle:{x:w*.84,y:h}},
+      {id:ids[4]!,x:w*.5,y:h*.75,mode:'SMOOTH',inHandle:{x:w*.66,y:h*.5},outHandle:{x:w*.34,y:h}},
+      {id:ids[5]!,x:0,y:h*.75,mode:'CORNER',inHandle:{x:w*.16,y:h*.5}}
+    );
+    const types:PathSegment['type'][]=['CUBIC_BEZIER','CUBIC_BEZIER','LINE','CUBIC_BEZIER','CUBIC_BEZIER','LINE'];
+    types.forEach((type,index)=>segments.push({id:crypto.randomUUID(),type,fromPointId:ids[index]!,toPointId:ids[(index+1)%ids.length]!}));
   } else if (shapeType === 'CYLINDER') {
     addClosedPolygon([{x:w*.08,y:h*.12},{x:w*.22,y:0},{x:w*.78,y:0},{x:w*.92,y:h*.12},{x:w*.92,y:h*.88},{x:w*.78,y:h},{x:w*.22,y:h},{x:w*.08,y:h*.88}]);
   } else if (shapeType === 'CURVED_ARROW') {

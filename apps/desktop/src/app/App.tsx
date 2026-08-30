@@ -27,12 +27,12 @@ export default function App() {
       case 'home':
         return <Home onNavigate={setCurrentPage} />;
       case 'templates':
-        return <Templates />;
+        return <Templates onHome={() => setCurrentPage('home')} />;
       case 'generate':
-        return <Generate onOpenTemplates={() => setCurrentPage('templates')} />;
+        return <Generate onHome={() => setCurrentPage('home')} onOpenTemplates={() => setCurrentPage('templates')} />;
       case 'settings':
         // Pass original AppTheme type for legacy Settings compatibility if needed
-        return <Settings theme={theme as AppTheme} onThemeChange={(t) => setTheme((t === 'light' || t === 'dark') ? t : 'dark')} />;
+        return <Settings onHome={() => setCurrentPage('home')} theme={theme as AppTheme} onThemeChange={(t) => setTheme((t === 'light' || t === 'dark') ? t : 'dark')} />;
       default:
         return <Home onNavigate={setCurrentPage} />;
     }
@@ -40,7 +40,7 @@ export default function App() {
 
   // CardDesigner runs completely full-screen outside the AppShell
   if (currentPage === 'card-designer') {
-    return <CardDesigner />;
+    return <CardDesigner onHome={() => setCurrentPage('home')} />;
   }
 
   // All other generic app pages are wrapped in the layout shell

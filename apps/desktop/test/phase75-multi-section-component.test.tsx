@@ -24,7 +24,8 @@ describe('Phase 7.5 multi-section component UI integration',()=>{
   });
 
   it('keeps strict two-click CAD commit semantics',()=>{
-    expect(source).toContain("if(existing&&!existing.pointerIsDown)");
+    expect(source).toContain('const isDistinctSecondPoint=existing?Math.hypot(p.xMm-existing.startX,p.yMm-existing.startY)>=.5:false');
+    expect(source).toContain('if(existing&&(!existing.pointerIsDown||isDistinctSecondPoint))');
     expect(source).toContain('commitDrawDraft(existing,p,snap)');
   });
 

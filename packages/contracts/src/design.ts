@@ -7,7 +7,7 @@ export type DesignHorizontalAlignment = 'LEFT' | 'CENTER' | 'RIGHT';
 export type DesignVerticalAlignment = 'TOP' | 'CENTER' | 'BOTTOM';
 export type GuideOrientation = 'HORIZONTAL' | 'VERTICAL';
 export type DesignElementKind = 'TEXT' | 'SHAPE' | 'IMAGE' | 'SVG' | 'QR' | 'BARCODE' | 'PATH' | 'CUSTOM';
-export type DesignShapeKind = 'RECTANGLE' | 'SQUARE' | 'ROUNDED_RECTANGLE' | 'CAPSULE' | 'CIRCLE' | 'ELLIPSE' | 'LINE' | 'TRIANGLE' | 'RIGHT_TRIANGLE' | 'DIAMOND' | 'PENTAGON' | 'HEXAGON' | 'OCTAGON' | 'TRAPEZOID' | 'PARALLELOGRAM' | 'ARROW' | 'DOUBLE_ARROW' | 'CURVED_ARROW' | 'CHEVRON' | 'DOUBLE_CHEVRON' | 'STAR' | 'POLYGON' | 'HEART' | 'CLOUD' | 'SPEECH_BUBBLE' | 'CALLOUT' | 'DOCUMENT' | 'CYLINDER' | 'CROSS' | 'PLUS' | 'BANNER' | 'SHIELD' | 'RIBBON' | 'BADGE' | 'HALF_CIRCLE' | 'ARC' | 'BRACKET' | 'LABEL_TAG' | 'FLEXIBLE_LINE';
+export type DesignShapeKind = 'RECTANGLE' | 'SQUARE' | 'ROUNDED_RECTANGLE' | 'CAPSULE' | 'CIRCLE' | 'ELLIPSE' | 'LINE' | 'TRIANGLE' | 'RIGHT_TRIANGLE' | 'DIAMOND' | 'PENTAGON' | 'HEXAGON' | 'OCTAGON' | 'TRAPEZOID' | 'PARALLELOGRAM' | 'ARROW' | 'DOUBLE_ARROW' | 'CURVED_ARROW' | 'CHEVRON' | 'DOUBLE_CHEVRON' | 'STAR' | 'POLYGON' | 'HEART' | 'CLOUD' | 'WAVE' | 'SPEECH_BUBBLE' | 'CALLOUT' | 'DOCUMENT' | 'CYLINDER' | 'CROSS' | 'PLUS' | 'BANNER' | 'SHIELD' | 'RIBBON' | 'BADGE' | 'HALF_CIRCLE' | 'ARC' | 'BRACKET' | 'LABEL_TAG' | 'FLEXIBLE_LINE';
 export type DesignBindingSource = 'FIELD' | 'CALCULATED' | 'STATIC';
 
 export type ArtboardRole = 'FRONT' | 'BACK' | 'INSIDE' | 'OUTSIDE' | 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM' | 'GENERIC';

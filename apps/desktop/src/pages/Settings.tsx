@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import type { AppTheme } from '../app/App.tsx';
 import { Save, Shield, HardDrive, Cpu, Palette } from 'lucide-react';
+import { BackToHomeButton } from '../components/shell/BackToHomeButton.tsx';
 
-export const Settings: React.FC<{ theme: AppTheme; onThemeChange: (theme: AppTheme) => void }> = ({ theme, onThemeChange }) => {
+export const Settings: React.FC<{ theme: AppTheme; onThemeChange: (theme: AppTheme) => void; onHome?:()=>void }> = ({ theme, onThemeChange, onHome }) => {
   const [outputDir, setOutputDir] = useState('./output');
   const [saved, setSaved] = useState(false);
 
@@ -14,7 +15,7 @@ export const Settings: React.FC<{ theme: AppTheme; onThemeChange: (theme: AppThe
 
   return (
     <div className="settings-container animated-fade-in">
-      <div className="page-header"><div><h2>Application Settings</h2><p>Choose a comfortable theme and manage local workspace preferences.</p></div></div>
+      <div className="page-header"><div style={{display:'flex',alignItems:'flex-start',gap:10}}><BackToHomeButton onHome={onHome} compact/><div><h2>Application Settings</h2><p>Choose a comfortable theme and manage local workspace preferences.</p></div></div></div>
 
       <div className="settings-form">
         <div className="settings-section">

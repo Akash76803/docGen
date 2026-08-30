@@ -16,11 +16,16 @@ describe('Phase 7.10 point OSNAP live interaction wiring',()=>{
   });
 
   it('uses the snapped point for both line preview and drag-release commit',()=>{
-    expect(source).toContain('const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:raw');
+    expect(source).toContain('const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:anglePoint??raw');
     expect(source).toContain('currentX:p.xMm,currentY:p.yMm');
     expect(source).toContain('const effectiveEnd={xMm:op.currentX,yMm:op.currentY}');
     expect(source).toContain('commitDrawDraft(op,effectiveEnd,op.currentSnap)');
     expect(source).toContain('onPointerUp={upCanvasWithLineCommit}');
+  });
+
+  it('commits a distinct second click even when the first pointer-up was missed',()=>{
+    expect(source).toContain('const isDistinctSecondPoint=existing?Math.hypot(p.xMm-existing.startX,p.yMm-existing.startY)>=.5:false');
+    expect(source).toContain('if(existing&&(!existing.pointerIsDown||isDistinctSecondPoint))');
   });
 
   it('applies snapped world coordinates in the live path-node pointermove handler',()=>{

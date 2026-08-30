@@ -6,11 +6,11 @@ const designer=readFileSync(resolve(process.cwd(),'apps/desktop/src/pages/CardDe
 const library=readFileSync(resolve(process.cwd(),'apps/desktop/src/components/designer/ElementLibraryPanel.tsx'),'utf8');
 const toolbar=readFileSync(resolve(process.cwd(),'apps/desktop/src/components/designer/DesignerContextToolbar.tsx'),'utf8');
 
-describe('dedicated Split tool',()=>{
+describe('dedicated Divider / Split tool',()=>{
   it('is visible, selectable, and described independently from path tools',()=>{
-    expect(library).toContain("id: 'split', label: 'Split'");
+    expect(library).toContain("id: 'divider', label: 'Divider'");
     expect(library).toContain("onSetInteractionMode?.('SPLIT')");
-    expect(library).toContain('draw a line across a shape to divide it into separate, independently editable parts');
+    expect(library).toContain('draw across a closed shape or filled section to create new independently fillable sections');
     expect(library).toContain("id: 'trimmer', label: 'Erase Segment'");
     expect(library).toContain("id: 'scissors', label: 'Scissors'");
   });

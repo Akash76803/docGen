@@ -10,7 +10,7 @@ describe('Phase 7.3 divider drawing integration',()=>{
   });
 
   it('commits exact snapped coordinates and routes the divider through the current canonical face splitter',()=>{
-    expect(source).toContain('const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:rawPoint');
+    expect(source).toContain('const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:anglePoint??rawPoint');
     expect(source).toContain('splitComponentFaceByDivider');
     expect(source).toContain("if(draft.shapeType==='LINE')");
   });
