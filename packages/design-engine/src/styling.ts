@@ -51,7 +51,7 @@ export function resetDesignElementStyle(element:DesignElement):DesignElement {
   switch(element.type){
     case 'TEXT': return {...element,opacity:1,style:{fontFamily:'Arial',fontSizePt:18,fontWeight:400,italic:false,underline:false,color:'#111827',alignment:'LEFT',lineHeight:1.2,letterSpacingPt:0},shadow:clone(DEFAULT_DESIGN_SHADOW)};
     case 'SHAPE': return {...element,opacity:1,fill:clone(DEFAULT_SHAPE_FILL),stroke:{color:'#2563eb',widthMm:.35,style:'SOLID',opacity:1},cornerRadiusMm:element.shape==='ROUNDED_RECTANGLE'?3:0,shadow:clone(DEFAULT_DESIGN_SHADOW)};
-    case 'IMAGE': return {...element,opacity:1,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,stroke:clone(DEFAULT_DESIGN_STROKE),shadow:clone(DEFAULT_DESIGN_SHADOW)};
+    case 'IMAGE': return {...element,opacity:1,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,stroke:clone(DEFAULT_DESIGN_STROKE),shadow:clone(DEFAULT_DESIGN_SHADOW),hyperlink:undefined};
     case 'SVG': return {...element,opacity:1,preserveVector:true,tintColor:undefined,stroke:clone(DEFAULT_DESIGN_STROKE),shadow:clone(DEFAULT_DESIGN_SHADOW)};
     default:return element;
   }

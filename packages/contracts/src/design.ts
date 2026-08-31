@@ -248,6 +248,7 @@ export interface ImageDesignElement extends BaseDesignElement {
   cornerRadiusMm?:number;
   stroke?:DesignStroke;
   shadow?:DesignShadow;
+  hyperlink?:string;
 }
 
 export interface SvgDesignElement extends BaseDesignElement {

@@ -122,3 +122,32 @@ export function removeValueBinding<T extends QrDesignElement | BarcodeDesignElem
     bindings: newBindings.length ? newBindings : undefined
   } as T;
 }
+
+export function getHyperlinkBinding(element: DesignElement): DesignBinding | undefined {
+  return element.bindings?.find(b => b.targetProperty === 'hyperlink');
+}
+
+export function setHyperlinkFieldBinding<T extends ImageDesignElement>(element: T, fieldPath: string, fallbackHyperlink?: string): T {
+  const currentBinding = getHyperlinkBinding(element);
+  const newBinding: DesignBinding = currentBinding
+    ? { ...currentBinding, sourceType: 'FIELD', fieldPath }
+    : {
+        id: `${element.id}-hyperlink-binding`,
+        targetProperty: 'hyperlink',
+        sourceType: 'FIELD',
+        fieldPath,
+        fallbackValue: fallbackHyperlink,
+      };
+
+  const bindings = [...(element.bindings || []).filter(b => b.targetProperty !== 'hyperlink'), newBinding];
+  return { ...element, bindings } as T;
+}
+
+export function removeHyperlinkBinding<T extends ImageDesignElement>(element: T): T {
+  if (!element.bindings) return element;
+  const newBindings = element.bindings.filter(b => b.targetProperty !== 'hyperlink');
+  return {
+    ...element,
+    bindings: newBindings.length ? newBindings : undefined
+  } as T;
+}

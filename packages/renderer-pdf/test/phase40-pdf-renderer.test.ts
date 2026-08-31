@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RenderModel, TemplateDefinition } from '@document-tool/contracts';
-import { PdfRenderer } from '../src/pdf-renderer.js';
+import { PdfRenderer, buildPdf } from '../src/pdf-renderer.js';
 
 const style = { fontFamily:'Arial',fontSize:10,bold:false,italic:false,underline:false,textColor:'#000000',backgroundColor:'#FFFFFF',alignment:'LEFT',lineHeight:1.2 } as const;
 const layout = { widthPercent:100,alignment:'LEFT',marginTop:0,marginRight:0,marginBottom:0,marginLeft:0 } as const;
@@ -25,5 +25,22 @@ describe('Phase 4 PDF core', () => {
     expect((text.match(/\/Type \/Page\b/g) ?? []).length).toBeGreaterThanOrEqual(2);
     expect((text.match(/Product/g) ?? []).length).toBeGreaterThanOrEqual(2);
     expect(out.mimeType).toBe('application/pdf');
+  });
+
+  it('generates PDF with link annotations', () => {
+    const page = {
+      width: 200,
+      height: 300,
+      ops: [],
+      annots: [
+        { rect: [10, 20, 50, 60] as [number, number, number, number], uri: 'https://example.com' }
+      ]
+    };
+    const out = buildPdf([page], []);
+    const text = new TextDecoder().decode(out);
+    expect(text).toContain('/Type /Annot');
+    expect(text).toContain('/Subtype /Link');
+    expect(text).toContain('/URI (https://example.com)');
+    expect(text).toContain('/Rect [10 20 50 60]');
   });
 });

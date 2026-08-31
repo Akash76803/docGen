@@ -67,6 +67,7 @@ export function createImageElement(assetId:string, options:ElementFactoryOptions
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
     assetId,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,
     stroke:{color:'#000000',widthMm:0,style:'NONE',opacity:1},shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
+    hyperlink: undefined,
   };
 }
 

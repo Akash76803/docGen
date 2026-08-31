@@ -270,6 +270,14 @@ export function applyResolvedValueToElement(element: DesignElement, binding: Des
       }
       break;
 
+    case 'hyperlink':
+      if (element.type === 'IMAGE') {
+        if (typeof rawValue === 'string') {
+          (element as any).hyperlink = rawValue;
+        }
+      }
+      break;
+
     case 'tintColor':
       if (element.type === 'SVG') {
         if (typeof rawValue === 'string') {

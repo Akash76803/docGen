@@ -40,11 +40,12 @@ import {
   getTextBinding,setTextFieldBinding,removeTextBinding,resolveDataContextSeeding,
   getSourceBinding,setSourceFieldBinding,removeSourceBinding,
   getFillImageSourceBinding,setFillImageSourceFieldBinding,removeFillImageSourceBinding,
-  getValueBinding,setValueFieldBinding,removeValueBinding,mirrorElementsAcrossArtboard
+  getValueBinding,setValueFieldBinding,removeValueBinding,mirrorElementsAcrossArtboard,
+  getHyperlinkBinding,setHyperlinkFieldBinding,removeHyperlinkBinding
 } from '@document-tool/design-engine';
 import type { DesignAlignmentReference,DesignClipboardPayload,DesignHistoryState,DesignRectMm,DesignSelectionState,DesignStyleClipboard,SnapGuideIndicator } from '@document-tool/design-engine';
 import { LocalStorageDesignTemplateRepository,LocalStorageUserAssetLibraryRepository,type UserAssetLibraryItem } from '@document-tool/persistence';
-import { ArrowDown,ArrowUp,Copy,Maximize2,Minus,MonitorUp,Plus,RotateCcw,Trash2,Upload,PenLine, Type, Image as ImageIcon, Box, Shapes, Eye, EyeOff, Lock, Unlock, Scissors, MousePointer2, BetweenHorizontalStart } from 'lucide-react';
+import { ArrowDown,ArrowUp,Copy,Maximize2,Minus,MonitorUp,Plus,RotateCcw,Trash2,Upload,PenLine, Type, Image as ImageIcon, Box, Shapes, Eye, EyeOff, Lock, Unlock, Scissors, MousePointer2, BetweenHorizontalStart, Link } from 'lucide-react';
 import { loadImportWorkspace } from '../services/workspaceStore.js';
 import { clampPreviewRecordIndex, getPreviewRecord, createRecordDesignDataContext, getRecordDisplayLabel } from '../services/previewRecordHelpers.js';
 import { createBulkGenerationPlan, BulkCancellationToken, resolveItemArtboard, type BulkCardGenerationRequest, type BulkArtboardTarget, type BulkRecordTarget, type BulkGenerationResult } from '../services/cardBulkGeneration.js';
@@ -1553,7 +1554,16 @@ function ElementVisual({element,assets,mutate,artboardId}:{element:DesignElement
     const src=resolveRasterImageElementSource(element,assets);
     const asset=assets.find(a=>a.id===element.assetId);
     const kind=src ? 'RASTER_IMAGE' : assetRenderKind(asset);
-    return <div className="card-image-visual" style={{borderRadius:`${element.cornerRadiusMm??0}mm`,border:strokeCss(element.stroke),boxShadow:boxShadowCss(element.shadow)}}>{kind==='RASTER_IMAGE'&&src?<img src={src} alt={element.name} draggable={false} style={{objectFit:element.fit==='FIT'?'contain':element.fit==='FILL'?'cover':'fill',transform:`scale(${element.flipX?-1:1},${element.flipY?-1:1})`}}/>:<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}</div>;
+    return (
+      <div className="card-image-visual" style={{position:'relative',borderRadius:`${element.cornerRadiusMm??0}mm`,border:strokeCss(element.stroke),boxShadow:boxShadowCss(element.shadow)}}>
+        {kind==='RASTER_IMAGE'&&src?<img src={src} alt={element.name} draggable={false} style={{objectFit:element.fit==='FIT'?'contain':element.fit==='FILL'?'cover':'fill',transform:`scale(${element.flipX?-1:1},${element.flipY?-1:1})`}}/>:<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}
+        {element.hyperlink && (
+          <div style={{ position: 'absolute', top: '6px', right: '6px', padding: '3px', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', zIndex: 10 }}>
+            <Link size={10} style={{ color: 'var(--accent-color)' }} />
+          </div>
+        )}
+      </div>
+    );
   }
   if(element.type==='SVG'){
     const dynamicSource = (element as any).source;
@@ -2403,6 +2413,11 @@ function AdvancedImageProperties({element,update,availableFields,datasourceStatu
   const sourceBinding=getSourceBinding(element);
   const isBound=!!sourceBinding;
   const isMissingField=isBound&&sourceBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===sourceBinding.fieldPath);
+  
+  const hyperlinkBinding = getHyperlinkBinding(element);
+  const isHyperlinkBound = !!hyperlinkBinding;
+  const isMissingHyperlinkField = isHyperlinkBound && hyperlinkBinding.sourceType === 'FIELD' && !availableFields.some(f => f.name === hyperlinkBinding.fieldPath);
+
   return <><Section sectionKey="APPEARANCE" title="Image"><label>Fit<select value={element.fit} onChange={e=>patch({fit:e.target.value as ImageDesignElement['fit']})}><option value="FIT">Fit</option><option value="FILL">Fill</option><option value="STRETCH">Stretch</option></select></label><div className="card-segmented-control"><button className={element.flipX?'active':''} onClick={()=>patch({flipX:!element.flipX})}>Flip X</button><button className={element.flipY?'active':''} onClick={()=>patch({flipY:!element.flipY})}>Flip Y</button></div><label className="card-check-row"><input type="checkbox" checked={element.maintainAspectRatio??true} onChange={e=>patch({maintainAspectRatio:e.target.checked})}/>Lock aspect ratio</label></Section>
   <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
     {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
@@ -2422,6 +2437,36 @@ function AdvancedImageProperties({element,update,availableFields,datasourceStatu
         {isBound&&<button className="secondary" onClick={()=>update(el=>removeSourceBinding(el as ImageDesignElement))}>Remove Binding</button>}
       </div>
     }
+  </Section>
+  <Section sectionKey="DATA_BINDING" title="Hyperlink">
+    <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+      <label>URL / Hyperlink
+        <input 
+          type="text" 
+          placeholder="https://example.com" 
+          value={element.hyperlink ?? ''} 
+          onChange={e => patch({ hyperlink: e.target.value || undefined })} 
+          disabled={isHyperlinkBound}
+        />
+      </label>
+      {availableFields.length > 0 && (
+        <div style={{display:'flex',flexDirection:'column',gap:'8px',marginTop:'4px'}}>
+          <label>Dynamic Link Field:
+            <SearchableFieldPicker 
+              availableFields={availableFields} 
+              currentFieldPath={hyperlinkBinding?.fieldPath ?? '__NONE__'} 
+              onSelectField={val => {
+                if (val === '__NONE__') update(el => removeHyperlinkBinding(el as ImageDesignElement));
+                else update(el => setHyperlinkFieldBinding(el as ImageDesignElement, val));
+              }} 
+            />
+          </label>
+          {isHyperlinkBound && <div style={{fontSize:'11px',color:'var(--text-secondary)'}}>Fallback: Static URL</div>}
+          {isMissingHyperlinkField && <div style={{color:'red',fontSize:'11px'}}>⚠ {hyperlinkBinding.fieldPath} Not available in current datasource</div>}
+          {isHyperlinkBound && <button className="secondary" onClick={() => update(el => removeHyperlinkBinding(el as ImageDesignElement))}>Remove Link Binding</button>}
+        </div>
+      )}
+    </div>
   </Section>
   <Section sectionKey="APPEARANCE" title="Appearance"><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></Section><Section sectionKey="APPEARANCE" title="Border"><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
 function SvgProperties({element,asset,update,availableFields,datasourceStatus}:{element:SvgDesignElement;asset?:AssetReference;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){

@@ -1,6 +1,6 @@
 import React from 'react';
 
-import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop, DesignFill, QrDesignElement, PathDesignElement } from '@document-tool/contracts';
+import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop, DesignFill, QrDesignElement, PathDesignElement, ImageDesignElement } from '@document-tool/contracts';
 import QRCode from 'react-qr-code';
 import { geometryToSvgPath, shapeToPathGeometry, resolveRasterImageElementSource, resolveRasterImageFillSource } from '@document-tool/design-engine';
 
@@ -388,9 +388,17 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
       );
     }
 
+  const hyperlink = e.type === 'IMAGE' ? (e as ImageDesignElement).hyperlink : undefined;
+
   return (
-    <div data-element-id={e.id} style={shellStyle}>
-      {content}
+    <div data-element-id={e.id} style={hyperlink ? { ...shellStyle, pointerEvents: 'auto' } : shellStyle}>
+      {hyperlink ? (
+        <a href={hyperlink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%', height: '100%', pointerEvents: 'auto', cursor: 'pointer' }}>
+          {content}
+        </a>
+      ) : (
+        content
+      )}
     </div>
   );
 }

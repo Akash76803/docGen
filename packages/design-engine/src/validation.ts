@@ -88,7 +88,7 @@ function validateElement(artboard:Artboard, element:DesignElement, registry:Desi
     // Supported target property registry
     const supportedProps: Record<string, string[]> = {
       TEXT: ['text', 'visible'],
-      IMAGE: ['source', 'altText', 'visible'],
+      IMAGE: ['source', 'altText', 'visible', 'hyperlink'],
       SVG: ['source', 'tintColor', 'visible'],
       SHAPE: ['visible', 'fillImageSource'],
       PATH: ['visible', 'fillImageSource']
