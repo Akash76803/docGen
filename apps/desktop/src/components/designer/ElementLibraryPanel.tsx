@@ -14,9 +14,9 @@ export type ElementLibraryPanelProps = {
   onAddQr?: () => void;
   onAddBarcode?: () => void;
   availableShapes: DesignShapeKind[];
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE';
   drawShapeType?: DesignShapeKind | null;
-  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE') => void;
   fillBucketType?: 'SOLID' | 'NONE';
   fillBucketColor?: string;
   onFillBucketTypeChange?: (type:'SOLID'|'NONE')=>void;
@@ -120,7 +120,7 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
           <h3 className="dg-element-library__section-title">Basic</h3>
           <div className="dg-element-library__grid">
             {filteredBasic.map(el => (
-              <button key={el.id} className="dg-element-library__item" onClick={el.action} title={`Add ${el.label}`}>
+              <button key={el.id} className="dg-element-library__item" onClick={el.action} onDoubleClick={el.action} title={`Add ${el.label}`}>
                 {el.icon}
                 <span>{el.label}</span>
               </button>
@@ -134,7 +134,7 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
           <h3 className="dg-element-library__section-title">More Shapes</h3>
           <div className="dg-element-library__grid">
             {filteredShapes.map(el => (
-              <button key={el.id} className="dg-element-library__item" onClick={el.action} title={`Add ${el.label}`}>
+              <button key={el.id} className="dg-element-library__item" onClick={el.action} onDoubleClick={el.action} title={`Add ${el.label}`}>
                 {el.icon}
                 <span>{el.label}</span>
               </button>
@@ -148,7 +148,7 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
           <h3 className="dg-element-library__section-title">Dynamic</h3>
           <div className="dg-element-library__grid">
             {filteredDynamic.map(el => (
-              <button key={el.id} className="dg-element-library__item" onClick={el.action} title={`Add ${el.label}`}>
+              <button key={el.id} className="dg-element-library__item" onClick={el.action} onDoubleClick={el.action} title={`Add ${el.label}`}>
                 {el.icon}
                 <span>{el.label}</span>
               </button>
@@ -166,6 +166,7 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
                 key={el.id} 
                 className={`dg-element-library__item ${el.active ? 'active' : ''}`} 
                 onClick={el.action} 
+                onDoubleClick={el.action}
                 disabled={el.disabled}
                 title={el.disabled ? (el.id === 'edit-path' || el.id === 'scissors' || el.id === 'trimmer' ? 'Select exactly 1 path to use this tool' : el.id === 'join-path' ? 'Select exactly 2 open paths to join' : el.id === 'close-path' ? 'Select exactly 1 open path to close' : el.tooltip) : el.tooltip}
               >

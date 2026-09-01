@@ -20,6 +20,7 @@ export interface PointSnapResult {
   elementId?:string;
   guideId?:string;
   detailId?:string;
+  label?:string;
 }
 
 export interface PointSnapOptions {

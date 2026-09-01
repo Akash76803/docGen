@@ -42,14 +42,20 @@ Implemented: reused flat Group/Ungroup/duplicate/visibility/order; fixed proport
 ## Phase 8.5 — Geometry Editing Completion
 Reuse PATH model, node modes, Beziers, segment conversions and Convert-to-Path. Harden conversion fidelity/undo; add explicit open/break/join workflows as needed, exact node editing, Change Shape and dedicated parametric adjustment handles.
 
-## Phase 8.6 — Boolean Hardening + Fragment
+## Phase 8.6 — Rich Artboard Backgrounds
+**Status:** SOURCE IMPLEMENTED / MANUAL VERIFICATION PENDING
+
+## Phase 8.7 — Boolean Hardening + Fragment
 Reuse Paper.js Union/Subtract/Intersect/Exclude and compound subpaths. Add capability/precondition validation, deterministic primary target/style semantics, meaningful tests and N-element handling. Implement Fragment as independent closed region generation, not XOR and not merely divider Face Split.
 
-## Phase 8.7 — Shape Text Hardening
+## Phase 8.8 — Shape Text Hardening
 Reuse current shape/path labels and font/alignment/padding. Add fit modes, shrink/min-font, dynamic-binding-after-resolution autofit, missing/fallback behavior and export parity.
 
-## Phase 8.8 — Persistence / Export / Regression Hardening
+## Phase 8.9 — Persistence / Export / Regression Hardening
 Finalize migration/round-trip compatibility, clipboard coverage, atomic history, canvas/PDF/PNG/JPEG parity, performance checks, full manual matrix and release packaging.
 
 ## Permanent rule for every phase
 Audit actual affected code → classify REUSE/HARDEN/NEW → implement minimal compatible change → targeted tests → permanent regression suite → typecheck → build → manual smoke → update phase doc → complete source ZIP.
+
+### Phase 8.7 Add-on — CAD Reference-Line Mirror
+SOURCE IMPLEMENTED / MANUAL PENDING. Adds arbitrary two-point reference-axis mirror with Copy/Move modes while preserving existing Flip and Page Mirror tools.

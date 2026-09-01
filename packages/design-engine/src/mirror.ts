@@ -165,3 +165,75 @@ export function mirrorElementsAcrossArtboard(template:DesignTemplate,artboardId:
     })
   };
 }
+
+export type ReferenceLineMirrorMode = 'COPY'|'MOVE';
+export type ReferenceLinePoint = {xMm:number;yMm:number};
+
+function reflectWorldPointAcrossLine(point:ReferenceLinePoint,a:ReferenceLinePoint,b:ReferenceLinePoint):ReferenceLinePoint {
+  const vx=b.xMm-a.xMm,vy=b.yMm-a.yMm;
+  const len2=vx*vx+vy*vy;
+  if(len2<1e-10)return point;
+  const t=((point.xMm-a.xMm)*vx+(point.yMm-a.yMm)*vy)/len2;
+  const px=a.xMm+t*vx,py=a.yMm+t*vy;
+  return {xMm:2*px-point.xMm,yMm:2*py-point.yMm};
+}
+
+function referenceAxisAngleDeg(a:ReferenceLinePoint,b:ReferenceLinePoint):number {
+  return Math.atan2(b.yMm-a.yMm,b.xMm-a.xMm)*180/Math.PI;
+}
+
+function mirrorVisualAcrossReferenceLine(source:DesignElement,a:ReferenceLinePoint,b:ReferenceLinePoint,newId?:string,newGroupId?:string):DesignElement {
+  const next=clone(source) as DesignElement;
+  if(newId){next.id=newId;next.name=`${source.name} Mirror`;}
+  if(newGroupId!==undefined)next.groupId=newGroupId;
+  const center={xMm:source.position.xMm+source.size.widthMm/2,yMm:source.position.yMm+source.size.heightMm/2};
+  const reflectedCenter=reflectWorldPointAcrossLine(center,a,b);
+  const axisAngle=referenceAxisAngleDeg(a,b);
+  next.position={xMm:reflectedCenter.xMm-source.size.widthMm/2,yMm:reflectedCenter.yMm-source.size.heightMm/2};
+  next.rotationDeg=normalizeRotationDeg(2*axisAngle-source.rotationDeg);
+
+  // Reflection reverses handedness. In the element's reflected local frame this is a local Y flip.
+  if(next.type==='SHAPE') next.flipY=!next.flipY;
+  else if(next.type==='IMAGE') next.flipY=!next.flipY;
+  else if(next.type==='SVG') next.flipY=!next.flipY;
+  else if(next.type==='PATH') next.geometry=reflectPathGeometryInPlace((source as PathDesignElement).geometry,source.size.widthMm,source.size.heightMm,'HORIZONTAL');
+  // TEXT / QR / BARCODE remain readable/scannable, matching existing page-mirror semantics.
+  return next;
+}
+
+/** CAD-style mirror across an arbitrary user-defined reference line.
+ * COPY preserves originals and creates mirrored clones. MOVE mirrors originals in place.
+ */
+export function mirrorElementsAcrossReferenceLine(
+  template:DesignTemplate,
+  artboardId:string,
+  elementIds:readonly string[],
+  lineStart:ReferenceLinePoint,
+  lineEnd:ReferenceLinePoint,
+  mode:ReferenceLineMirrorMode='COPY'
+):DesignTemplate {
+  if(Math.hypot(lineEnd.xMm-lineStart.xMm,lineEnd.yMm-lineStart.yMm)<0.01)return template;
+  const selected=new Set(elementIds);
+  return {...template,artboards:template.artboards.map(artboard=>{
+    if(artboard.id!==artboardId)return artboard;
+    const source=artboard.elements.filter(element=>selected.has(element.id)&&!element.locked);
+    if(!source.length)return artboard;
+    if(mode==='MOVE'){
+      return {...artboard,elements:artboard.elements.map(element=>selected.has(element.id)&&!element.locked?mirrorVisualAcrossReferenceLine(element,lineStart,lineEnd):element)};
+    }
+
+    const usedGroupIds=new Set(source.map(element=>element.groupId).filter((id):id is string=>Boolean(id)));
+    const groupMap=new Map<string,string>();usedGroupIds.forEach(groupId=>groupMap.set(groupId,crypto.randomUUID()));
+    const elementIdMap=new Map<string,string>();source.forEach(element=>elementIdMap.set(element.id,crypto.randomUUID()));
+    const mirrored=source.map(element=>mirrorVisualAcrossReferenceLine(element,lineStart,lineEnd,elementIdMap.get(element.id)!,element.groupId?groupMap.get(element.groupId):undefined));
+    const mirroredGroups=artboard.groups.filter(group=>usedGroupIds.has(group.id)).map(group=>({
+      ...clone(group),id:groupMap.get(group.id)!,name:`${group.name} Mirror`,
+      parentGroupId:group.parentGroupId?groupMap.get(group.parentGroupId):undefined,
+      elementIds:group.elementIds.map(id=>elementIdMap.get(id)).filter((id):id is string=>Boolean(id)),
+    })).filter(group=>group.elementIds.length>0);
+    const indexes=source.map(element=>artboard.elements.findIndex(candidate=>candidate.id===element.id)).filter(index=>index>=0);
+    const insertAt=indexes.length?Math.max(...indexes)+1:artboard.elements.length;
+    const elements=[...artboard.elements];elements.splice(insertAt,0,...mirrored);
+    return {...artboard,elements,groups:[...artboard.groups,...mirroredGroups]};
+  })};
+}

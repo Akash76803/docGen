@@ -19,9 +19,10 @@ This file prevents older update docs from being mistaken for the current baselin
 - Phase 8.3 Multi-Selection Enhancements
 - Phase 8.4 Group Hardening
 - Phase 8.5 Geometry Editing Completion
-- Phase 8.6 Boolean Hardening + Fragment
-- Phase 8.7 Shape Text Hardening
-- Phase 8.8 Persistence / Export / Regression Hardening
+- Phase 8.6 Rich Artboard Backgrounds
+- Phase 8.7 Boolean Hardening + Fragment
+- Phase 8.8 Shape Text Hardening
+- Phase 8.9 Persistence / Export / Regression Hardening
 
 Always read `CURRENT_BASELINE.md`, `SHAPE_OPERATIONS_AUDIT.md`, and the latest update docs before implementing the next phase.
 
@@ -33,7 +34,7 @@ Always read `CURRENT_BASELINE.md`, `SHAPE_OPERATIONS_AUDIT.md`, and the latest u
 
 | 8.2 | `UPDATE_PHASE_8_2_STYLING_CONTRACT_RENDERING_PARITY.md` | Radial/pattern fill, image crop transform, advanced stroke, canvas/export parity | Current |
 
-| 8.2 Fix1 | `UPDATE_PHASE_8_2_FIX1_STROKE_UI_DASH_INPUT.md` | Custom Dash input fix + Stroke terminology/alignment UX cleanup | **Current** |
+| 8.2 Fix1 | `UPDATE_PHASE_8_2_FIX1_STROKE_UI_DASH_INPUT.md` | Custom Dash input fix + Stroke terminology/alignment UX cleanup | Complete |
 
 | 8.3 | `UPDATE_PHASE_8_3_MULTI_SELECTION_ENHANCEMENTS.md` | Primary-aware multi-selection, match dimensions, mixed exact transforms | Current |
 | 8.4 Fix1 | `UPDATE_PHASE_8_4_FIX1_GROUP_INTEGRITY_LAYER_ORDER.md` | Group integrity, visible rename UI, atomic layer order | Current |
@@ -58,3 +59,39 @@ Status: SOURCE IMPLEMENTED / MANUAL VERIFICATION PENDING
 - Image asset/upload + crop/fit/opacity
 - Dynamic background image field binding
 - Canvas + PNG/JPEG/PDF export parity
+
+## Phase 8.7 — Boolean Hardening + Fragment
+Status: SOURCE IMPLEMENTED / MANUAL UI VERIFICATION PENDING
+Update: `UPDATE_PHASE_8_7_BOOLEAN_HARDENING_FRAGMENT.md`
+
+
+## Phase 8.7 Fix1 — Boolean Styling & Opacity Parity
+- PATH batch opacity + context-toolbar opacity enabled.
+- Boolean/Fragment element-opacity inheritance explicit.
+- Manual UI verification: PENDING.
+
+## Phase 8.7 Add-on — CAD Reference-Line Mirror
+Status: SOURCE IMPLEMENTED / MANUAL UI VERIFICATION PENDING
+Update: `UPDATE_PHASE_8_7_ADDON_CAD_REFERENCE_LINE_MIRROR.md`
+- Line Copy
+- Line Move
+- arbitrary 2-point axis
+- OSNAP axis points
+- PATH/Bezier + group support
+
+- Phase 8.7 Add-on — CAD Drawing Guides & Polar Tracking — IMPLEMENTED, MANUAL VERIFICATION PENDING
+
+
+## Phase 8.7 CAD Projection / Intersection Tracking
+- Full polar/perpendicular construction ray to artboard boundary.
+- Nearest projected intersections visible on canvas.
+- Near-marker endpoint snaps to exact projected intersection.
+- Manual UI verification: PENDING.
+
+### Phase 8.7 Add-on Fix2 — CAD Cardinal Hover Snap Points
+Status: IMPLEMENTED / MANUAL UI PENDING
+Adds 0°/90°/180°/270° hover boundary snap markers with green exact-lock feedback during drawing workflows.
+
+- Phase 8.7 Add-on Fix3 — CAD Intersection Capture + Draw Tool Exit (`UPDATE_PHASE_8_7_ADDON_FIX3_CAD_INTERSECTION_CAPTURE_DRAW_TOOL_EXIT.md`) — SOURCE IMPLEMENTED / MANUAL PENDING
+
+- Phase 8.7 Add-on Fix4 — CAD Exact Intersection + Deep Zoom — SOURCE VERIFIED / MANUAL PENDING

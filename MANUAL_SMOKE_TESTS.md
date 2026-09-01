@@ -378,3 +378,137 @@ Expected: no `Group ... references missing element ...` serialization error. Inv
 10. Save/reload -> authored background and binding persist.
 11. PNG/JPEG/PDF export -> background visually matches interactive canvas. JPEG should flatten according to existing export delivery settings; PNG transparent mode remains controlled by export option.
 12. Regression: Shape/PATH fills, OSNAP, Split, Face Split, Trimmer, Scissors, Group/Layer order unchanged.
+
+## Phase 8.7 — Boolean Hardening + Fragment
+
+1. SHAPE + SHAPE Union
+   - Overlap Rectangle + Circle, select both.
+   - Expected: Boolean toolbar visible without Convert to Path; Union yields one PATH.
+
+2. Primary subtract semantics
+   - Rectangle A overlaps Circle B.
+   - Make A Primary, Subtract.
+   - Expected: B cuts A.
+   - Undo, make B Primary, Subtract.
+   - Expected: A cuts B. Result changes deterministically with Primary.
+
+3. Intersect
+   - Expected: only shared overlap remains as PATH.
+
+4. Combine
+   - Expected: overlapping area is removed; non-overlapping regions remain in one compound PATH result.
+
+5. Fragment
+   - Two overlapping closed vectors -> Fragment.
+   - Expected: normally 3 independent closed PATH regions for a simple two-shape overlap.
+   - Each fragment must be separately selectable, movable, recolorable, and editable.
+
+6. Fragment style
+   - Give Primary red fill, secondary blue fill.
+   - Expected: Primary-only + overlap inherit red; secondary-only inherits blue.
+
+7. 3-shape Union/Subtract/Intersect/Combine
+   - Expected: operations remain enabled for 3+ closed vectors.
+   - Fragment must be disabled for 3+ operands.
+
+8. Open-path safety
+   - Select a closed shape + open PATH/LINE.
+   - Expected: Boolean controls unavailable/disabled; no geometry mutation.
+
+9. Locked safety
+   - Lock one operand.
+   - Expected: Boolean unavailable; locked object is not changed.
+
+10. Empty intersection
+   - Two non-overlapping shapes -> Intersect.
+   - Expected: both selected sources are removed; no 0x0 ghost PATH.
+
+11. Undo/Redo
+   - Test each Boolean once.
+   - Expected: one operation = one undo/redo action.
+
+12. Save/Reload + Export
+   - Save Boolean/Fragment results and reload.
+   - Export PNG/JPEG/PDF.
+   - Expected: compound paths/holes/fragments persist and render consistently.
+
+
+## Phase 8.7 Fix1 — Boolean Styling & Opacity Parity
+- PATH batch opacity + context-toolbar opacity enabled.
+- Boolean/Fragment element-opacity inheritance explicit.
+- Manual UI verification: PENDING.
+
+## Phase 8.7 Add-on — CAD Reference-Line Mirror
+1. Create/select an asymmetric shape. Click `Line Copy`.
+   - Expected: status asks for first axis point; cursor becomes crosshair.
+2. Click first point, move pointer.
+   - Expected: dashed purple reference line previews from point 1 to pointer; status asks for second point.
+3. Click second point on a 45-degree axis.
+   - Expected: original remains and a mirrored copy appears across that exact axis.
+4. Repeat using `Line Move`.
+   - Expected: no duplicate; original element ID/selection target is mirrored in place.
+5. Horizontal and vertical reference axes.
+   - Expected: results match equivalent CAD reflection geometry.
+6. OSNAP test: define the axis by two existing vertices / guide intersections / page center points.
+   - Expected: axis endpoints visibly snap using existing point-snap feedback.
+7. PATH test: use an irregular curved PATH, mirror by an angled line, then Edit Path.
+   - Expected: nodes and Bezier handles are mirrored; topology remains editable.
+8. Group test: mirror a group with internal spacing.
+   - Expected: Copy creates a separate mirrored group; Move keeps the group intact.
+9. Escape after choosing only the first axis point.
+   - Expected: tool cancels, preview disappears, no geometry changes.
+10. Undo/Redo after Copy and Move.
+   - Expected: each completed mirror is one logical history action.
+11. Save/reload + PNG/JPEG/PDF export.
+   - Expected: mirrored geometry persists and exports exactly as shown on canvas.
+12. Regression: Flip H/V and Page Mirror H/V remain unchanged.
+
+## Phase 8.7 Add-on — CAD Drawing Guides & Polar Tracking
+1. LINE: pick first point, move cursor. Expect live `angle° · length mm` HUD.
+2. Ortho ON: arbitrary mouse movement must constrain preview to 0/90/180/270 degrees.
+3. Polar ON, Angle=15: move near 30/45/60 degrees. Expect preview to snap when within tracking tolerance.
+4. Change Angle to 30: expected tracked directions change to 0/30/60/90... degrees.
+5. Par/Perp ON: draw near an existing rotated shape/PATH edge. Expect `Parallel` or `Perpendicular` snap/tracking.
+6. FLEXIBLE_LINE/PEN: each new segment gets live HUD/tracking from previous endpoint.
+7. SPLIT: divider reference follows tracking while boundary OSNAP remains authoritative.
+8. Mirror Line: reference axis uses same tracking + OSNAP.
+9. F8 toggles Ortho; F10 toggles Polar.
+10. Regression: OSNAP vertex/boundary/intersection, Face Split, Trimmer, Smart Guides, existing Mirror Line remain working.
+
+
+## Phase 8.7 CAD Projection / Intersection Tracking
+- Full polar/perpendicular construction ray to artboard boundary.
+- Nearest projected intersections visible on canvas.
+- Near-marker endpoint snaps to exact projected intersection.
+- Manual UI verification: PENDING.
+
+## Phase 8.7 Add-on Fix2 — CAD Cardinal Hover Snap Points
+Status: PENDING
+1. Enter LINE draw mode and hover inside a closed rectangle. Expected: four cardinal markers appear at right/top/left/bottom boundary intersections.
+2. Hover a circle, polygon, rotated shape and custom closed PATH. Expected: markers use actual rendered boundary, not bounding-box corners.
+3. Move cursor near a cardinal marker. Expected: exact marker becomes green and line endpoint snaps exactly to it.
+4. Click the green point. Expected: committed line endpoint remains exactly on that cardinal boundary point.
+5. Move away from the shape or exit drawing mode. Expected: cardinal markers disappear.
+6. Verify LINE, FLEXIBLE_LINE, PEN, SPLIT and Mirror Line workflows.
+7. Place an explicit vertex/endpoint close to a cardinal point. Expected: existing endpoint/vertex/intersection OSNAP retains higher priority.
+
+
+## Phase 8.7 Add-on Fix3 — CAD Intersection Capture + Draw Tool Exit
+Status: PENDING
+1. Draw a LINE toward an existing edge/shape intersection; stop the cursor slightly before the visible crossing (roughly within 18 screen px). Expected: green intersection snap activates and endpoint commits at the exact crossing.
+2. Repeat with cursor slightly past the crossing. Expected: same exact intersection capture, not an approximate nearby boundary point.
+3. Repeat at 25%, 100%, and 200% zoom. Expected: capture feel stays screen-space consistent.
+4. Verify explicit Endpoint/Vertex/Intersection OSNAP still beats forgiving capture when both are candidates.
+5. Verify Cardinal point snap still beats generic projected capture.
+6. While LINE/PEN/FLEXIBLE_LINE/SPLIT/Mirror Line is active, press Escape once. Expected: crosshair disappears immediately and normal Select cursor becomes active.
+7. After Escape, double-click the same tool in the Elements/Utility panel. Expected: same draw cursor/tool reopens.
+8. Repeat for a shape draw tool and CAD Mirror Line toolbar button.
+9. Regression: Polar/Ortho/Parallel/Perpendicular guides, projection markers, Cardinal Hover, Face Split and Trimmer remain working.
+
+
+## Phase 8.7 Add-on Fix4 — Exact Intersection + Deep Zoom
+1. Draw a line toward a circle/Bezier/shape intersection and stop the cursor slightly before or after the marker. Expected: green exact intersection remains locked and committed endpoint lands exactly on it.
+2. Zoom to 800%, 1600%, then 3200%. Expected: no visible endpoint gap at the junction.
+3. Place cursor over the junction and roll mouse wheel. Expected: zoom is centered around the pointer.
+4. Middle-mouse drag or Space+drag. Expected: canvas pans without changing geometry.
+5. Type 1600 into the zoom percentage input. Expected: exact 1600% zoom.

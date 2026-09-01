@@ -39,3 +39,6 @@ export * from './print/index.js';
 export * from "./card-export.js";
 
 export * from './mirror.js';
+export * from './boolean-selection.js';
+
+export * from './cadGeometry.js';

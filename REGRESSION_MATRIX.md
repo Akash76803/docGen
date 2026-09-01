@@ -53,3 +53,53 @@ Any Phase 8 change touching a row marked high export/regression risk must add ta
 - `npm run test:shape-styling` — legacy Phase 6.1.4 styling + Phase 8.2 contract/normalization/UI/export wiring.
 - Permanent shape-ops regression now includes `phase82-styling-parity.test.ts` and `phase82-styling-ui-wiring.test.ts`.
 - Manual parity gate: Radial, Pattern, Image Crop and Custom Stroke must be compared on canvas vs PDF/PNG/JPEG.
+
+## Phase 8.7 Boolean / Fragment
+- [ ] SHAPE + SHAPE Union without Convert to Path
+- [ ] SHAPE + PATH Boolean
+- [ ] Primary-driven Subtract
+- [ ] 3+ operand Union / Subtract / Intersect / Combine
+- [ ] Fragment creates independently selectable closed regions
+- [ ] Fragment style inheritance (Primary-only/overlap vs secondary-only)
+- [ ] Compound-path / hole persistence
+- [ ] Locked/open vector precondition safety
+- [ ] Empty Intersect leaves no ghost element
+- [ ] Undo / Redo atomicity
+- [ ] Save / Reload / PNG / JPEG / PDF parity
+
+## Phase 8.7 Add-on — CAD Reference-Line Mirror
+| Area | Check | Status |
+|---|---|---|
+| Reference mirror | 2-point arbitrary axis Copy | SOURCE CHECKED / MANUAL PENDING |
+| Reference mirror | 2-point arbitrary axis Move | SOURCE CHECKED / MANUAL PENDING |
+| Reference mirror | 45-degree reflection math | PASS (direct smoke) |
+| Reference mirror | PATH nodes / Bezier handedness | SOURCE CHECKED / MANUAL PENDING |
+| Reference mirror | group copy/move semantics | SOURCE CHECKED / MANUAL PENDING |
+| Reference mirror | OSNAP axis endpoint wiring | SOURCE CHECKED / MANUAL PENDING |
+| Regression | existing Flip H/V + Page Mirror | UNCHANGED SOURCE / MANUAL PENDING |
+| Regression | Face Split / OSNAP / Trimmer | BYTE-FOR-BYTE UNCHANGED |
+
+## CAD Drawing Guides / Polar Tracking
+- LINE live angle/length HUD: PENDING MANUAL
+- Ortho H/V constraint: PENDING MANUAL
+- Polar angle increment: PENDING MANUAL
+- Parallel/Perpendicular tracking: PENDING MANUAL
+- FLEXIBLE_LINE/PEN tracking: PENDING MANUAL
+- SPLIT + OSNAP coexistence: PENDING MANUAL
+- Mirror reference line + tracking: PENDING MANUAL
+
+
+## Phase 8.7 CAD Projection / Intersection Tracking
+- Full polar/perpendicular construction ray to artboard boundary.
+- Nearest projected intersections visible on canvas.
+- Near-marker endpoint snaps to exact projected intersection.
+- Manual UI verification: PENDING.
+
+| Phase 8.7 Add-on Fix2 | Cardinal hover points visible only in drawing workflows | SOURCE PASS / UI PENDING |
+| Phase 8.7 Add-on Fix2 | Exact green cardinal lock and commit | SOURCE PASS / UI PENDING |
+| Phase 8.7 Add-on Fix2 | Existing endpoint/vertex/intersection OSNAP priority preserved | SOURCE PASS / UI PENDING |
+
+| 8.7 Fix3 CAD intersection capture / Escape lifecycle | Near before/after intersection captures exact point; first Escape => SELECT; double-click reactivates tool | SOURCE IMPLEMENTED / MANUAL PENDING |
+
+| 8.7 Fix4 | Exact vector intersection welding | Source PASS | Manual PENDING |
+| 8.7 Fix4 | CAD wheel zoom 5%–3200% + pointer anchor | Source PASS | Manual PENDING |

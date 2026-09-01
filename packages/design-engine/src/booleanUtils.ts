@@ -249,6 +249,114 @@ export function performElementBooleanOperation(
     geometry: resultLocal,
     position,
     size: { widthMm, heightMm },
-    rotationDeg: 0
+    rotationDeg: 0,
+    // Boolean geometry must preserve the Primary/base element visual alpha.
+    // Keep this explicit so future geometry refactors cannot accidentally reset it.
+    opacity: elA.opacity
   };
+}
+
+function isUsablePaperPath(path: paper.Path): boolean {
+  return path.closed && path.segments.length >= 3 && Math.abs(path.area || 0) > 1e-7;
+}
+
+function independentPaperGeometries(item: paper.PathItem): PathGeometry[] {
+  if (item instanceof paper.Path) {
+    return isUsablePaperPath(item) ? [paperItemToGeometry(item.clone({ insert: false }) as paper.Path)] : [];
+  }
+  if (!(item instanceof paper.CompoundPath)) return [];
+
+  const contours = (item.children as paper.Path[]).filter(isUsablePaperPath);
+  if (!contours.length) return [];
+  if (contours.length === 1) return [paperItemToGeometry(contours[0]!.clone({ insert: false }) as paper.Path)];
+
+  // Paper boolean output uses opposite winding for holes. Keep hole contours
+  // attached to the smallest containing filled outer contour. This preserves
+  // compound-path semantics instead of incorrectly turning holes into fills.
+  const dominant = [...contours].sort((a,b)=>Math.abs(b.area || 0)-Math.abs(a.area || 0))[0]!;
+  const outerClockwise = dominant.clockwise;
+  const outers = contours.filter(path => path.clockwise === outerClockwise);
+  const holes = contours.filter(path => path.clockwise !== outerClockwise);
+  if (!outers.length) return [paperItemToGeometry(item)];
+
+  const ownerByHole = new Map<paper.Path,paper.Path>();
+  for (const hole of holes) {
+    const probe = hole.firstSegment?.point;
+    if (!probe) continue;
+    const owner = outers
+      .filter(outer => outer.contains(probe))
+      .sort((a,b)=>Math.abs(a.area || 0)-Math.abs(b.area || 0))[0];
+    if (owner) ownerByHole.set(hole, owner);
+  }
+
+  const geometries: PathGeometry[] = [];
+  for (const outer of outers) {
+    const owned = holes.filter(hole => ownerByHole.get(hole) === outer);
+    if (!owned.length) {
+      geometries.push(paperItemToGeometry(outer.clone({ insert: false }) as paper.Path));
+      continue;
+    }
+    const compound = new paper.CompoundPath({ insert: false });
+    compound.addChild(outer.clone({ insert: false }) as paper.Path);
+    for (const hole of owned) compound.addChild(hole.clone({ insert: false }) as paper.Path);
+    geometries.push(paperItemToGeometry(compound));
+    compound.remove();
+  }
+  return geometries;
+}
+
+function worldGeometryToElement(source: PathDesignElement, geometryWorld: PathGeometry, zIndex: number): PathDesignElement | null {
+  if (!geometryWorld.points.length) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const pt of geometryWorld.points) {
+    minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y);
+    maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y);
+  }
+  if (!Number.isFinite(minX) || maxX - minX <= 1e-9 || maxY - minY <= 1e-9) return null;
+  const position = { xMm: minX, yMm: minY };
+  const size = { widthMm: maxX - minX, heightMm: maxY - minY };
+  const resultLocal = transformGeometry(geometryWorld, pt => worldToLocal(pt, { position, size, rotationDeg: 0 }));
+  return {
+    ...source,
+    id: crypto.randomUUID(),
+    type: 'PATH',
+    geometry: resultLocal,
+    position,
+    size,
+    rotationDeg: 0,
+    zIndex,
+    groupId: undefined,
+    name: `${source.name} Fragment`,
+    // Fragment regions inherit the style source as a complete visual style,
+    // including element-level opacity (in addition to fill/stroke opacity).
+    opacity: source.opacity,
+  };
+}
+
+/**
+ * Fragment two closed vector elements into independent, non-overlapping closed PATH elements.
+ * Result order is deterministic: primary-only regions, overlap regions, then secondary-only regions.
+ * Primary-only + overlap inherit the primary style; secondary-only inherits the secondary style.
+ */
+export function performElementFragmentOperation(primary: PathDesignElement, secondary: PathDesignElement): PathDesignElement[] {
+  ensurePaperProject();
+  const aWorld = transformGeometry(primary.geometry, pt => localToWorld(pt, primary));
+  const bWorld = transformGeometry(secondary.geometry, pt => localToWorld(pt, secondary));
+  const aItem = geometryToPaperItem(aWorld);
+  const bItem = geometryToPaperItem(bWorld);
+  const aOnly = aItem.subtract(bItem, { insert: false }) as paper.PathItem;
+  const overlap = aItem.intersect(bItem, { insert: false }) as paper.PathItem;
+  const bOnly = bItem.subtract(aItem, { insert: false }) as paper.PathItem;
+  const baseZ = Math.max(primary.zIndex, secondary.zIndex);
+  const output: PathDesignElement[] = [];
+  const pushRegions = (item: paper.PathItem, styleSource: PathDesignElement) => {
+    for (const geometry of independentPaperGeometries(item)) {
+      const element = worldGeometryToElement(styleSource, geometry, baseZ + output.length);
+      if (element) output.push({...element,name:`${styleSource.name} Fragment ${output.length + 1}`});
+    }
+  };
+  pushRegions(aOnly, primary);
+  pushRegions(overlap, primary);
+  pushRegions(bOnly, secondary);
+  return output;
 }

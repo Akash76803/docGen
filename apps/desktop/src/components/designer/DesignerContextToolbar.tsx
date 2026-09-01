@@ -9,10 +9,9 @@ import {
   trimPathSegment,
   closePathGeometry,
   getPathEndpoints,
-  performElementBooleanOperation,
+  performBooleanSelection, performFragmentSelection, canBooleanSelection, canFragmentSelection,
   replaceElementsAtLayer,
   lineToCurve, lineToArc, flipArc, convertPathSegmentToLine, setPathPointMode, deletePathPointsSafely, mirrorElementsAcrossArtboard, flipElementsInPlace, flipElementsAsGroup,
-  getElementCapabilities,
   matchAlignmentUnitsSize,
   getAlignmentUnitCount
 } from '@document-tool/design-engine';
@@ -28,18 +27,20 @@ export type DesignerContextToolbarProps = {
   onGroupSelected?: () => void;
   onUngroupSelected?: () => void;
   pathEditMode?: { active: boolean; selectedNodeIds: string[] };
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
-  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE';
+  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE') => void;
   pathSelectedSegmentIds?: string[];
   setPathSelectedSegmentIds?: (m: string[]) => void;
   setPathSelectedNodeIds?: (m: string[]) => void;
   onMirrorInvoked?: (axis: 'HORIZONTAL'|'VERTICAL') => void;
+  onReferenceMirrorRequested?: (mode:'COPY'|'MOVE')=>void;
   pathSymmetryMode?: 'OFF'|'H'|'V';
   setPathSymmetryMode?: (mode:'OFF'|'H'|'V')=>void;
+  onReplaceSelection?: (elementIds:string[])=>void;
 };
 
 export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
-  mode, sourceArtboard, sourceElements, primaryElementId, mutate, onGroupSelected, onUngroupSelected, pathEditMode, interactionMode, setInteractionMode, pathSelectedSegmentIds, setPathSelectedSegmentIds, setPathSelectedNodeIds, onMirrorInvoked, pathSymmetryMode='OFF', setPathSymmetryMode
+  mode, sourceArtboard, sourceElements, primaryElementId, mutate, onGroupSelected, onUngroupSelected, pathEditMode, interactionMode, setInteractionMode, pathSelectedSegmentIds, setPathSelectedSegmentIds, setPathSelectedNodeIds, onMirrorInvoked, pathSymmetryMode='OFF', setPathSymmetryMode, onReplaceSelection, onReferenceMirrorRequested
 }) => {
   if (mode === 'NONE') return null;
 
@@ -173,21 +174,30 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
     const groupIds=[...new Set(sourceElements.map(e=>e.groupId).filter(Boolean) as string[])];
     const singleGroup=groupIds.length===1&&sourceElements.every(e=>e.groupId===groupIds[0]);
     
-    // Check if exactly 2 PATHs are selected and open
+    // Boolean works on any 2+ closed visible unlocked vector elements (SHAPE or PATH).
     const paths = sourceElements.filter(e => e.type === 'PATH') as import('@document-tool/contracts').PathDesignElement[];
     const canJoinPaths = paths.length === 2 && !paths[0]!.geometry.closed && !paths[1]!.geometry.closed;
-    const canBooleanPaths = paths.length === 2 && paths.every(path => getElementCapabilities(path).boolean && path.visible && !path.locked);
-    
+    const canBooleanPaths = canBooleanSelection(sourceElements);
+    const canFragmentPaths = canFragmentSelection(sourceElements);
+
     const doBooleanOperation = (op: 'UNION' | 'SUBTRACT' | 'INTERSECT' | 'EXCLUDE') => {
        if (!canBooleanPaths) return;
-       // Deterministic rule: bottom/first selected = base A, top/second selected = cutter B
-       // `sourceElements` is derived from `selection.elementIds` or `artboard.elements` order?
-       // Let's assume `sourceElements` is ordered by selection time or z-index.
-       // The user said: bottom/first selected = base A.
-       const elA = paths[0]!;
-       const elB = paths[1]!;
-       mutate(t => replaceElementsAtLayer(t,sourceArtboard.id,[elA.id,elB.id],[{...performElementBooleanOperation(elA,elB,op),zIndex:Math.max(elA.zIndex,elB.zIndex)}]));
-       // Optional: update selection to the new element
+       const result = performBooleanSelection(sourceElements, primaryElementId, op);
+       if (!result) return;
+       const topZ = Math.max(...sourceElements.map(element => element.zIndex));
+       const nextResult={...result,zIndex:topZ};
+       mutate(t => replaceElementsAtLayer(t,sourceArtboard.id,sourceElements.map(element=>element.id),[nextResult]));
+       onReplaceSelection?.([nextResult.id]);
+    };
+
+    const doFragment = () => {
+      if (!canFragmentPaths) return;
+      const fragments = performFragmentSelection(sourceElements, primaryElementId);
+      if (!fragments.length) return;
+      const topZ = Math.max(...sourceElements.map(element => element.zIndex));
+      const nextFragments=fragments.map((fragment,index)=>({...fragment,zIndex:topZ+index}));
+      mutate(t => replaceElementsAtLayer(t, sourceArtboard.id, sourceElements.map(element=>element.id), nextFragments));
+      onReplaceSelection?.(nextFragments.map(fragment=>fragment.id));
     };
     
     const doJoinPaths = () => {
@@ -238,10 +248,12 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
           <>
             <div className="dg-designer-context-toolbar__separator" />
             <div className="dg-designer-context-toolbar__group">
-              <button className="dg-toolbar-button" title="Union — combine two selected paths into one resulting shape." onClick={() => doBooleanOperation('UNION')}>Union</button>
-              <button className="dg-toolbar-button" title="Subtract — remove the second/top selected path from the first/bottom selected path." onClick={() => doBooleanOperation('SUBTRACT')}>Subtract</button>
-              <button className="dg-toolbar-button" title="Intersect — keep only the area shared by both selected paths." onClick={() => doBooleanOperation('INTERSECT')}>Intersect</button>
-              <button className="dg-toolbar-button" title="Exclude — keep non-overlapping areas and remove the shared overlap." onClick={() => doBooleanOperation('EXCLUDE')}>Exclude</button>
+              <span className="dg-toolbar-group-label">Boolean</span>
+              <button className="dg-toolbar-button" title="Union — merge all selected closed vectors. Primary element provides the result style." onClick={() => doBooleanOperation('UNION')}>Union</button>
+              <button className="dg-toolbar-button" title="Subtract — subtract every other selected vector from the Primary element." onClick={() => doBooleanOperation('SUBTRACT')}>Subtract</button>
+              <button className="dg-toolbar-button" title="Intersect — keep only the area common to all selected vectors." onClick={() => doBooleanOperation('INTERSECT')}>Intersect</button>
+              <button className="dg-toolbar-button" title="Combine / XOR — keep non-overlapping regions." onClick={() => doBooleanOperation('EXCLUDE')}>Combine</button>
+              <button className="dg-toolbar-button" disabled={!canFragmentPaths} title={canFragmentPaths?"Fragment — split two selected closed vectors into independent closed PATH regions.":"Fragment currently requires exactly two closed visible unlocked vectors."} onClick={doFragment}>Fragment</button>
             </div>
           </>
         )}
@@ -423,10 +435,18 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
             </div>
           </>
         ) : (
-          <div className="dg-path-toolbar__section">
-            <button className="dg-toolbar-button dg-toolbar-button--compact dg-toolbar-button--primary-soft" onClick={() => setInteractionMode?.('EDIT_PATH')}>Edit Path</button>
-            <span className="dg-designer-context-toolbar__label">Double-click also works</span>
-          </div>
+          <>
+            <div className="dg-path-toolbar__section">
+              <button className="dg-toolbar-button dg-toolbar-button--compact dg-toolbar-button--primary-soft" onClick={() => setInteractionMode?.('EDIT_PATH')}>Edit Path</button>
+              <span className="dg-designer-context-toolbar__label">Double-click also works</span>
+            </div>
+            <div className="dg-path-toolbar__divider" />
+            <div className="dg-path-toolbar__section" data-path-opacity-control>
+              <span className="dg-path-toolbar__section-label">Opacity</span>
+              <input aria-label="Path opacity" type="range" min="0" max="100" value={Math.round(el.opacity * 100)} onChange={event => update(current => ({ ...current, opacity: Number(event.target.value) / 100 }))} />
+              <span className="dg-path-toolbar__count">{Math.round(el.opacity * 100)}%</span>
+            </div>
+          </>
         )}
       </div>
     );
@@ -440,6 +460,7 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
   return (
     <div className="dg-designer-context-toolbar" role="toolbar">
       {sourceElements.length>0 && !(mode === 'PATH' && pathEditMode?.active) && <><div className="dg-designer-context-toolbar__group" data-page-center-mirror-tools><button className="dg-toolbar-button" title="Mirror Across Page Horizontal Center" onClick={()=>mirror('HORIZONTAL')}>↕ Mirror H</button><button className="dg-toolbar-button" title="Mirror Across Page Vertical Center" onClick={()=>mirror('VERTICAL')}>↔ Mirror V</button></div><div className="dg-designer-context-toolbar__separator" /></>}
+      {sourceElements.length>0 && !(mode === 'PATH' && pathEditMode?.active) && <><div className="dg-designer-context-toolbar__group" data-reference-line-mirror-tools><button className="dg-toolbar-button" title="CAD Mirror Copy: pick two points for the reference axis" onClick={()=>onReferenceMirrorRequested?.('COPY')} onDoubleClick={()=>onReferenceMirrorRequested?.('COPY')}>⌁ Line Copy</button><button className="dg-toolbar-button" title="CAD Mirror Move: pick two points for the reference axis" onClick={()=>onReferenceMirrorRequested?.('MOVE')} onDoubleClick={()=>onReferenceMirrorRequested?.('MOVE')}>⌁ Line Move</button></div><div className="dg-designer-context-toolbar__separator" /></>}
       {mode === 'TEXT' && renderTextToolbar()}
       {mode === 'IMAGE' && renderImageToolbar()}
       {mode === 'SVG' && renderSvgToolbar()}

@@ -8,18 +8,7 @@ export function normalizeExportColor(value: string | undefined | null): string {
   if (!value) return 'transparent';
   if (value.startsWith('var(')) {
     // In an ideal system, we would resolve vars, but export shouldn't contain them.
-    // If it does, we strip it to black or transparent.
-    return 'transparent';
-  }
-  if (value.startsWith('color(display-p3')) {
-    const match = value.match(/color\(\s*display-p3\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)(?:\s*\/\s*([0-9.]+))?\s*\)/);
-    if (match) {
-      const r = Math.max(0, Math.min(255, Math.round(parseFloat(match[1]) * 255)));
-      const g = Math.max(0, Math.min(255, Math.round(parseFloat(match[2]) * 255)));
-      const b = Math.max(0, Math.min(255, Math.round(parseFloat(match[3]) * 255)));
-      const a = match[4] ? parseFloat(match[4]) : 1;
-      return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
-    }
+    return '#000000';
   }
   return value;
 }
@@ -29,7 +18,6 @@ function normalizeShadow(shadow?: DesignShadow): string {
   const color = normalizeExportColor(shadow.color);
   return `${shadow.offsetXmm}px ${shadow.offsetYmm}px ${shadow.blurMm}px ${color}`;
 }
-
 
 function normalizeStroke(stroke: DesignStroke | undefined, mmToPx: number): string {
   if (!stroke || !stroke.widthMm || stroke.style === 'NONE') return 'none';
