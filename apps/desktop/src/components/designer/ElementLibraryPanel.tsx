@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser, PaintBucket, Slice } from 'lucide-react';
+import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser, PaintBucket } from 'lucide-react';
 import { DesignShapeKind } from '@document-tool/contracts';
 
 const shapeLabel = (s: DesignShapeKind) => s.toLowerCase().split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+
+const SplitToolIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4l14 16"/><path d="M4 12h5"/><path d="M15 12h5"/><circle cx="9" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>;
+
 
 export type ElementLibraryPanelProps = {
   onInsertText: () => void;
@@ -11,9 +14,9 @@ export type ElementLibraryPanelProps = {
   onAddQr?: () => void;
   onAddBarcode?: () => void;
   availableShapes: DesignShapeKind[];
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT';
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
   drawShapeType?: DesignShapeKind | null;
-  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT') => void;
+  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
   fillBucketType?: 'SOLID' | 'NONE';
   fillBucketColor?: string;
   onFillBucketTypeChange?: (type:'SOLID'|'NONE')=>void;
@@ -81,18 +84,18 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
   const utilityElements = [
     { id: 'select', label: 'Select Tool', tooltip: 'Exit the active drawing or trimming tool', icon: <MousePointer2 size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SELECT'), active: interactionMode === 'SELECT' },
     { id: 'flexible-line', label: 'Flexible Line', tooltip: 'Draw and bend editable lines', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FLEXIBLE_LINE'), active: interactionMode === 'FLEXIBLE_LINE' },
-    { id: 'divider', label: 'Divider', tooltip: 'Divider — draw across a closed shape or filled section to create new independently fillable sections', icon: <Slice size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SPLIT'), active: interactionMode === 'SPLIT' },
     { id: 'pen', label: 'Pen Tool', tooltip: 'Draw custom paths', icon: <PenTool size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('PEN'), active: interactionMode === 'PEN' },
     { id: 'edit-path', label: 'Edit Path', tooltip: 'Edit path nodes and curves', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('EDIT_PATH'), active: interactionMode === 'EDIT_PATH', disabled: !canEditPath },
-    { id: 'scissors', label: 'Scissors', tooltip: 'Scissors — insert a node by cutting one path segment at the clicked point', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },
-    { id: 'trimmer', label: 'Erase Segment', tooltip: 'Erase Segment — remove the path interval between intersections or selected points', icon: <BetweenHorizontalStart size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
+    { id: 'scissors', label: 'Scissors', tooltip: 'Scissors — cut an existing path at a point; it does not divide a closed shape into faces.', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },
+    { id: 'split', label: 'Split', tooltip: "Split — draw a snapped divider across a closed shape to create separate, independently editable parts.", icon: <SplitToolIcon />, action: () => onSetInteractionMode?.('SPLIT'), active: interactionMode === 'SPLIT' },
+    { id: 'trimmer', label: 'Erase Segment', tooltip: 'Erase Segment — remove a path interval between intersections or chosen points; this does not split a filled region.', icon: <BetweenHorizontalStart size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
     { id: 'eraser', label: 'Freeform Eraser', tooltip: 'Draw a freeform selection around unlocked elements to erase them', icon: <Eraser size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ERASER'), active: interactionMode === 'ERASER' },
     { id: 'fill-bucket', label: 'Fill Bucket', tooltip: 'Fill a closed shape or section', icon: <PaintBucket size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FILL_BUCKET'), active: interactionMode === 'FILL_BUCKET' },
     { id: 'join-path', label: 'Join Path', tooltip: 'Join two open paths', icon: <GitMerge size={20} strokeWidth={1.5} />, action: () => onJoin?.(), disabled: !canJoin },
     { id: 'close-path', label: 'Close Path', tooltip: 'Close an open path', icon: <BoxSelect size={20} strokeWidth={1.5} />, action: () => onClose?.(), disabled: !canClose },
   ];
 
-  const filteredUtility = utilityElements.filter(e => e.label.toLowerCase().includes(search.toLowerCase()) || e.id.includes(search.toLowerCase()) || (search.toLowerCase() === 'trim' && e.id === 'trimmer'));
+  const filteredUtility = utilityElements.filter(e => e.label.toLowerCase().includes(search.toLowerCase()) || e.id.includes(search.toLowerCase()) || ((search.toLowerCase() === 'trim' || search.toLowerCase() === 'erase segment' || search.toLowerCase() === 'path eraser') && e.id === 'trimmer') || (search.toLowerCase() === 'knife' && e.id === 'split'));
 
   return (
     <div className="dg-element-library">

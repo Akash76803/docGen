@@ -437,6 +437,109 @@ export function hitTestSegment(geometry: PathGeometry, segmentId: string, pt: {x
   }
 }
 
+
+export type PathSymmetryAxis = 'OFF' | 'H' | 'V';
+
+export interface SymmetricPathInsertResult {
+  geometry: PathGeometry;
+  insertedPointIds: string[];
+  mirroredPointId?: string;
+  mirroredCreated: boolean;
+}
+
+/**
+ * Split one path segment and, when symmetry is enabled, also create/select the
+ * exact counterpart on the opposite boundary around the supplied local center.
+ *
+ * H mirrors across the vertical center line (left/right pairing).
+ * V mirrors across the horizontal center line (top/bottom pairing).
+ */
+export function insertPathNodeWithSymmetry(
+  geometry: PathGeometry,
+  segmentId: string,
+  t: number,
+  mode: PathSymmetryAxis,
+  center: {x: number; y: number},
+  mirrorHitTolerance = 1.25,
+): SymmetricPathInsertResult {
+  const clampedT = Math.max(0.001, Math.min(0.999, t));
+  const beforeIds = new Set(geometry.points.map(point => point.id));
+  let nextGeometry = splitPathSegment(geometry, segmentId, clampedT);
+  const inserted = nextGeometry.points.find(point => !beforeIds.has(point.id));
+  if (!inserted) return {geometry, insertedPointIds: [], mirroredCreated: false};
+
+  if (mode === 'OFF') {
+    return {geometry: nextGeometry, insertedPointIds: [inserted.id], mirroredCreated: false};
+  }
+
+  const mirroredTarget = mode === 'H'
+    ? {x: 2 * center.x - inserted.x, y: inserted.y}
+    : {x: inserted.x, y: 2 * center.y - inserted.y};
+
+  // If the exact counterpart is already represented by a node, reuse it.
+  let existingMirror: PathPoint | undefined;
+  let existingDistance = Infinity;
+  for (const point of nextGeometry.points) {
+    if (point.id === inserted.id) continue;
+    const distance = Math.hypot(point.x - mirroredTarget.x, point.y - mirroredTarget.y);
+    if (distance < existingDistance) {
+      existingDistance = distance;
+      existingMirror = point;
+    }
+  }
+  if (existingMirror && existingDistance <= mirrorHitTolerance) {
+    return {
+      geometry: nextGeometry,
+      insertedPointIds: [inserted.id, existingMirror.id],
+      mirroredPointId: existingMirror.id,
+      mirroredCreated: false,
+    };
+  }
+
+  // Find the opposite boundary segment nearest to the exact mirrored target.
+  // Avoid the freshly split source-side segments so an insertion near center
+  // cannot accidentally split the same side again.
+  const sourceAdjacentIds = new Set(
+    nextGeometry.segments
+      .filter(segment => segment.fromPointId === inserted.id || segment.toPointId === inserted.id)
+      .map(segment => segment.id),
+  );
+  let best: {segmentId: string; t: number; distance: number} | undefined;
+  for (const segment of nextGeometry.segments) {
+    if (sourceAdjacentIds.has(segment.id)) continue;
+    const hit = hitTestSegment(nextGeometry, segment.id, mirroredTarget);
+    if (hit.t <= 0.001 || hit.t >= 0.999) continue;
+    if (!best || hit.distance < best.distance) best = {segmentId: segment.id, t: hit.t, distance: hit.distance};
+  }
+  if (!best || best.distance > mirrorHitTolerance) {
+    return {geometry: nextGeometry, insertedPointIds: [inserted.id], mirroredCreated: false};
+  }
+
+  const beforeMirrorIds = new Set(nextGeometry.points.map(point => point.id));
+  nextGeometry = splitPathSegment(nextGeometry, best.segmentId, best.t);
+  const mirroredInserted = nextGeometry.points.find(point => !beforeMirrorIds.has(point.id));
+  if (!mirroredInserted) {
+    return {geometry: nextGeometry, insertedPointIds: [inserted.id], mirroredCreated: false};
+  }
+
+  // Enforce exact center symmetry for the node coordinate. For a straight
+  // opposite edge this is already exact; this correction also removes tiny
+  // hit-test sampling drift on curves while preserving split handles/segments.
+  nextGeometry = {
+    ...nextGeometry,
+    points: nextGeometry.points.map(point => point.id === mirroredInserted.id
+      ? {...point, x: mirroredTarget.x, y: mirroredTarget.y}
+      : point),
+  };
+
+  return {
+    geometry: nextGeometry,
+    insertedPointIds: [inserted.id, mirroredInserted.id],
+    mirroredPointId: mirroredInserted.id,
+    mirroredCreated: true,
+  };
+}
+
 export function localToWorld(pt: {x: number, y: number}, element: {position: {xMm: number, yMm: number}, size: {widthMm: number, heightMm: number}, rotationDeg: number}): {x: number, y: number} {
   const rad = element.rotationDeg * Math.PI / 180;
   
@@ -740,18 +843,6 @@ export function shapeToPathGeometry(shapeType: string, sizeMm: {widthMm: number,
     );
   } else if (shapeType === 'CLOUD') {
     addClosedPolygon([{x:w*.1,y:h*.7},{x:0,y:h*.52},{x:w*.12,y:h*.35},{x:w*.28,y:h*.36},{x:w*.38,y:h*.12},{x:w*.6,y:h*.08},{x:w*.72,y:h*.28},{x:w*.9,y:h*.3},{x:w,y:h*.5},{x:w*.9,y:h*.72}]);
-  } else if (shapeType === 'WAVE') {
-    const ids=Array.from({length:6},()=>crypto.randomUUID());
-    points.push(
-      {id:ids[0]!,x:0,y:h*.25,mode:'SMOOTH',outHandle:{x:w*.16,y:0}},
-      {id:ids[1]!,x:w*.5,y:h*.25,mode:'SMOOTH',inHandle:{x:w*.34,y:h*.5},outHandle:{x:w*.66,y:0}},
-      {id:ids[2]!,x:w,y:h*.25,mode:'CORNER',inHandle:{x:w*.84,y:h*.5}},
-      {id:ids[3]!,x:w,y:h*.75,mode:'SMOOTH',outHandle:{x:w*.84,y:h}},
-      {id:ids[4]!,x:w*.5,y:h*.75,mode:'SMOOTH',inHandle:{x:w*.66,y:h*.5},outHandle:{x:w*.34,y:h}},
-      {id:ids[5]!,x:0,y:h*.75,mode:'CORNER',inHandle:{x:w*.16,y:h*.5}}
-    );
-    const types:PathSegment['type'][]=['CUBIC_BEZIER','CUBIC_BEZIER','LINE','CUBIC_BEZIER','CUBIC_BEZIER','LINE'];
-    types.forEach((type,index)=>segments.push({id:crypto.randomUUID(),type,fromPointId:ids[index]!,toPointId:ids[(index+1)%ids.length]!}));
   } else if (shapeType === 'CYLINDER') {
     addClosedPolygon([{x:w*.08,y:h*.12},{x:w*.22,y:0},{x:w*.78,y:0},{x:w*.92,y:h*.12},{x:w*.92,y:h*.88},{x:w*.78,y:h},{x:w*.22,y:h},{x:w*.08,y:h*.88}]);
   } else if (shapeType === 'CURVED_ARROW') {
@@ -831,6 +922,98 @@ export function shapeToPathGeometry(shapeType: string, sizeMm: {widthMm: number,
   }
   
   return { points, segments, closed: shapeType !== 'LINE' && shapeType !== 'FLEXIBLE_LINE' && shapeType !== 'ARC' };
+}
+
+
+export function convertPathSegmentToLine(geometry: PathGeometry, segmentId: string): PathGeometry {
+  const cloned = clonePathGeometry(geometry);
+  const segment = cloned.segments.find(candidate => candidate.id === segmentId);
+  if (!segment || segment.type === 'LINE') return cloned;
+  const fromPoint = cloned.points.find(point => point.id === segment.fromPointId);
+  const toPoint = cloned.points.find(point => point.id === segment.toPointId);
+  cloned.segments = cloned.segments.map(candidate => candidate.id === segmentId ? { ...candidate, type: 'LINE' as const } : candidate);
+  if (fromPoint) fromPoint.outHandle = undefined;
+  if (toPoint) toPoint.inHandle = undefined;
+  return cloned;
+}
+
+function pathNeighbourPoint(geometry: PathGeometry, pointId: string, direction: 'IN'|'OUT'): PathPoint | undefined {
+  const segment = geometry.segments.find(candidate => direction === 'IN' ? candidate.toPointId === pointId : candidate.fromPointId === pointId);
+  if (!segment) return undefined;
+  const neighbourId = direction === 'IN' ? segment.fromPointId : segment.toPointId;
+  return geometry.points.find(point => point.id === neighbourId);
+}
+
+export function setPathPointMode(geometry: PathGeometry, pointIds: string[], mode: PathPoint['mode']): PathGeometry {
+  const cloned = clonePathGeometry(geometry);
+  const selected = new Set(pointIds);
+  cloned.points = cloned.points.map(point => {
+    if (!selected.has(point.id)) return point;
+    if (mode === 'CORNER') return { ...point, mode };
+    const incoming = pathNeighbourPoint(cloned, point.id, 'IN');
+    const outgoing = pathNeighbourPoint(cloned, point.id, 'OUT');
+    let inHandle = point.inHandle ? { ...point.inHandle } : undefined;
+    let outHandle = point.outHandle ? { ...point.outHandle } : undefined;
+    const fallbackDirection = outgoing
+      ? { x: outgoing.x - point.x, y: outgoing.y - point.y }
+      : incoming ? { x: point.x - incoming.x, y: point.y - incoming.y } : { x: 1, y: 0 };
+    const fallbackLength = Math.max(0.5, Math.hypot(fallbackDirection.x, fallbackDirection.y) / 3);
+    const unitLength = Math.hypot(fallbackDirection.x, fallbackDirection.y) || 1;
+    const ux = fallbackDirection.x / unitLength, uy = fallbackDirection.y / unitLength;
+    if (!inHandle && incoming) {
+      const length = Math.max(0.5, Math.hypot(point.x-incoming.x, point.y-incoming.y)/3);
+      inHandle = { x: point.x - ux*length, y: point.y - uy*length };
+    }
+    if (!outHandle && outgoing) {
+      const length = Math.max(0.5, Math.hypot(outgoing.x-point.x, outgoing.y-point.y)/3);
+      outHandle = { x: point.x + ux*length, y: point.y + uy*length };
+    }
+    if (!inHandle && !outHandle) {
+      inHandle = { x: point.x - ux*fallbackLength, y: point.y - uy*fallbackLength };
+      outHandle = { x: point.x + ux*fallbackLength, y: point.y + uy*fallbackLength };
+    } else if (inHandle && !outHandle) {
+      const dx = point.x - inHandle.x, dy = point.y - inHandle.y;
+      outHandle = { x: point.x + dx, y: point.y + dy };
+    } else if (outHandle && !inHandle) {
+      const dx = point.x - outHandle.x, dy = point.y - outHandle.y;
+      inHandle = { x: point.x + dx, y: point.y + dy };
+    }
+    if (inHandle && outHandle) {
+      const inDx = point.x-inHandle.x, inDy = point.y-inHandle.y;
+      const inLen = Math.hypot(inDx,inDy) || 1;
+      const outLen = mode === 'SYMMETRIC' ? inLen : (Math.hypot(outHandle.x-point.x,outHandle.y-point.y) || inLen);
+      outHandle = { x: point.x + inDx/inLen*outLen, y: point.y + inDy/inLen*outLen };
+    }
+    return { ...point, mode, inHandle, outHandle };
+  });
+
+  // Smooth/Symmetric nodes must be visually meaningful. A handle on a LINE
+  // segment is ignored by the renderer, so promote every segment connected to
+  // a selected smooth/symmetric node to cubic Bezier while preserving IDs and
+  // topology. Corner mode intentionally does not force a segment-type change.
+  if (mode === 'SMOOTH' || mode === 'SYMMETRIC') {
+    cloned.segments = cloned.segments.map(segment =>
+      (selected.has(segment.fromPointId) || selected.has(segment.toPointId)) && segment.type === 'LINE'
+        ? { ...segment, type: 'CUBIC_BEZIER' as const }
+        : segment
+    );
+  }
+  return cloned;
+}
+
+export function deletePathPointsSafely(geometry: PathGeometry, pointIds: string[]): PathGeometry {
+  const selected = new Set(pointIds);
+  const remaining = geometry.points.filter(point => !selected.has(point.id));
+  const minimum = geometry.closed ? 3 : 2;
+  if (remaining.length < minimum) return clonePathGeometry(geometry);
+  let next = clonePathGeometry(geometry);
+  for (const id of pointIds) {
+    if (!next.points.some(point => point.id === id)) continue;
+    next = deletePathPoint(next, id);
+  }
+  if (next.points.length < minimum || !validatePathGeometry(next)) return clonePathGeometry(geometry);
+  if (geometry.closed && next.points.length >= 3) next.closed = true;
+  return next;
 }
 
 export function lineToCurve(geometry: PathGeometry, segmentId: string): PathGeometry {

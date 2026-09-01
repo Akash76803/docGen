@@ -1,4 +1,5 @@
 import type { DesignElement, DesignTemplate, PathDesignElement, PathGeometry } from '@document-tool/contracts';
+import { getSelectionBounds, normalizeRotationDeg } from './transform.js';
 
 export type MirrorAxis = 'HORIZONTAL'|'VERTICAL';
 
@@ -56,6 +57,68 @@ function mirroredElement(source:DesignElement,artboardWidthMm:number,artboardHei
   }
   // TEXT, QR and BARCODE intentionally remain readable/scannable: only placement/rotation are reflected.
   return next;
+}
+
+
+function reflectPathGeometryInPlace(geometry:PathGeometry,widthMm:number,heightMm:number,axis:MirrorAxis):PathGeometry {
+  const next=clone(geometry);
+  next.points=next.points.map(point=>{
+    const reflected={...point};
+    if(axis==='VERTICAL'){
+      reflected.x=widthMm-point.x;
+      if(point.inHandle) reflected.inHandle={x:widthMm-point.inHandle.x,y:point.inHandle.y};
+      if(point.outHandle) reflected.outHandle={x:widthMm-point.outHandle.x,y:point.outHandle.y};
+    }else{
+      reflected.y=heightMm-point.y;
+      if(point.inHandle) reflected.inHandle={x:point.inHandle.x,y:heightMm-point.inHandle.y};
+      if(point.outHandle) reflected.outHandle={x:point.outHandle.x,y:heightMm-point.outHandle.y};
+    }
+    return reflected;
+  });
+  return next;
+}
+
+
+function flipElementVisualInPlace(element:DesignElement,axis:MirrorAxis):DesignElement {
+ if(element.type==='SHAPE') return {...element,[axis==='VERTICAL'?'flipX':'flipY']:!(axis==='VERTICAL'?element.flipX:element.flipY)} as DesignElement;
+ if(element.type==='IMAGE') return {...element,[axis==='VERTICAL'?'flipX':'flipY']:!(axis==='VERTICAL'?element.flipX:element.flipY)} as DesignElement;
+ if(element.type==='SVG') return {...element,[axis==='VERTICAL'?'flipX':'flipY']:!(axis==='VERTICAL'?element.flipX:element.flipY)} as DesignElement;
+ if(element.type==='PATH') return {...element,geometry:reflectPathGeometryInPlace(element.geometry,element.size.widthMm,element.size.heightMm,axis)};
+ return element;
+}
+
+/** Flip a set as one composite around its shared bounds. Child placement mirrors as a group,
+ * while vector/raster visuals are reflected locally. TEXT/QR/BARCODE stay readable/scannable. */
+export function flipElementsAsGroup(template:DesignTemplate,artboardId:string,elementIds:readonly string[],axis:MirrorAxis):DesignTemplate {
+ const selected=new Set(elementIds);
+ const artboard=template.artboards.find(a=>a.id===artboardId);if(!artboard)return template;
+ const members=artboard.elements.filter(e=>selected.has(e.id)&&!e.locked),bounds=getSelectionBounds(members);if(!bounds)return template;
+ return {...template,artboards:template.artboards.map(a=>a.id!==artboardId?a:{...a,elements:a.elements.map(element=>{
+  if(!selected.has(element.id)||element.locked)return element;
+  const position=axis==='VERTICAL'
+   ?{xMm:bounds.xMm+bounds.widthMm-(element.position.xMm-bounds.xMm)-element.size.widthMm,yMm:element.position.yMm}
+   :{xMm:element.position.xMm,yMm:bounds.yMm+bounds.heightMm-(element.position.yMm-bounds.yMm)-element.size.heightMm};
+  const placed={...element,position,rotationDeg:normalizeRotationDeg(-element.rotationDeg)} as DesignElement;
+  return flipElementVisualInPlace(placed,axis);
+ })})};
+}
+
+export function flipElementsInPlace(template:DesignTemplate,artboardId:string,elementIds:readonly string[],axis:MirrorAxis):DesignTemplate {
+  const selected=new Set(elementIds);
+  return {
+    ...template,
+    artboards:template.artboards.map(artboard=>artboard.id!==artboardId?artboard:{
+      ...artboard,
+      elements:artboard.elements.map(element=>{
+        if(!selected.has(element.id)||element.locked)return element;
+        if(element.type==='SHAPE') return {...element,[axis==='VERTICAL'?'flipX':'flipY']:!(axis==='VERTICAL'?element.flipX:element.flipY)} as DesignElement;
+        if(element.type==='IMAGE') return {...element,[axis==='VERTICAL'?'flipX':'flipY']:!(axis==='VERTICAL'?element.flipX:element.flipY)} as DesignElement;
+        if(element.type==='SVG') return {...element,[axis==='VERTICAL'?'flipX':'flipY']:!(axis==='VERTICAL'?element.flipX:element.flipY)} as DesignElement;
+        if(element.type==='PATH') return {...element,geometry:reflectPathGeometryInPlace(element.geometry,element.size.widthMm,element.size.heightMm,axis)};
+        return element;
+      })
+    })
+  };
 }
 
 export function mirrorElementsAcrossArtboard(template:DesignTemplate,artboardId:string,elementIds:readonly string[],axis:MirrorAxis):DesignTemplate {

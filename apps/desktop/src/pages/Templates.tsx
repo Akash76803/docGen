@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BackToHomeButton } from '../components/shell/BackToHomeButton.tsx';
 import type { ReactNode } from 'react';
 import type {
   Alignment,
@@ -102,7 +101,7 @@ type Selection = { block: TemplateBlock | RowChildBlock; parentRow?: RowBlock; p
 type BindingOption = FilterBindingOption;
 type CollectionBinding = { path: string; label: string; fields: BindingOption[] };
 
-export const Templates = ({ documentGroups = EMPTY_DOCUMENT_GROUPS,onHome }: { documentGroups?: DocumentGroup[];onHome?:()=>void }) => {
+export const Templates = ({ documentGroups = EMPTY_DOCUMENT_GROUPS }: { documentGroups?: DocumentGroup[] }) => {
   const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [draft, setDraft] = useState<TemplateDefinition | null>(null);
@@ -762,7 +761,7 @@ export const Templates = ({ documentGroups = EMPTY_DOCUMENT_GROUPS,onHome }: { d
     <div className={`templates-container animated-fade-in phase32-page ${fullPreview ? 'is-full-preview' : ''}`}>
       <div className="page-header phase32-header designer-command-header">
         <div className="designer-heading-group">
-          <div className="designer-title-line"><BackToHomeButton onHome={onHome} compact/><span className="designer-eyebrow">Document Designer</span><span className="designer-title-separator">/</span><strong>{draft?.name || 'Untitled template'}</strong></div>
+          <div className="designer-title-line"><span className="designer-eyebrow">Document Designer</span><span className="designer-title-separator">/</span><strong>{draft?.name || 'Untitled template'}</strong></div>
           <div className="designer-context-chips">
             <span>{draft?.page.size ?? 'A4'} · {draft?.page.orientation === 'LANDSCAPE' ? 'Landscape' : 'Portrait'}</span>
             <span>{region.charAt(0) + region.slice(1).toLowerCase()} · {blocks.length} block{blocks.length === 1 ? '' : 's'}</span>

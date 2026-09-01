@@ -1,68 +1,31 @@
 # Document Generator Development Rules
 
 ## Source of Truth
-
-* The current extracted folder is the only source of truth.
-* Never continue from an older phase copy.
-* Read this file before changing code.
-* Read [`CURRENT_BASELINE.md`](file:///e:/Project/Document%20Generator/CURRENT_BASELINE.md).
+- This extracted folder is the only implementation source of truth.
+- Never continue from an older phase copy or nested backup.
+- Read the baseline/audit/plan documents before coding.
 
 ## Pre-Development Gate
+Before any feature change: trace existing behavior, identify reusable implementation, inspect tests, identify persistence/export impact, and document regression risk.
 
-Before implementing anything:
-* Inspect actual code.
-* Determine what already exists.
-* Classify existing code as `REUSE` or `HARDEN` before planning `NEW` work.
-* Identify potential regression risks.
-* Inspect existing tests.
-* Do not implement based on filenames or assumptions.
-
-## Architecture
-
-* Avoid growing `CardDesigner.tsx` with reusable engine logic. Keep it focused on panel states and top-level events.
-* Geometry and math belong in `design-engine` package modules.
-* Persistent data models belong in `@document-tool/contracts`.
-* Reusable UI controls belong in separate designer components.
-* Do not create duplicate snapping, history, or geometry engines.
+## Architecture Rules
+- Avoid adding reusable geometry/business logic to `CardDesigner.tsx`; keep it as orchestration where possible.
+- Geometry/math belongs in `packages/design-engine`.
+- Persistent models belong in `packages/contracts`.
+- Reusable UI belongs in designer components.
+- Reuse existing snapping, history, path, face-split, Boolean, and export pipelines instead of creating duplicate engines.
 
 ## Critical Regression Protection
-
-You must preserve the following existing features:
-* **LINE**: Drawing lines and dividers.
-* **FLEXIBLE_LINE**: Drawing multi-point polylines/curves.
-* **SPLIT**: Splitting elements and artboards.
-* **OSNAP**: Object snapping (endpoints, vertices, boundaries, intersections, grid, guides, centers).
-* **Face Split**: Incremental face subdivision and strict `0.05mm` boundary checking.
-* **Fill Bucket**: Filling closed regions with solid colors or patterns.
-* **Scissors**: Splitting vector paths at clicked nodes/points.
-* **Erase Segment / Trimmer**: Deleting segments of line between intersections.
-* **Pen / Edit Path**: Adjusting path vertices and control points interactively.
-* **Guides/Grid**: Aligning elements to rulers, grids, and guidelines.
-* **Selection**: Bounding boxes, primary selection highlights, and multi-selection sets.
-* **History**: Undo/Redo command transaction stacks.
-* **Save/Load**: Template persistence and schema serialization.
-* **Bindings**: Data mapping from CSV/Excel, visible states, and dynamic calculations.
-* **Image Fill**: Fitting and masking images inside vector paths.
-* **QR/Barcode**: Dynamic rendering of vector QR codes and barcodes.
-* **Export**: PNG/JPEG rasterization, and PDF generation with native hyperlink annotation overlays.
+Preserve LINE, FLEXIBLE_LINE, SPLIT, CAD point OSNAP, Face Split/AUTO_SECTION faces, Fill Bucket, Scissors, Erase Segment/Trimmer, Pen/Edit Path, grid/guides/general snapping, layers/groups, undo/redo, save/load, Excel/CSV binding, Base64 image binding, shape image fill, QR/Barcode, and PDF/PNG/JPEG export.
 
 ## Persistence Gate
+Contract changes must be backward compatible, normalize missing optional fields, avoid destructive rewriting, and include round-trip/migration tests.
 
-Any contract or schema change must:
-* Remain backward compatible.
-* Normalize missing optional fields automatically when loading.
-* Include migration/roundtrip tests.
-* Avoid destructive template rewriting.
+## Geometry Gate
+Before changing PATH, Boolean, Face Split, point OSNAP, or snapping, inspect and run relevant regression coverage. Do not loosen geometry tolerances to hide interaction problems.
 
 ## Test Gate
+Every phase requires targeted tests, permanent regression tests, typecheck, build, and manual smoke verification where runtime is available. Never report PASS unless the command actually ran successfully.
 
-Every development phase requires:
-* Targeted tests verifying new logic.
-* Permanent regression suites protecting existing features.
-* Running typecheck (`npm run typecheck`).
-* Running full compilation build (`npm run build`).
-* Running manual smoke tests.
-
-## Reporting Rule
-
-* Never claim runtime verification or test success unless actually performed.
+## Release Gate
+Return a complete updated source ZIP, update phase documentation, list exact changed files, record verification results and limitations, and exclude temporary build/install artifacts.

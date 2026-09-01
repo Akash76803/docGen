@@ -1,6 +1,5 @@
 import React from 'react';
-import { Undo2, Redo2, Save, Download, Copy, ClipboardPaste, FilePlus2, LayoutTemplate } from 'lucide-react';
-import { BackToHomeButton } from '../shell/BackToHomeButton.tsx';
+import { Undo2, Redo2, Save, Download, Copy, ClipboardPaste, FilePlus2, LayoutTemplate, House } from 'lucide-react';
 
 export type DesignerHeaderProps = {
   title?: string;
@@ -44,7 +43,11 @@ export const DesignerHeader: React.FC<DesignerHeaderProps> = ({
   return (
     <header className="dg-designer-header">
       <div className="dg-designer-header__left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <BackToHomeButton onHome={onBack} compact/>
+        {onBack && (
+          <button className="dg-icon-button dg-designer-header__home" onClick={onBack} aria-label="Home" title="Back to Home">
+            <House size={17} />
+          </button>
+        )}
         <div className="dg-designer-header__title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {onTitleChange ? (
             <input 

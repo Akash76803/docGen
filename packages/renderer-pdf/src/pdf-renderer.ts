@@ -23,7 +23,7 @@ const mm = (value: number) => value * PT_PER_MM;
 const MIN_CELL_HEIGHT = mm(3.2);
 
 export type DrawOp = string;
-export type PdfPage = { width:number; height:number; ops:DrawOp[]; extGStates?:string; annots?: { rect: [number, number, number, number]; uri: string }[] };
+export type PdfPage = { width:number; height:number; ops:DrawOp[]; extGStates?:string };
 type FontKey = 'F1'|'F2'|'F3'|'F4'|'F5'|'F6';
 export type PdfImage = { name:string; bytes:Uint8Array; width:number; height:number };
 
@@ -857,22 +857,7 @@ export function buildPdf(pages:PdfPage[],images:PdfImage[]):Uint8Array{
   const imageIds=new Map<string,number>();
   for(const img of images){const header=`<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.bytes.length} >>\nstream\n`;const tail='\nendstream';const hb=new TextEncoder().encode(header),tb=new TextEncoder().encode(tail);const combined=new Uint8Array(hb.length+img.bytes.length+tb.length);combined.set(hb);combined.set(img.bytes,hb.length);combined.set(tb,hb.length+img.bytes.length);imageIds.set(img.name,add(combined));}
   const pageIds:number[]=[];
-  for(const p of pages){
-    const stream=p.ops.join('\n');
-    const content=add(`<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`);
-    const fontDict=Object.entries(fonts).map(([k,id])=>`/${k} ${id} 0 R`).join(' ');
-    const xObjects=images.length?`/XObject << ${images.map(img=>`/${img.name} ${imageIds.get(img.name)} 0 R`).join(' ')} >>`:'';
-    const gs=p.extGStates?`/ExtGState << ${p.extGStates} >>`:'';
-    const annotIds: number[] = [];
-    if (p.annots) {
-      for (const a of p.annots) {
-        const escapedUri = a.uri.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-        annotIds.push(add(`<< /Type /Annot /Subtype /Link /Rect [${a.rect.map(f).join(' ')}] /A << /Type /Action /S /URI /URI (${escapedUri}) >> /Border [0 0 0] >>`));
-      }
-    }
-    const annotsRef = annotIds.length ? `/Annots [${annotIds.map(id => `${id} 0 R`).join(' ')}]` : '';
-    pageIds.push(add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${f(p.width)} ${f(p.height)}] /Resources << /Font << ${fontDict} >> ${xObjects} ${gs} >> /Contents ${content} 0 R ${annotsRef} >>`));
-  }
+  for(const p of pages){const stream=p.ops.join('\n');const content=add(`<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`);const fontDict=Object.entries(fonts).map(([k,id])=>`/${k} ${id} 0 R`).join(' ');const xObjects=images.length?`/XObject << ${images.map(img=>`/${img.name} ${imageIds.get(img.name)} 0 R`).join(' ')} >>`:'';const gs=p.extGStates?`/ExtGState << ${p.extGStates} >>`:'';pageIds.push(add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${f(p.width)} ${f(p.height)}] /Resources << /Font << ${fontDict} >> ${xObjects} ${gs} >> /Contents ${content} 0 R >>`));}
   objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(id=>`${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
   const chunks:Uint8Array[]=[new TextEncoder().encode('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n')];const offsets=[0];let length=chunks[0]!.length;
   for(let i=0;i<objects.length;i++){offsets.push(length);const prefix=new TextEncoder().encode(`${i+1} 0 obj\n`),suffix=new TextEncoder().encode('\nendobj\n');const body=typeof objects[i]==='string'?new TextEncoder().encode(objects[i] as string):objects[i] as Uint8Array;chunks.push(prefix,body,suffix);length+=prefix.length+body.length+suffix.length;}

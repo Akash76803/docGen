@@ -8,13 +8,12 @@ import { MappingConfigurator } from '../components/data/MappingConfigurator.tsx'
 import { DocumentGroupPreview } from '../components/data/DocumentGroupPreview.tsx';
 import { FileSpreadsheet, UploadCloud, RefreshCw, CheckCircle2, AlertCircle, Layers3, Database, Trash2, FileText } from 'lucide-react';
 import { clearImportWorkspace, getActiveImportWorkspaceId, hydrateWorkspaceGroup, listImportWorkspaceMetadata, loadImportWorkspace, saveImportWorkspace, type ImportWorkspaceMetadata } from '../services/workspaceStore.ts';
-import { BackToHomeButton } from '../components/shell/BackToHomeButton.tsx';
 
 const MAX_PREVIEW_ROWS = 100;
 const importService = new ImportDataService();
 const groupingService = new MappingGroupingService();
 
-export const Generate: React.FC<{ onGroupsChange?: (groups: DocumentGroup[]) => void; onOpenTemplates?: () => void; onHome?:()=>void }> = ({ onGroupsChange, onOpenTemplates, onHome }) => {
+export const Generate: React.FC<{ onGroupsChange?: (groups: DocumentGroup[]) => void; onOpenTemplates?: () => void }> = ({ onGroupsChange, onOpenTemplates }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [sourceFile, setSourceFile] = useState<SourceFileInput | null>(null);
   const [inspection, setInspection] = useState<FileInspectionResult | null>(null);
@@ -168,7 +167,7 @@ export const Generate: React.FC<{ onGroupsChange?: (groups: DocumentGroup[]) => 
   const resetImportedState = (removeSaved = true) => { const sourceIdToRemove = workspaceId; setWorkspaceId(''); setWorkspaceCreatedAt(''); setSourceFile(null); setInspection(null); setSelectedSheet(''); setHeaderRow(1); setDataPreview(null); setMappings([]); setGroupingResult(null); setSelectedGroupId(''); setWorkspaceMessage(''); onGroupsChange?.([]); if (removeSaved) void clearImportWorkspace(sourceIdToRemove || undefined); };
 
   return <div className="generate-container animated-fade-in">
-    <div className="page-header"><div style={{display:'flex',alignItems:'flex-start',gap:10}}><BackToHomeButton onHome={onHome} compact/><div><h2>Generate Document</h2><p>Import data, map fields, and organize rows into document-ready groups.</p></div></div><span className="phase-badge">Phase 3</span></div>
+    <div className="page-header"><div><h2>Generate Document</h2><p>Import data, map fields, and organize rows into document-ready groups.</p></div><span className="phase-badge">Phase 3</span></div>
 
     <div className="import-step-card"><div className="panel-header"><span className="step-badge">1</span><h3>Choose Excel / CSV File</h3></div>
       <div className={`file-drop-zone ${sourceFile?'has-source':''} ${loading?'disabled':''}`} onDragOver={(e)=>e.preventDefault()} onDrop={onDrop} onClick={()=>!loading&&fileInputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e)=>{if((e.key==='Enter'||e.key===' ')&&!loading)fileInputRef.current?.click();}}>

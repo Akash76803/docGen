@@ -16,8 +16,7 @@ export function validateDesignTemplate(template:DesignTemplate, registry:DesignE
     if (artboardIds.has(artboard.id)) error({code:'ARTBOARD_ID_DUPLICATE',message:`Duplicate artboard id: ${artboard.id}`,artboardId:artboard.id});
     artboardIds.add(artboard.id);
     if (!artboard.name?.trim()) error({code:'ARTBOARD_NAME_REQUIRED',message:'Artboard name is required.',artboardId:artboard.id});
-    const legacyPrint=artboard.print;
-    if (!finite(artboard.widthMm)||!finite(artboard.heightMm)||artboard.widthMm<=0||artboard.heightMm<=0||(legacyPrint&&(!nonNegativeInsets(legacyPrint.bleed)||!nonNegativeInsets(legacyPrint.safeArea)))) error({code:'ARTBOARD_DIMENSION_INVALID',message:'Artboard dimensions and print insets must be finite and non-negative; width/height must be positive.',artboardId:artboard.id});
+    if (!finite(artboard.widthMm)||!finite(artboard.heightMm)||artboard.widthMm<=0||artboard.heightMm<=0||!nonNegativeInsets(artboard.print.bleed)||!nonNegativeInsets(artboard.print.safeArea)) error({code:'ARTBOARD_DIMENSION_INVALID',message:'Artboard dimensions and print insets must be finite and non-negative; width/height must be positive.',artboardId:artboard.id});
     if (!Number.isInteger(artboard.order)||orders.has(artboard.order)) error({code:'ARTBOARD_ORDER_DUPLICATE',message:`Artboard order must be a unique integer: ${artboard.order}`,artboardId:artboard.id});
     orders.add(artboard.order);
     validateArtboard(artboard,registry,allElementIds,error);
@@ -88,7 +87,7 @@ function validateElement(artboard:Artboard, element:DesignElement, registry:Desi
     // Supported target property registry
     const supportedProps: Record<string, string[]> = {
       TEXT: ['text', 'visible'],
-      IMAGE: ['source', 'altText', 'visible', 'hyperlink'],
+      IMAGE: ['source', 'altText', 'visible'],
       SVG: ['source', 'tintColor', 'visible'],
       SHAPE: ['visible', 'fillImageSource'],
       PATH: ['visible', 'fillImageSource']

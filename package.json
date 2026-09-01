@@ -65,6 +65,7 @@
     "smoke:card-alignment": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase611-alignment-distribution-smoke.mjs",
     "test:card-snapping": "vitest run packages/design-engine/test/phase612-smart-snapping.test.ts",
     "test:card-point-osnap": "vitest run packages/design-engine/test/phase710-point-osnap.test.ts packages/design-engine/test/phase73-boundary-snap.test.ts",
+    "test:card-split-tool": "vitest run apps/desktop/test/phase711-dedicated-split-tool.test.ts apps/desktop/test/phase710-point-osnap-live-wiring.test.ts packages/design-engine/test/phase710-point-osnap.test.ts packages/design-engine/test/phase73-face-split.test.ts",
     "smoke:card-snapping": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase612-smart-snapping-smoke.mjs",
     "test:starter-template-pack": "vitest run packages/design-engine/test/phase613a-starter-template-asset-pack.test.ts",
     "smoke:starter-template-pack": "npm run build -w @document-tool/contracts && npm run build -w @document-tool/design-engine && node scripts/phase613a-starter-template-asset-pack-smoke.mjs",
@@ -82,7 +83,17 @@
     "test:card-field-search": "vitest run apps/desktop/test/phase663a-searchable-field-picker.test.ts",
     "test:card-dynamic-text": "vitest run packages/design-engine/test/phase664-mixed-dynamic-text.test.ts",
     "test:card-dynamic-images": "vitest run packages/design-engine/test/phase665-dynamic-image-binding.test.ts",
-    "test:card-dynamic-codes": "vitest run packages/design-engine/test/phase666-qr-barcode-binding.test.ts"
+    "test:card-dynamic-codes": "vitest run packages/design-engine/test/phase666-qr-barcode-binding.test.ts",
+    "test:shape-foundation": "vitest run packages/design-engine/test/phase80-shape-foundation.test.ts apps/desktop/test/phase80-primary-selection-wiring.test.ts",
+    "test:shape-ops-regression": "vitest run packages/design-engine/test/phase603-selection-transform.test.ts packages/design-engine/test/phase605-layers-groups.test.ts packages/design-engine/test/phase611-alignment-distribution.test.ts packages/design-engine/test/phase612-smart-snapping.test.ts packages/design-engine/test/phase710-point-osnap.test.ts packages/design-engine/test/phase73-boundary-snap.test.ts packages/design-engine/test/phase73-face-split.test.ts apps/desktop/test/phase711-dedicated-split-tool.test.ts apps/desktop/test/phase710-point-osnap-live-wiring.test.ts packages/design-engine/test/phase81-transform-hardening.test.ts apps/desktop/test/phase81-transform-ui-wiring.test.ts packages/design-engine/test/phase82-styling-parity.test.ts apps/desktop/test/phase82-styling-ui-wiring.test.ts",
+    "test:shape-transform": "vitest run packages/design-engine/test/phase81-transform-hardening.test.ts apps/desktop/test/phase81-transform-ui-wiring.test.ts",
+    "test:shape-styling": "vitest run packages/design-engine/test/phase614-advanced-styling.test.ts packages/design-engine/test/phase82-styling-parity.test.ts apps/desktop/test/phase82-styling-ui-wiring.test.ts",
+    "test:card-styling-fix1": "vitest run packages/design-engine/test/phase82-fix1-stroke-ui.test.ts",
+    "test:card-phase83": "vitest run packages/design-engine/test/phase83-multi-selection-enhancements.test.ts",
+    "test:card-group-hardening": "vitest run packages/design-engine/test/phase84-group-hardening.test.ts packages/design-engine/test/phase84-group-ui-contract.test.ts",
+    "test:card-group-hardening-fix1": "vitest run packages/design-engine/test/phase84-fix1-group-integrity-layer-order.test.ts packages/design-engine/test/phase84-group-ui-contract.test.ts",
+    "test:card-group-hardening-fix2": "vitest run packages/design-engine/test/phase84-fix2-hierarchical-layers.test.ts packages/design-engine/test/phase84-fix2-layer-ui-contract.test.ts packages/design-engine/test/phase84-fix1-group-integrity-layer-order.test.ts",
+    "test:card-geometry-editing": "vitest run packages/design-engine/test/phase85-geometry-editing-completion.test.ts apps/desktop/test/phase85-geometry-ui-wiring.test.ts"
   },
   "workspaces": [
     "packages/*",

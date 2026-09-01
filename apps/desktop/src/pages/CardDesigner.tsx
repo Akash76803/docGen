@@ -12,9 +12,9 @@ import { InspectorSection } from '../components/designer/InspectorSection.tsx';
 import { getInspectorSections } from '../components/designer/designerInspectorConfig.ts';
 import { getArtboardRole, formatArtboardRole, getArtboardPairLabel, getArtboardSelectionState } from './artboard-ui-helpers.js';
 import { filterAvailableFields } from './field-picker-helpers.js';
-import { buildCardRenderModel, validateExportMemory, geometryToSvgPath, deletePathPoint, splitPathSegment, hitTestSegment, getPathEndpoints, getPathRangeBetweenNodes, deletePathSegmentRange, joinPathGeometries, closePathGeometry, worldToLocal, localToWorld, shapeToPathGeometry, getSmartTrimIntervals, findTrimInterval, trimSegmentInterval, erasePathWithWorldStroke, splitGeometryIntoConnectedFragments, normalizePathFragment, findBoundarySnap, resolvePointSnap, splitComponentFaceByDivider, type BoundarySnap, type PointSnapResult, type TrimInterval, type CardExportRequest } from '@document-tool/design-engine';
+import { buildCardRenderModel, validateExportMemory, geometryToSvgPath, deletePathPointsSafely, splitPathSegment, insertPathNodeWithSymmetry, hitTestSegment, getPathEndpoints, getPathRangeBetweenNodes, deletePathSegmentRange, joinPathGeometries, closePathGeometry, worldToLocal, localToWorld, shapeToPathGeometry, getSmartTrimIntervals, findTrimInterval, trimSegmentInterval, erasePathWithWorldStroke, splitGeometryIntoConnectedFragments, normalizePathFragment, findBoundarySnap, resolvePointSnap, splitComponentFaceByDivider, type BoundarySnap, type PointSnapResult, type TrimInterval, type CardExportRequest } from '@document-tool/design-engine';
 import { ExportCancellationSource, ExportCancelledError, ExportOrchestrator, RendererRegistry, ZipBundler, type ResolvedExportDocument } from '@document-tool/renderer-sdk';
-import { IsolatedCardExportCanvas, artboardFillStyle } from './CardExportCanvas';
+import { IsolatedCardExportCanvas } from './CardExportCanvas';
 import { deliverExportedFiles } from '../services/fileDelivery.js';
 import { CardPdfExportRenderer } from '@document-tool/renderer-pdf';
 import { registerPngRenderer, registerJpegRenderer, BrowserExactPageRasterizer } from '@document-tool/renderer-image';
@@ -22,41 +22,41 @@ import { createCombinedPdfAccumulator, type CombinedPdfAccumulator } from '../se
 import { useCallback, useEffect,useMemo,useRef,useState,createContext,useContext } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'react-qr-code';
-import type { Artboard,AssetReference,DesignElement,DesignShadow,DesignShapeKind,DesignTemplate,DesignUnit,ImageDesignElement,ShapeDesignElement,SvgDesignElement,TextDesignElement,QrDesignElement,BarcodeDesignElement,PathDesignElement,ArtboardRole,DesignDataContext } from '@document-tool/contracts';
+import type { Artboard,AssetReference,DesignElement,DesignFill,DesignShadow,DesignShapeKind,DesignStroke,DesignTemplate,DesignUnit,ImageDesignElement,ShapeDesignElement,SvgDesignElement,TextDesignElement,QrDesignElement,BarcodeDesignElement,PathDesignElement,ArtboardRole,DesignDataContext } from '@document-tool/contracts';
 import {
   ARTBOARD_PRESETS,addArtboard,addAssetReference,addDesignElement,createBlankArtboard,createImageElement,createShapeElement,createTextElement,createQrElement,createBarcodeElement,
   deleteArtboard,deleteDesignElements,duplicateArtboard,emptySelection,getSelectionBounds,mmToUnit,moveArtboard,moveElements,nextElementZIndex,
-  normalizeDisplayValue,nudgeElements,renameArtboard,resizeArtboard,resizeElement,rotateElement,sanitizeSelection,selectAllSelectable,selectByMarquee,
+  normalizeDisplayValue,nudgeElements,renameArtboard,resizeArtboard,resizeElement,resizeSelectionBoundsFromDelta,resizeElementsFromSnapshots,rotateElement,snapRotationDeg,worldDeltaToElementLocal,sanitizeSelection,selectAllSelectable,selectByMarquee,
   selectedElements,selectOnly,setArtboardBackground,setArtboardDisplayUnit,setElementPosition,toggleSelection,unitToMm,updateDesignElement,
-  orderedLayers,renameElement,setElementVisibility,setElementLocked,moveLayers,replaceElementsAtLayer,duplicateDesignElements,groupElements,ungroupElements,
+  orderedLayers,renameElement,renameGroup,setElementVisibility,setElementLocked,moveLayers,replaceElementsAtLayer,duplicateDesignElements,groupElements,ungroupElements,restoreGroups,
   expandElementIdsToGroups,groupForElement,setGroupLocked,setGroupVisibility,scaleElements,rotateElementsAsGroup,
   createDesignHistory,commitDesignHistory,undoDesignHistory,redoDesignHistory,resetDesignHistory,
   createDesignClipboardPayload,pasteDesignClipboard,createSvgElement,DESIGN_STARTER_TEMPLATES,DECORATIVE_ASSETS,decorativeAssetReference,
-  alignElements,distributeElements,centerElementsOnArtboard,getAlignmentUnitCount,
+  alignElements,distributeElements,centerElementsOnArtboard,getAlignmentUnitCount,matchAlignmentUnitsSize,resolveMixedValue,setElementsPositionAxis,setElementsSizeDimension,setElementsRotation,
   snapMoveDelta,snapResizeSize,addGuide,moveGuide,deleteGuide,setGuideLocked,setAllGuidesLocked,clearGuides,
-  copyDesignElementStyle,pasteDesignElementStyle,resetDesignElementStyle,updateElementsOpacity,DEFAULT_DESIGN_SHADOW,
+  copyDesignElementStyle,pasteDesignElementStyle,resetDesignElementStyle,updateElementsOpacity,DEFAULT_DESIGN_SHADOW,DEFAULT_RADIAL_GRADIENT,DEFAULT_PATTERN_FILL,normalizeImageFillTransform,normalizeStrokeDashArray,parseStrokeDashPatternText,
   prepareAssetImport,assetRenderKind,resolveRasterImageElementSource,resolveRasterImageFillSource,resolvePrintSettings,imagePrintQuality,validateArtboardPrint,requiredPixels,updateArtboardPrintSettings,
   setArtboardRole,pairArtboards,unpairArtboard,createBackSide,applyPrintSettingsToTargets,resolveArtboardBindings,
   getTextBinding,setTextFieldBinding,removeTextBinding,resolveDataContextSeeding,
   getSourceBinding,setSourceFieldBinding,removeSourceBinding,
   getFillImageSourceBinding,setFillImageSourceFieldBinding,removeFillImageSourceBinding,
-  getValueBinding,setValueFieldBinding,removeValueBinding,mirrorElementsAcrossArtboard,
-  getHyperlinkBinding,setHyperlinkFieldBinding,removeHyperlinkBinding
+  getArtboardBackgroundImageSourceBinding,setArtboardBackgroundImageSourceFieldBinding,removeArtboardBackgroundImageSourceBinding,
+  getValueBinding,setValueFieldBinding,removeValueBinding,mirrorElementsAcrossArtboard,flipElementsInPlace,flipElementsAsGroup
 } from '@document-tool/design-engine';
-import type { DesignAlignmentReference,DesignClipboardPayload,DesignHistoryState,DesignRectMm,DesignSelectionState,DesignStyleClipboard,SnapGuideIndicator } from '@document-tool/design-engine';
+import type { DesignAlignmentReference,DesignClipboardPayload,DesignHistoryState,DesignRectMm,DesignSelectionState,DesignStyleClipboard,SnapGuideIndicator,RegroupSnapshot } from '@document-tool/design-engine';
 import { LocalStorageDesignTemplateRepository,LocalStorageUserAssetLibraryRepository,type UserAssetLibraryItem } from '@document-tool/persistence';
-import { ArrowDown,ArrowUp,Copy,Maximize2,Minus,MonitorUp,Plus,RotateCcw,Trash2,Upload,PenLine, Type, Image as ImageIcon, Box, Shapes, Eye, EyeOff, Lock, Unlock, Scissors, MousePointer2, BetweenHorizontalStart, Link } from 'lucide-react';
+import { ArrowDown,ArrowUp,Copy,Maximize2,Minus,MonitorUp,Plus,RotateCcw,Trash2,Upload,PenLine, Type, Image as ImageIcon, Box, Shapes, Eye, EyeOff, Lock, Unlock, Scissors, MousePointer2, BetweenHorizontalStart, ChevronDown, ChevronRight, Layers3 } from 'lucide-react';
 import { loadImportWorkspace } from '../services/workspaceStore.js';
 import { clampPreviewRecordIndex, getPreviewRecord, createRecordDesignDataContext, getRecordDisplayLabel } from '../services/previewRecordHelpers.js';
 import { createBulkGenerationPlan, BulkCancellationToken, resolveItemArtboard, type BulkCardGenerationRequest, type BulkArtboardTarget, type BulkRecordTarget, type BulkGenerationResult } from '../services/cardBulkGeneration.js';
 
 const MM_TO_CSS_PX=96/25.4,MIN_ZOOM=25,MAX_ZOOM=200,POINT_SNAP_SCREEN_TOLERANCE_PX=9;
 const TRIMMER_CURSOR = 'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%228%22 fill=%22white%22 stroke=%22%23ef4444%22 stroke-width=%222%22/%3E%3Cpath d=%22M12 5v14M5 12h14%22 stroke=%22%23ef4444%22 stroke-width=%222%22/%3E%3C/svg%3E") 12 12, crosshair';
-const SHAPES:DesignShapeKind[]=['RECTANGLE','SQUARE','ROUNDED_RECTANGLE','CAPSULE','CIRCLE','ELLIPSE','LINE','TRIANGLE','RIGHT_TRIANGLE','DIAMOND','PENTAGON','HEXAGON','OCTAGON','TRAPEZOID','PARALLELOGRAM','ARROW','DOUBLE_ARROW','CURVED_ARROW','CHEVRON','DOUBLE_CHEVRON','STAR','POLYGON','HEART','CLOUD','WAVE','SPEECH_BUBBLE','CALLOUT','DOCUMENT','CYLINDER','CROSS','PLUS','BANNER','SHIELD','RIBBON','BADGE','HALF_CIRCLE','ARC','BRACKET','LABEL_TAG'];
+const SHAPES:DesignShapeKind[]=['RECTANGLE','SQUARE','ROUNDED_RECTANGLE','CAPSULE','CIRCLE','ELLIPSE','LINE','TRIANGLE','RIGHT_TRIANGLE','DIAMOND','PENTAGON','HEXAGON','OCTAGON','TRAPEZOID','PARALLELOGRAM','ARROW','DOUBLE_ARROW','CURVED_ARROW','CHEVRON','DOUBLE_CHEVRON','STAR','POLYGON','HEART','CLOUD','SPEECH_BUBBLE','CALLOUT','DOCUMENT','CYLINDER','CROSS','PLUS','BANNER','SHIELD','RIBBON','BADGE','HALF_CIRCLE','ARC','BRACKET','LABEL_TAG'];
 const id=(p:string)=>`${p}-${globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 function fresh():DesignTemplate{const artboard=createBlankArtboard({id:id('artboard'),name:'Front',order:0,widthMm:90,heightMm:50});artboard.print=resolvePrintSettings();return{kind:'CARD_DESIGN',schemaVersion:1,id:id('card-template'),name:'Untitled Card Design',version:1,status:'DRAFT',artboards:[artboard],sharedAssets:[]};}
 
-export function CardDesigner({onHome}:{onHome?:()=>void}={}){
+export function CardDesigner({onBack}:{onBack?:()=>void} = {}){
  const repo=useMemo(()=>new LocalStorageDesignTemplateRepository(window.localStorage),[]);
  const assetRepo=useMemo(()=>new LocalStorageUserAssetLibraryRepository(window.localStorage),[]);
  const [template,setTemplate]=useState<DesignTemplate>(()=>fresh());
@@ -86,6 +86,8 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
  const [snapEnabled,setSnapEnabled]=useState(true);
  const [gridSnapEnabled,setGridSnapEnabled]=useState(false);
  const [guideSnapEnabled,setGuideSnapEnabled]=useState(true);
+ const [showSmartCenters,setShowSmartCenters]=useState(true);
+ const [pathSymmetryMode,setPathSymmetryMode]=useState<'OFF'|'H'|'V'>('OFF');
  const [showRulers,setShowRulers]=useState(true);
  const [showGrid,setShowGrid]=useState(false);
  const [showHiddenElements,setShowHiddenElements]=useState(false);
@@ -98,14 +100,15 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
  const [assetLibraryStatus,setAssetLibraryStatus]=useState('');
  const [decorativeQuery,setDecorativeQuery]=useState('');
  const [selection,setSelection]=useState<DesignSelectionState>(()=>emptySelection(''));
- const [interactionMode, setInteractionModeRaw] = useState<'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT'>('SELECT');
+ const [regroupHistory,setRegroupHistory]=useState<{artboardId:string;groups:RegroupSnapshot[]}|null>(null);
+ const [interactionMode, setInteractionModeRaw] = useState<'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE'>('SELECT');
   const [fillBucketType,setFillBucketType]=useState<'SOLID'|'NONE'>('SOLID');
   const [fillBucketColor,setFillBucketColor]=useState('#3b82f6');
   const [drawShapeType, setDrawShapeType] = useState<DesignShapeKind | null>(null);
   const [pathSelectedNodeIds, setPathSelectedNodeIds] = useState<string[]>([]);
   const [pathSelectedSegmentIds, setPathSelectedSegmentIds] = useState<string[]>([]);
   
-  const setInteractionMode = (newMode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT') => {
+  const setInteractionMode = (newMode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => {
     if (interactionMode === newMode) return;
     setInteractionModeRaw(newMode);
     if (newMode === 'EDIT_PATH') {
@@ -136,7 +139,6 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
  const artboards=useMemo(()=>[...template.artboards].sort((a,b)=>a.order-b.order),[template.artboards]);
  const activeSource=artboards.find(a=>a.id===activeId)??artboards[0];
  const active=useMemo(()=>activeSource ? resolveArtboardBindings(activeSource, dataContext) : undefined, [activeSource, dataContext]);
- useEffect(()=>{if(!activeSource)return;const editor=activeSource.editor;setShowRulers(editor?.showRulers??true);setShowGrid(editor?.showGrid??false);setGridSizeMm(editor?.gridSizeMm??5);setGridSnapEnabled(editor?.gridSnapEnabled??false);setGuideSnapEnabled(editor?.guideSnapEnabled??true);},[activeSource?.id,activeSource?.editor]);
  const decorativeMatches=(asset:(typeof DECORATIVE_ASSETS)[number],query:string)=>{if(!query.trim())return true;const haystack=[asset.name,asset.category,decorativeFolderLabel(asset)].join(' ').toLowerCase();return haystack.includes(query.trim().toLowerCase());};
  const decorativeGroups=useMemo(()=>{
   const groups=[
@@ -210,12 +212,11 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
     if (previewContextSource === 'MANUAL') setPreviewContextSource('IMPORTED');
   };
   useEffect(()=>{if(active)setSelection(s=>sanitizeSelection(s,active));},[active]);
-  useEffect(()=>{const kd=(e:KeyboardEvent)=>{if(e.code==='Space'&&!isForm(e.target)){setSpace(true);e.preventDefault();return;}if(!active||isForm(e.target))return;const command=e.ctrlKey||e.metaKey;if(command&&e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo();return;}if(command&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(command&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected();return;}if(command&&e.key.toLowerCase()==='v'){e.preventDefault();pasteClipboard();return;}if(command&&e.key.toLowerCase()==='d'&&selection.elementIds.length){e.preventDefault();duplicateSelected();return;}if(command&&e.key.toLowerCase()==='a'){e.preventDefault();setSelection(selectAllSelectable(active));return;}if(e.key==='Enter'){if(interactionMode==='FLEXIBLE_LINE'||interactionMode==='PEN'){endHistoryTransaction();setSelection(emptySelection(active.id));setPathSelectedNodeIds([]);setStatus(`${interactionMode==='PEN'?'Pen':'Polyline'} — Specify first point`);return;}if(interactionMode==='EDIT_PATH'){endHistoryTransaction();setInteractionMode('SELECT');setPathSelectedNodeIds([]);return;}}if(e.key==='Escape'){if(interactionMode==='FLEXIBLE_LINE'||interactionMode==='PEN'){if(selection.elementIds.length){endHistoryTransaction();setSelection(emptySelection(active.id));setPathSelectedNodeIds([]);}else setInteractionMode('SELECT');}else if(interactionMode==='EDIT_PATH'||interactionMode==='SCISSORS'||interactionMode==='TRIMMER'||interactionMode==='ERASER'||interactionMode==='FILL_BUCKET'){endHistoryTransaction();setInteractionMode('SELECT');setPathSelectedNodeIds([]);}else{setSelection(emptySelection(active.id));}return;}if((e.key==='Delete'||e.key==='Backspace')&&selection.elementIds.length){e.preventDefault();if(interactionMode==='TRIMMER')return;if(interactionMode==='EDIT_PATH'&&pathSelectedNodeIds.length>0){mutate(t=>{const art=t.artboards.find(a=>a.id===active.id);if(!art)return t;const el=art.elements.find(el=>el.id===selection.primaryElementId) as PathDesignElement;if(!el||el.type!=='PATH')return t;let nextGeo=el.geometry;for(const nid of pathSelectedNodeIds)nextGeo=deletePathPoint(nextGeo,nid);return {...t,artboards:t.artboards.map(a=>a.id===active.id?{...a,elements:a.elements.map(e=>e.id===el.id?{...e,geometry:nextGeo}:e)}:a)};});setPathSelectedNodeIds([]);setStatus('Node deleted');}else{mutate(t=>deleteDesignElements(t,active.id,selection.elementIds));setSelection(emptySelection(active.id));setStatus('Element deleted');}return;}const dir=e.key==='ArrowLeft'?'LEFT':e.key==='ArrowRight'?'RIGHT':e.key==='ArrowUp'?'UP':e.key==='ArrowDown'?'DOWN':null;if(dir&&selection.elementIds.length){e.preventDefault();if(interactionMode==='EDIT_PATH'&&pathSelectedNodeIds.length>0){mutate(t=>{const art=t.artboards.find(a=>a.id===active.id);if(!art)return t;const el=art.elements.find(el=>el.id===selection.primaryElementId) as PathDesignElement;if(!el||el.type!=='PATH')return t;const amt=e.shiftKey?5:1;const dx=dir==='LEFT'?-amt:dir==='RIGHT'?amt:0,dy=dir==='UP'?-amt:dir==='DOWN'?amt:0;const nextGeo={...el.geometry,points:el.geometry.points.map(p=>pathSelectedNodeIds.includes(p.id)?{...p,x:p.x+dx,y:p.y+dy}:p)};return {...t,artboards:t.artboards.map(a=>a.id===active.id?{...a,elements:a.elements.map(e=>e.id===el.id?{...e,geometry:nextGeo}:e)}:a)};});setStatus('Nodes nudged');}else{mutate(t=>nudgeElements(t,active.id,selection.elementIds,dir,e.shiftKey));setStatus('Unsaved changes');}}},ku=(e:KeyboardEvent)=>{if(e.code==='Space')setSpace(false)};window.addEventListener('keydown',kd);window.addEventListener('keyup',ku);return()=>{window.removeEventListener('keydown',kd);window.removeEventListener('keyup',ku)};},[active,selection.elementIds,historyVersion,interactionMode,pathSelectedNodeIds]);
- useEffect(()=>{if(interactionMode!=='SPLIT')return;const exitSplit=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!isForm(event.target)){endHistoryTransaction();setInteractionMode('SELECT');}};window.addEventListener('keydown',exitSplit);return()=>window.removeEventListener('keydown',exitSplit);},[interactionMode]);
+  useEffect(()=>{const kd=(e:KeyboardEvent)=>{if(e.code==='Space'&&!isForm(e.target)){setSpace(true);e.preventDefault();return;}if(!active||isForm(e.target))return;const command=e.ctrlKey||e.metaKey;if(command&&e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo();return;}if(command&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(command&&e.key.toLowerCase()==='c'){e.preventDefault();copySelected();return;}if(command&&e.key.toLowerCase()==='v'){e.preventDefault();pasteClipboard();return;}if(command&&e.key.toLowerCase()==='d'&&selection.elementIds.length){e.preventDefault();duplicateSelected();return;}if(command&&e.key.toLowerCase()==='g'){e.preventDefault();if(e.shiftKey)ungroupSelected();else groupSelected();return;}if(command&&e.key.toLowerCase()==='a'){e.preventDefault();setSelection(selectAllSelectable(active));return;}if(e.key==='Enter'){if(interactionMode==='FLEXIBLE_LINE'||interactionMode==='PEN'){endHistoryTransaction();setSelection(emptySelection(active.id));setPathSelectedNodeIds([]);setStatus(`${interactionMode==='PEN'?'Pen':'Polyline'} — Specify first point`);return;}if(interactionMode==='EDIT_PATH'){endHistoryTransaction();setInteractionMode('SELECT');setPathSelectedNodeIds([]);return;}}if(e.key==='Escape'){if(interactionMode==='FLEXIBLE_LINE'||interactionMode==='PEN'){if(selection.elementIds.length){endHistoryTransaction();setSelection(emptySelection(active.id));setPathSelectedNodeIds([]);}else setInteractionMode('SELECT');}else if(interactionMode==='EDIT_PATH'||interactionMode==='SCISSORS'||interactionMode==='TRIMMER'||interactionMode==='SPLIT'||interactionMode==='ERASER'||interactionMode==='FILL_BUCKET'){endHistoryTransaction();setInteractionMode('SELECT');setPathSelectedNodeIds([]);}else{setSelection(emptySelection(active.id));}return;}if((e.key==='Delete'||e.key==='Backspace')&&selection.elementIds.length){e.preventDefault();if(interactionMode==='TRIMMER')return;if(interactionMode==='EDIT_PATH'&&pathSelectedNodeIds.length>0){mutate(t=>{const art=t.artboards.find(a=>a.id===active.id);if(!art)return t;const el=art.elements.find(el=>el.id===selection.primaryElementId) as PathDesignElement;if(!el||el.type!=='PATH')return t;const nextGeo=deletePathPointsSafely(el.geometry,pathSelectedNodeIds);return {...t,artboards:t.artboards.map(a=>a.id===active.id?{...a,elements:a.elements.map(e=>e.id===el.id?{...e,geometry:nextGeo}:e)}:a)};});setPathSelectedNodeIds([]);setStatus('Node deleted');}else{mutate(t=>deleteDesignElements(t,active.id,selection.elementIds));setSelection(emptySelection(active.id));setStatus('Element deleted');}return;}const dir=e.key==='ArrowLeft'?'LEFT':e.key==='ArrowRight'?'RIGHT':e.key==='ArrowUp'?'UP':e.key==='ArrowDown'?'DOWN':null;if(dir&&selection.elementIds.length){e.preventDefault();if(interactionMode==='EDIT_PATH'&&pathSelectedNodeIds.length>0){mutate(t=>{const art=t.artboards.find(a=>a.id===active.id);if(!art)return t;const el=art.elements.find(el=>el.id===selection.primaryElementId) as PathDesignElement;if(!el||el.type!=='PATH')return t;const amt=e.shiftKey?5:1;const dx=dir==='LEFT'?-amt:dir==='RIGHT'?amt:0,dy=dir==='UP'?-amt:dir==='DOWN'?amt:0;const nextGeo={...el.geometry,points:el.geometry.points.map(p=>pathSelectedNodeIds.includes(p.id)?{...p,x:p.x+dx,y:p.y+dy,inHandle:p.inHandle?{x:p.inHandle.x+dx,y:p.inHandle.y+dy}:undefined,outHandle:p.outHandle?{x:p.outHandle.x+dx,y:p.outHandle.y+dy}:undefined}:p)};return {...t,artboards:t.artboards.map(a=>a.id===active.id?{...a,elements:a.elements.map(e=>e.id===el.id?{...e,geometry:nextGeo}:e)}:a)};});setStatus('Nodes nudged');}else{mutate(t=>nudgeElements(t,active.id,selection.elementIds,dir,e.shiftKey));setStatus('Unsaved changes');}}},ku=(e:KeyboardEvent)=>{if(e.code==='Space')setSpace(false)};window.addEventListener('keydown',kd);window.addEventListener('keyup',ku);return()=>{window.removeEventListener('keydown',kd);window.removeEventListener('keyup',ku)};},[active,selection.elementIds,historyVersion,interactionMode,pathSelectedNodeIds]);
  const refreshSavedTemplates=async()=>{try{const list=await repo.list();setSavedTemplates(list);setTemplateLibraryStatus('');return list;}catch(e){setTemplateLibraryStatus(e instanceof Error?e.message:'Unable to load saved templates.');return[];}};
  const save=async()=>{try{await repo.save(template);await repo.setActiveId(template.id);await refreshSavedTemplates();setDirty(false);setStatus('Saved locally');setTemplateLibraryStatus('Template saved locally.');}catch(e){setStatus(e instanceof Error?e.message:'Save failed');}};
- const newDesign=()=>{if(dirty&&!window.confirm('Discard unsaved Card Designer changes?'))return;const f=fresh();setTemplate(f);templateRef.current=f;resetHistory(f);setActiveId(f.artboards[0]!.id);setSelection(emptySelection(f.artboards[0]!.id));setZoom(100);setDirty(true);setStatus('New card design');};
- const openSavedTemplate=async(templateId:string)=>{if(templateId===template.id)return;if(dirty&&!window.confirm('Discard unsaved Card Designer changes and open this saved template?'))return;try{const stored=await repo.getById(templateId);if(!stored){await refreshSavedTemplates();setTemplateLibraryStatus('Saved template was not found.');return;}await repo.setActiveId(stored.id);setTemplate(stored);templateRef.current=stored;resetHistory(stored);const aid=[...stored.artboards].sort((a,b)=>a.order-b.order)[0]?.id??'';setActiveId(aid);setSelectedArtboardIds([]);setSelection(emptySelection(aid));setZoom(100);setDirty(false);setStatus(`Opened ${stored.name}`);setTemplateLibraryStatus('');}catch(e){setTemplateLibraryStatus(e instanceof Error?e.message:'Unable to open saved template.');}};
+ const newDesign=()=>{if(dirty&&!window.confirm('Discard unsaved Card Designer changes?'))return;const f=fresh();setTemplate(f);templateRef.current=f;resetHistory(f);setActiveId(f.artboards[0]!.id);setSelection(emptySelection(f.artboards[0]!.id));setRegroupHistory(null);setZoom(100);setDirty(true);setStatus('New card design');};
+ const openSavedTemplate=async(templateId:string)=>{if(templateId===template.id)return;if(dirty&&!window.confirm('Discard unsaved Card Designer changes and open this saved template?'))return;try{const stored=await repo.getById(templateId);if(!stored){await refreshSavedTemplates();setTemplateLibraryStatus('Saved template was not found.');return;}await repo.setActiveId(stored.id);setTemplate(stored);templateRef.current=stored;resetHistory(stored);const aid=[...stored.artboards].sort((a,b)=>a.order-b.order)[0]?.id??'';setActiveId(aid);setSelectedArtboardIds([]);setSelection(emptySelection(aid));setRegroupHistory(null);setZoom(100);setDirty(false);setStatus(`Opened ${stored.name}`);setTemplateLibraryStatus('');}catch(e){setTemplateLibraryStatus(e instanceof Error?e.message:'Unable to open saved template.');}};
  const deleteSavedTemplate=async(saved:DesignTemplate)=>{if(!window.confirm(`Delete “${saved.name}” from saved templates?`))return;try{await repo.delete(saved.id);const list=await refreshSavedTemplates();if(saved.id===template.id){const next=list[0]??fresh();if(list[0])await repo.setActiveId(next.id);else await repo.setActiveId(null);setTemplate(next);templateRef.current=next;resetHistory(next);const aid=[...next.artboards].sort((a,b)=>a.order-b.order)[0]?.id??'';setActiveId(aid);setSelectedArtboardIds([]);setSelection(emptySelection(aid));setDirty(!list[0]);}setTemplateLibraryStatus('Saved template deleted.');}catch(e){setTemplateLibraryStatus(e instanceof Error?e.message:'Unable to delete saved template.');}};
  const loadStarterTemplate=(starterId:(typeof DESIGN_STARTER_TEMPLATES)[number]['id'])=>{const starter=DESIGN_STARTER_TEMPLATES.find(x=>x.id===starterId);if(!starter)return;if(dirty&&!window.confirm(`Replace current unsaved design with ${starter.name}?`))return;const next=starter.create(id);setTemplate(next);templateRef.current=next;resetHistory(next);setActiveId(next.artboards[0]!.id);setSelection(emptySelection(next.artboards[0]!.id));setZoom(100);setDirty(true);setStatus(`${starter.name} template loaded`);};
  const loadCorporateIdTemplate=()=>loadStarterTemplate('corporate-employee-id-cr80');
@@ -306,7 +307,9 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
  const insertQr=()=>{if(!active)return;const eid=id('qr');mutate(t=>addDesignElement(t,active.id,createQrElement({id:eid,name:'QR Code',xMm:Math.max(2,(active.widthMm-20)/2),yMm:Math.max(2,(active.heightMm-20)/2),zIndex:nextElementZIndex(t,active.id)})));selectInserted(eid);};
  const insertBarcode=()=>{if(!active)return;const eid=id('barcode');mutate(t=>addDesignElement(t,active.id,createBarcodeElement({id:eid,name:'Barcode',xMm:Math.max(2,(active.widthMm-35)/2),yMm:Math.max(2,(active.heightMm-15)/2),zIndex:nextElementZIndex(t,active.id)})));selectInserted(eid);};
  const groupSelected=()=>{if(!active||selection.elementIds.length<2)return;const gid=id('group');mutate(t=>groupElements(t,active.id,selection.elementIds,gid,`Group ${active.groups.length+1}`));setSelection({...selection,elementIds:expandElementIdsToGroups({...active,groups:[...active.groups,{id:gid,name:`Group ${active.groups.length+1}`,elementIds:selection.elementIds}],elements:active.elements.map(e=>selection.elementIds.includes(e.id)?{...e,groupId:gid}:e)},selection.elementIds)});setStatus('Elements grouped');};
- const ungroupSelected=()=>{if(!active)return;const gids=[...new Set(selection.elementIds.map(eid=>groupForElement(active,eid)?.id).filter(Boolean) as string[])];if(!gids.length)return;mutate(t=>gids.reduce((acc,gid)=>ungroupElements(acc,active.id,gid),t));setStatus('Group removed');};
+ const ungroupSelected=()=>{if(!active)return;const groups=[...new Set(selection.elementIds.map(eid=>groupForElement(active,eid)?.id).filter(Boolean) as string[])].map(gid=>active.groups.find(g=>g.id===gid)).filter(Boolean) as Artboard['groups'];if(!groups.length)return;setRegroupHistory({artboardId:active.id,groups:groups.map(g=>({id:g.id,name:g.name,elementIds:[...g.elementIds],visible:g.visible??true,locked:g.locked??false,parentGroupId:g.parentGroupId}))});mutate(t=>groups.reduce((acc,g)=>ungroupElements(acc,active.id,g.id),t));setStatus(`${groups.length} group${groups.length===1?'':'s'} ungrouped · Regroup available`);};
+ const canRegroup=Boolean(active&&regroupHistory?.artboardId===active.id&&regroupHistory.groups.length&&regroupHistory.groups.every(g=>g.elementIds.every(eid=>{const element=active.elements.find(e=>e.id===eid);return Boolean(element&&!element.groupId);})));
+ const regroupSelected=()=>{if(!active||!regroupHistory||regroupHistory.artboardId!==active.id||!canRegroup)return;const ids=regroupHistory.groups.flatMap(g=>g.elementIds);mutate(t=>restoreGroups(t,active.id,regroupHistory.groups));setSelection({artboardId:active.id,elementIds:ids,primaryElementId:ids.length > 0 ? ids[ids.length - 1] : undefined});setRegroupHistory(null);setStatus('Previous group structure restored');};
  const duplicateSelected=()=>{if(!active||!selection.elementIds.length)return;let newIds:string[]=[];mutate(t=>{const r=duplicateDesignElements(t,active.id,expandElementIdsToGroups(active,selection.elementIds),()=>id('element-copy'));newIds=r.elementIds;return r.template;});setSelection({artboardId:active.id,elementIds:newIds,primaryElementId:newIds.length > 0 ? newIds[newIds.length - 1] : undefined});setStatus('Selection duplicated');};
  const uploadImage=async(file:File)=>{if(!active)return;if(!file.type.startsWith('image/')){setStatus('Select a supported image file.');return;}try{const dataUrl=await readAsDataUrl(file);const dims=await readImageDimensions(dataUrl);const assetId=id('asset'),elementId=id('image');const ratio=dims.widthPx>0&&dims.heightPx>0?dims.widthPx/dims.heightPx:1.4;const width=Math.min(40,Math.max(15,active.widthMm*.45)),height=Math.min(active.heightMm*.6,width/ratio);mutate(t=>{let next=addAssetReference(t,{id:assetId,name:file.name,kind:'IMAGE',sourceType:'DATA_URL',source:dataUrl,mimeType:file.type,widthPx:dims.widthPx,heightPx:dims.heightPx});next=addDesignElement(next,active.id,createImageElement(assetId,{id:elementId,name:file.name,xMm:Math.max(2,(active.widthMm-width)/2),yMm:Math.max(2,(active.heightMm-height)/2),widthMm:width,heightMm:height,zIndex:nextElementZIndex(next,active.id)}));return next;});selectInserted(elementId);}catch(e){setStatus(e instanceof Error?e.message:'Image upload failed');}};
 
@@ -702,13 +705,13 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
       header={
         <DesignerHeader
           title={template.name}
-          onBack={onHome}
           onTitleChange={newTitle => mutate(t => ({ ...t, name: newTitle }))}
           statusLabel="Draft"
           canUndo={historyRef.current.past.length > 0}
           canRedo={historyRef.current.future.length > 0}
           canCopy={selection.elementIds.length > 0}
           canPaste={!!clipboardRef.current}
+          onBack={onBack}
           onUndo={undo}
           onRedo={redo}
           onCopy={copySelected}
@@ -724,6 +727,7 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
           mode={toolbarMode}
           sourceArtboard={activeSource || active}
           sourceElements={selected.map(e => (activeSource?.elements || []).find(se => se.id === e.id) || e)}
+          primaryElementId={selection.primaryElementId}
           mutate={mutate}
           onGroupSelected={groupSelected}
           onUngroupSelected={ungroupSelected}
@@ -731,7 +735,11 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
           interactionMode={interactionMode}
           setInteractionMode={setInteractionMode}
           pathSelectedSegmentIds={pathSelectedSegmentIds}
+          setPathSelectedSegmentIds={setPathSelectedSegmentIds}
+          setPathSelectedNodeIds={setPathSelectedNodeIds}
           onMirrorInvoked={showMirrorGuide}
+          pathSymmetryMode={pathSymmetryMode}
+          setPathSymmetryMode={setPathSymmetryMode}
         />
       }
       statusBar={
@@ -798,7 +806,7 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
           </div>
         )}
         {leftMode === 'LAYERS' && (
-          <LayerPanel artboard={active} selection={selection} interactionMode={interactionMode} setSelection={setSelection} mutate={mutate} duplicateSelected={duplicateSelected} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/>
+          <LayerPanel artboard={active} selection={selection} interactionMode={interactionMode} setSelection={setSelection} mutate={mutate} duplicateSelected={duplicateSelected} groupSelected={groupSelected} ungroupSelected={ungroupSelected} regroupSelected={regroupSelected} canRegroup={canRegroup}/>
         )}
         {leftMode === 'ARTBOARDS' && (
           <div className="card-library-section card-artboards-section">
@@ -843,14 +851,15 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
       </DesignerLeftPanel>
       <div className="dg-designer-legacy-workspace">
         <input ref={uploadRef} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>{const f=e.target.files?.[0];if(f)void uploadImage(f);e.currentTarget.value='';}}/>
-   <section className="card-canvas-column"><div className="card-canvas-toolbar"><div className="canvas-artboard-name"><MonitorUp size={15}/><strong>{active.name}</strong><span>{active.widthMm} × {active.heightMm} mm</span></div><div className="canvas-zoom-controls"><button className={interactionMode === 'PEN' ? 'active' : ''} title="Pen Tool (Draw Paths)" style={{color: interactionMode === 'PEN' ? 'var(--accent-color)' : 'inherit', fontWeight: interactionMode === 'PEN' ? 'bold' : 'normal'}} onClick={() => setInteractionMode(interactionMode === 'PEN' ? 'SELECT' : 'PEN')}>Pen Tool</button><button className={snapEnabled?'active':''} title="Smart snapping. Hold Alt while dragging to temporarily bypass." onClick={()=>setSnapEnabled(v=>!v)}>Snap {snapEnabled?'On':'Off'}</button><label className="card-toolbar-check" title="Show measurement rulers around the artboard."><input type="checkbox" checked={showRulers} onChange={e=>setShowRulers(e.target.checked)}/>Rulers</label><label className="card-toolbar-check" title="Show editor-only grid."><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/>Grid</label><label className="card-toolbar-check" title="Show conditionally hidden elements as ghosted."><input type="checkbox" checked={showHiddenElements} onChange={e=>setShowHiddenElements(e.target.checked)}/>Hidden</label><label className="card-toolbar-check" title="Snap elements to the configured grid."><input type="checkbox" checked={gridSnapEnabled} onChange={e=>setGridSnapEnabled(e.target.checked)}/>Snap Grid</label><label className="card-toolbar-check" title="Snap elements to custom guides."><input type="checkbox" checked={guideSnapEnabled} onChange={e=>setGuideSnapEnabled(e.target.checked)}/>Snap Guides</label><label className="card-grid-size-control" title="Grid spacing"><span>Grid</span><input type="number" min="0.5" step="0.5" value={normalizeDisplayValue(mmToUnit(gridSizeMm,active.displayUnit))} onChange={e=>{const next=unitToMm(Number(e.target.value),active.displayUnit);if(Number.isFinite(next)&&next>=0.5)setGridSizeMm(next);}}/><small>{active.displayUnit==='MM'?'mm':'in'}</small></label><button title="Lock or unlock all guides" className={active.guides.length&&active.guides.every(g=>g.locked)?'active':''} onClick={()=>mutate(t=>setAllGuidesLocked(t,active.id,!active.guides.every(g=>g.locked)))} disabled={!active.guides.length}>{active.guides.length&&active.guides.every(g=>g.locked)?'Unlock Guides':'Lock Guides'}</button><button title="Clear unlocked guides" onClick={()=>mutate(t=>clearGuides(t,active.id))} disabled={!active.guides.some(g=>!g.locked)}>Clear Guides</button><button onClick={()=>setZoom(z=>clamp(z-10,MIN_ZOOM,MAX_ZOOM))}><Minus size={15}/></button><span>{zoom}%</span><button onClick={()=>setZoom(z=>clamp(z+10,MIN_ZOOM,MAX_ZOOM))}><Plus size={15}/></button><button onClick={()=>setZoom(100)}><RotateCcw size={14}/>Actual</button><button onClick={fit}><Maximize2 size={14}/>Fit</button></div></div>
+   <section className="card-canvas-column"><div className="card-canvas-toolbar"><div className="canvas-artboard-name"><MonitorUp size={15}/><strong>{active.name}</strong><span>{active.widthMm} × {active.heightMm} mm</span></div><div className="canvas-zoom-controls"><button className={interactionMode === 'PEN' ? 'active' : ''} title="Pen Tool (Draw Paths)" style={{color: interactionMode === 'PEN' ? 'var(--accent-color)' : 'inherit', fontWeight: interactionMode === 'PEN' ? 'bold' : 'normal'}} onClick={() => setInteractionMode(interactionMode === 'PEN' ? 'SELECT' : 'PEN')}>Pen Tool</button><button className={snapEnabled?'active':''} title="Smart snapping. Hold Alt while dragging to temporarily bypass." onClick={()=>setSnapEnabled(v=>!v)}>Snap {snapEnabled?'On':'Off'}</button><label className="card-toolbar-check" title="Show measurement rulers around the artboard."><input type="checkbox" checked={showRulers} onChange={e=>setShowRulers(e.target.checked)}/>Rulers</label><label className="card-toolbar-check" title="Show editor-only grid."><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/>Grid</label><label className="card-toolbar-check" title="Show conditionally hidden elements as ghosted."><input type="checkbox" checked={showHiddenElements} onChange={e=>setShowHiddenElements(e.target.checked)}/>Hidden</label><label className="card-toolbar-check" title="Snap elements to the configured grid."><input type="checkbox" checked={gridSnapEnabled} onChange={e=>setGridSnapEnabled(e.target.checked)}/>Snap Grid</label><label className="card-toolbar-check" title="Snap elements to custom guides."><input type="checkbox" checked={guideSnapEnabled} onChange={e=>setGuideSnapEnabled(e.target.checked)}/>Snap Guides</label><label className="card-toolbar-check" title="Show editor-only artboard and shape center guides."><input type="checkbox" checked={showSmartCenters} onChange={e=>setShowSmartCenters(e.target.checked)}/>Centers</label><label className="card-grid-size-control" title="Grid spacing"><span>Grid</span><input type="number" min="0.5" step="0.5" value={normalizeDisplayValue(mmToUnit(gridSizeMm,active.displayUnit))} onChange={e=>{const next=unitToMm(Number(e.target.value),active.displayUnit);if(Number.isFinite(next)&&next>=0.5)setGridSizeMm(next);}}/><small>{active.displayUnit==='MM'?'mm':'in'}</small></label><button title="Lock or unlock all guides" className={active.guides.length&&active.guides.every(g=>g.locked)?'active':''} onClick={()=>mutate(t=>setAllGuidesLocked(t,active.id,!active.guides.every(g=>g.locked)))} disabled={!active.guides.length}>{active.guides.length&&active.guides.every(g=>g.locked)?'Unlock Guides':'Lock Guides'}</button><button title="Clear unlocked guides" onClick={()=>mutate(t=>clearGuides(t,active.id))} disabled={!active.guides.some(g=>!g.locked)}>Clear Guides</button><button onClick={()=>setZoom(z=>clamp(z-10,MIN_ZOOM,MAX_ZOOM))}><Minus size={15}/></button><span>{zoom}%</span><button onClick={()=>setZoom(z=>clamp(z+10,MIN_ZOOM,MAX_ZOOM))}><Plus size={15}/></button><button onClick={()=>setZoom(100)}><RotateCcw size={14}/>Actual</button><button onClick={fit}><Maximize2 size={14}/>Fit</button></div></div>
     {recordCount > 0 && <div className="card-record-navigator" role="navigation" aria-label="Record preview navigation" style={{display:'flex',alignItems:'center',gap:'8px',padding:'4px 12px',background:'var(--bg-secondary)',borderBottom:'1px solid var(--border-color)',fontSize:'12px',minHeight:'30px'}}><span style={{color:'var(--text-secondary)',fontWeight:600}}>Preview:</span><button aria-label="Previous record" title="Previous record" disabled={safePreviewIndex<=0||previewContextSource==='MANUAL'} onClick={()=>navigatePreviewRecord(-1)} style={{padding:'2px 8px',minWidth:'28px'}}>‹</button><select aria-label="Jump to record" value={safePreviewIndex} disabled={previewContextSource==='MANUAL'} onChange={e=>setPreviewRecordIndex(Number(e.target.value))} style={{fontSize:'12px',padding:'1px 4px',maxWidth:'140px'}} title="Jump to record"><option value={safePreviewIndex}>{getRecordDisplayLabel(currentPreviewRecord as Record<string,unknown>, safePreviewIndex)}</option>{importedRows.map((_,i)=>i!==safePreviewIndex&&<option key={i} value={i}>{getRecordDisplayLabel(importedRows[i] as Record<string,unknown>,i)}</option>)}</select><span style={{color:'var(--text-secondary)'}}>{safePreviewIndex+1} of {recordCount}</span><button aria-label="Next record" title="Next record" disabled={safePreviewIndex>=recordCount-1||previewContextSource==='MANUAL'} onClick={()=>navigatePreviewRecord(1)} style={{padding:'2px 8px',minWidth:'28px'}}>›</button>{previewContextSource==='MANUAL'&&<span style={{color:'var(--accent-color)',fontSize:'11px'}}>Manual override active</span>}</div>}
     <div ref={viewport} className={`card-canvas-viewport ${space?'pan-ready':''}`} onWheel={zoomAtPointer} onPointerDown={e=>{if(!space&&e.button!==1)return;const v=viewport.current;if(!v)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);pan.current={x:e.clientX,y:e.clientY,left:v.scrollLeft,top:v.scrollTop};}} onPointerMove={e=>{const v=viewport.current,p=pan.current;if(!v||!p)return;v.scrollLeft=p.left-(e.clientX-p.x);v.scrollTop=p.top-(e.clientY-p.y);}} onPointerUp={()=>pan.current=null} onPointerCancel={()=>pan.current=null}>
       <div className="card-canvas-stage" style={{minWidth:`max(100%, ${active.widthMm*MM_TO_CSS_PX*(zoom/100)+160}px)`,minHeight:`max(100%, ${active.heightMm*MM_TO_CSS_PX*(zoom/100)+160}px)`}}>
-        <CardArtboardCanvas artboard={active} assets={template.sharedAssets} zoom={zoom} selection={selection} setSelection={setSelection} interactionMode={interactionMode} setInteractionMode={setInteractionMode} fillBucketType={fillBucketType} fillBucketColor={fillBucketColor} drawShapeType={drawShapeType} pathSelectedNodeIds={pathSelectedNodeIds} setPathSelectedNodeIds={setPathSelectedNodeIds} pathSelectedSegmentIds={pathSelectedSegmentIds} setPathSelectedSegmentIds={setPathSelectedSegmentIds} mutate={mutateTransient} commitMutate={mutate} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} showRulers={showRulers} showGrid={showGrid} showHiddenElements={showHiddenElements} gridSizeMm={gridSizeMm} setStatus={setStatus} mirrorGuideAxis={mirrorGuideAxis}/>
+        <CardArtboardCanvas artboard={active} assets={template.sharedAssets} zoom={zoom} selection={selection} setSelection={setSelection} interactionMode={interactionMode} setInteractionMode={setInteractionMode} fillBucketType={fillBucketType} fillBucketColor={fillBucketColor} drawShapeType={drawShapeType} pathSelectedNodeIds={pathSelectedNodeIds} setPathSelectedNodeIds={setPathSelectedNodeIds} pathSelectedSegmentIds={pathSelectedSegmentIds} setPathSelectedSegmentIds={setPathSelectedSegmentIds} mutate={mutateTransient} commitMutate={mutate} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} showRulers={showRulers} showGrid={showGrid} showHiddenElements={showHiddenElements} gridSizeMm={gridSizeMm} setStatus={setStatus} mirrorGuideAxis={mirrorGuideAxis} showSmartCenters={showSmartCenters} pathSymmetryMode={pathSymmetryMode}/>
       </div>
       {interactionMode === 'PEN' && <div className="card-micro-hint" style={{position:'absolute',top:'20px',left:'50%',transform:'translateX(-50%)',background:'var(--accent-color)',color:'white',padding:'6px 12px',borderRadius:'16px',fontSize:'12px',display:'flex',alignItems:'center',gap:'6px',pointerEvents:'none',zIndex:1000,boxShadow:'0 2px 8px rgba(0,0,0,0.2)'}}><PenLine size={14}/> Click to add point. Click and drag for curves. Enter to finish.</div>}
       {interactionMode === 'SCISSORS' && <div className="card-micro-hint" style={{position:'absolute',top:'20px',left:'50%',transform:'translateX(-50%)',background:'var(--accent-color)',color:'white',padding:'6px 12px',borderRadius:'16px',fontSize:'12px',display:'flex',alignItems:'center',gap:'6px',pointerEvents:'none',zIndex:1000,boxShadow:'0 2px 8px rgba(0,0,0,0.2)'}}><Scissors size={14}/> Click a path segment to cut it.</div>}
+      {interactionMode === 'SPLIT' && <div className="card-micro-hint" style={{position:'absolute',top:'20px',left:'50%',transform:'translateX(-50%)',background:'var(--accent-color)',color:'white',padding:'6px 12px',borderRadius:'16px',fontSize:'12px',display:'flex',alignItems:'center',gap:'6px',pointerEvents:'none',zIndex:1000,boxShadow:'0 2px 8px rgba(0,0,0,0.2)'}}><Scissors size={14}/> SPLIT — Snap start and end points to a closed shape boundary.</div>}
       {interactionMode === 'TRIMMER' && <div className="card-micro-hint" style={{position:'absolute',top:'20px',left:'50%',transform:'translateX(-50%)',background:'var(--accent-color)',color:'white',padding:'6px 12px',borderRadius:'16px',fontSize:'12px',display:'flex',alignItems:'center',gap:'6px',pointerEvents:'none',zIndex:1000,boxShadow:'0 2px 8px rgba(0,0,0,0.2)'}}><BetweenHorizontalStart size={14}/> ERASE SEGMENT — Select interval or first point · Shift+click for manual range</div>}
       {interactionMode === 'EDIT_PATH' && <div className="card-micro-hint" style={{position:'absolute',top:'20px',left:'50%',transform:'translateX(-50%)',background:'var(--accent-color)',color:'white',padding:'6px 12px',borderRadius:'16px',fontSize:'12px',display:'flex',alignItems:'center',gap:'6px',pointerEvents:'none',zIndex:1000,boxShadow:'0 2px 8px rgba(0,0,0,0.2)'}}><MousePointer2 size={14}/> Drag nodes/handles to adjust. Double-click to exit.</div>}
     </div>
@@ -863,7 +872,7 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
       <div className="dg-designer-inspector-layout">
         <DesignerInspector collapsed={inspectorCollapsed}>
           {primary&&effectiveInspectorSection==='GENERAL'&&<div className="card-style-actions"><button onClick={copyStyle}>Copy Style</button><button onClick={pasteStyle} disabled={!styleClipboardRef.current}>Paste Style</button><button onClick={resetStyle}>Reset Style</button></div>}
-          {selected.length>1?<><BatchOpacityProperties elements={selected} artboard={active} mutate={mutate}/><MultiSelectionProperties elements={selected} artboard={active} mutate={mutate} groupSelected={groupSelected} ungroupSelected={ungroupSelected}/></>:primary?<ElementProperties element={primary} asset={primary.type==='IMAGE'||primary.type==='SVG'?template.sharedAssets.find(asset=>asset.id===primary.assetId):undefined} assets={template.sharedAssets} artboard={active} mutate={mutate} availableFields={availableFields} datasourceStatus={datasourceStatus}/>:selectedArtboardIds.length>1?<MultiArtboardProperties artboards={template.artboards.filter(a=>selectedArtboardIds.includes(a.id))} mutate={mutate}/>:<><Properties artboard={active} template={template} mutate={mutate}/><PrintProperties artboard={active} assets={template.sharedAssets} mutate={mutate}/></>}
+          {selected.length>1?<><BatchOpacityProperties elements={selected} artboard={active} mutate={mutate}/><MultiSelectionProperties elements={selected} primaryElementId={selection.primaryElementId} artboard={active} mutate={mutate} groupSelected={groupSelected} ungroupSelected={ungroupSelected} regroupSelected={regroupSelected} canRegroup={canRegroup}/></>:primary?<ElementProperties element={primary} asset={primary.type==='IMAGE'||primary.type==='SVG'?template.sharedAssets.find(asset=>asset.id===primary.assetId):undefined} assets={template.sharedAssets} artboard={active} mutate={mutate} availableFields={availableFields} datasourceStatus={datasourceStatus}/>:selectedArtboardIds.length>1?<MultiArtboardProperties artboards={template.artboards.filter(a=>selectedArtboardIds.includes(a.id))} mutate={mutate}/>:<><Properties artboard={active} template={template} mutate={mutate} availableFields={availableFields} datasourceStatus={datasourceStatus}/><PrintProperties artboard={active} assets={template.sharedAssets} mutate={mutate}/></>}
           {effectiveInspectorSection==='DATA_BINDING'&&<PreviewDataPanel dataContext={dataContext} setDataContext={setDataContext} previewContextSource={previewContextSource} setPreviewContextSource={setPreviewContextSource} importedRecord={importedRecord} />}
         </DesignerInspector>
         <DesignerInspectorRail activeSection={effectiveInspectorSection} onSectionChange={(s: InspectorSectionKey) => { setActiveInspectorSection(s); setInspectorCollapsed(false); }} availableSections={availableSectionsForSelection} onCollapse={() => setInspectorCollapsed(true)} />
@@ -876,7 +885,6 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
     <div className="export-dialog-overlay" style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:999,display:'grid',placeItems:'center'}} onClick={e=>{if(e.target===e.currentTarget)handleCancelExport();}}>
       <div className="export-dialog" style={{background:'var(--bg-primary)',padding:'20px',borderRadius:'8px',width:'420px',maxHeight:'90vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:'14px'}}>
         <h3 style={{margin:0}}>Export</h3>
-        {artboards.some(a=>a.colorSettings?.previewMode==='CMYK'&&a.colorSettings.warnOnRgbExport!==false)&&<div className="card-property-note"><strong>CMYK preview warning</strong><span>This lightweight soft-proof is editor-only. PDF/PNG/JPEG output is RGB because full ICC conversion is outside the current scope.</span></div>}
         <label>Format: <select value={exportFormat} onChange={e=>setExportFormat(e.target.value as any)}><option>PDF</option><option>PNG</option><option>JPEG</option></select></label>
         <label>Artboard Target: <select value={exportTargetMode} onChange={e=>setExportTargetMode(e.target.value as any)}><option value="CURRENT">Current Artboard</option><option value="SELECTED" disabled={!selectedArtboardIds.length}>Selected Artboards ({selectedArtboardIds.length})</option><option value="ALL">All Artboards ({artboards.length})</option></select></label>
         <label><input type="checkbox" checked={exportIncludeBleed} onChange={e=>setExportIncludeBleed(e.target.checked)}/> Include Bleed</label>
@@ -1023,8 +1031,7 @@ export function CardDesigner({onHome}:{onHome?:()=>void}={}){
  </div></DesignerShell>);
 }
 
-type DrawDraft={startX:number;startY:number;currentX:number;currentY:number;shapeType:DesignShapeKind;isShift:boolean;pointerIsDown:boolean;movedDuringPress:boolean;splitOnly?:boolean;startSnap?:PointSnapResult;currentSnap?:PointSnapResult};
-function constrainPointToAngle(start:{x:number;y:number},target:{xMm:number;yMm:number},incrementDeg=45){const dx=target.xMm-start.x,dy=target.yMm-start.y,distance=Math.hypot(dx,dy),rawDeg=Math.atan2(dy,dx)*180/Math.PI,angleDeg=Math.round(rawDeg/incrementDeg)*incrementDeg,radians=angleDeg*Math.PI/180;return{xMm:start.x+Math.cos(radians)*distance,yMm:start.y+Math.sin(radians)*distance,angleDeg:((angleDeg%360)+360)%360};}
+type DrawDraft={startX:number;startY:number;currentX:number;currentY:number;shapeType:DesignShapeKind;intent?:'DRAW'|'SPLIT';isShift:boolean;pointerIsDown:boolean;movedDuringPress:boolean;startSnap?:PointSnapResult;currentSnap?:PointSnapResult};
 
 type EraserPoint={xMm:number;yMm:number};
 type SpacingGuide={axis:'X'|'Y';fromMm:number;toMm:number;crossMm:number;gapMm:number};
@@ -1038,19 +1045,10 @@ function pointInPolygon(point:EraserPoint, polygon:EraserPoint[]):boolean{
   }
   return inside;
 }
-const FILL_BOUNDARY_CLOSE_EPS_MM=.1;
-function fillableClosedGeometry(element:DesignElement){
- if(element.type==='SHAPE')return shapeToPathGeometry(element.shape,element.size);
- if(element.type!=='PATH'||!element.geometry.segments.length)return undefined;
- if(element.geometry.closed)return element.geometry;
- const endpoints=getPathEndpoints(element.geometry);if(endpoints.length!==2)return undefined;
- const start=element.geometry.points.find(point=>point.id===endpoints[0]),end=element.geometry.points.find(point=>point.id===endpoints[1]);
- return start&&end&&Math.hypot(start.x-end.x,start.y-end.y)<=FILL_BOUNDARY_CLOSE_EPS_MM?closePathGeometry(element.geometry):undefined;
-}
 function fillableElementContainsPoint(element:DesignElement,world:EraserPoint):boolean{
  if(element.type!=='PATH'&&element.type!=='SHAPE')return false;
- const geometry=fillableClosedGeometry(element);
- if(!geometry?.closed||!geometry.segments.length)return false;
+ const geometry=element.type==='PATH'?element.geometry:shapeToPathGeometry(element.shape,element.size);
+ if(!geometry.closed||!geometry.segments.length)return false;
  const local=worldToLocal({x:world.xMm,y:world.yMm},element);
  const byId=new Map(geometry.points.map(point=>[point.id,point]));
  const polygon:EraserPoint[]=[];
@@ -1065,23 +1063,6 @@ function fillableElementContainsPoint(element:DesignElement,world:EraserPoint):b
   }
  }
  return polygon.length>=3&&pointInPolygon({xMm:local.x,yMm:local.y},polygon);
-}
-function joinedLineRegionAtPoint(elements:DesignElement[],world:EraserPoint,toleranceMm=.25){
- type Node={x:number;y:number};type Edge={a:number;b:number;sourceId:string};
- const nodes:Node[]=[],edges:Edge[]=[];
- const nodeFor=(point:{x:number;y:number})=>{const found=nodes.findIndex(node=>Math.hypot(node.x-point.x,node.y-point.y)<=toleranceMm);if(found>=0){const node=nodes[found]!;node.x=(node.x+point.x)/2;node.y=(node.y+point.y)/2;return found;}nodes.push({...point});return nodes.length-1;};
- for(const element of elements){if(element.type!=='PATH'||element.geometry.closed||!element.visible||element.runtimeHidden)continue;const byId=new Map(element.geometry.points.map(point=>[point.id,point]));for(const segment of element.geometry.segments){if(segment.type!=='LINE')continue;const from=byId.get(segment.fromPointId),to=byId.get(segment.toPointId);if(!from||!to)continue;const a=nodeFor(localToWorld({x:from.x,y:from.y},element)),b=nodeFor(localToWorld({x:to.x,y:to.y},element));if(a!==b&&!edges.some(edge=>(edge.a===a&&edge.b===b)||(edge.a===b&&edge.b===a)))edges.push({a,b,sourceId:element.id});}}
- if(nodes.length<3||edges.length<3||nodes.length>80)return undefined;
- const adjacent=new Map<number,number[]>();for(const edge of edges){adjacent.set(edge.a,[...(adjacent.get(edge.a)??[]),edge.b]);adjacent.set(edge.b,[...(adjacent.get(edge.b)??[]),edge.a]);}
- const cycles:number[][]=[],keys=new Set<string>();
- const canonical=(cycle:number[])=>{const variants:number[][]=[];for(const values of [cycle,[...cycle].reverse()])for(let i=0;i<values.length;i++)variants.push([...values.slice(i),...values.slice(0,i)]);return variants.map(value=>value.join('-')).sort()[0]!;};
- const visit=(start:number,current:number,path:number[],seen:Set<number>)=>{if(cycles.length>500)return;for(const next of adjacent.get(current)??[]){if(next===start&&path.length>=3){const key=canonical(path);if(!keys.has(key)){keys.add(key);cycles.push([...path]);}continue;}if(seen.has(next)||path.length>=nodes.length||next<start)continue;seen.add(next);path.push(next);visit(start,next,path,seen);path.pop();seen.delete(next);}};
- for(let start=0;start<nodes.length;start++)visit(start,start,[start],new Set([start]));
- const candidates=cycles.map(cycle=>{const polygon=cycle.map(index=>({xMm:nodes[index]!.x,yMm:nodes[index]!.y}));const signed=polygon.reduce((sum,point,index)=>{const next=polygon[(index+1)%polygon.length]!;return sum+point.xMm*next.yMm-next.xMm*point.yMm;},0)/2;return{cycle,polygon,area:Math.abs(signed)};}).filter(candidate=>candidate.area>.01&&pointInPolygon(world,candidate.polygon)).sort((a,b)=>a.area-b.area);
- const selected=candidates[0];if(!selected)return undefined;
- const minX=Math.min(...selected.polygon.map(point=>point.xMm)),minY=Math.min(...selected.polygon.map(point=>point.yMm)),maxX=Math.max(...selected.polygon.map(point=>point.xMm)),maxY=Math.max(...selected.polygon.map(point=>point.yMm));
- const pointIds=selected.polygon.map(()=>id('fill-point'));
- return{position:{xMm:minX,yMm:minY},size:{widthMm:Math.max(.1,maxX-minX),heightMm:Math.max(.1,maxY-minY)},geometry:{points:selected.polygon.map((point,index)=>({id:pointIds[index]!,x:point.xMm-minX,y:point.yMm-minY,mode:'CORNER' as const})),segments:pointIds.map((pointId,index)=>({id:id('fill-segment'),type:'LINE' as const,fromPointId:pointId,toPointId:pointIds[(index+1)%pointIds.length]!})),closed:true},sourceIds:[...new Set(edges.filter(edge=>selected.cycle.includes(edge.a)&&selected.cycle.includes(edge.b)).map(edge=>edge.sourceId))]};
 }
 function segmentsIntersect(a:EraserPoint,b:EraserPoint,c:EraserPoint,d:EraserPoint):boolean{
   const cross=(p:EraserPoint,q:EraserPoint,r:EraserPoint)=>(q.xMm-p.xMm)*(r.yMm-p.yMm)-(q.yMm-p.yMm)*(r.xMm-p.xMm);
@@ -1125,18 +1106,32 @@ function equalSpacingSnap(artboard:Artboard,elementIds:string[],rawDelta:{xMm:nu
   }
   return{delta:{xMm:dx,yMm:dy},guides};
 }
-type Op={mode:'MOVE';lastX:number;lastY:number;ids:string[]}|{mode:'RESIZE';element:DesignElement;anchor:'NW'|'N'|'NE'|'E'|'SE'|'S'|'SW'|'W';startX:number;startY:number;keepAspect:boolean}|{mode:'ROTATE';element:DesignElement;startAngle:number;startRotation:number}|{mode:'PEN_DRAG';pathId:string;pointId:string;startX:number;startY:number}|{mode:'ERASER_LASSO'}|({mode:'DRAW_SHAPE_DRAG'}&DrawDraft);
-function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interactionMode,setInteractionMode,fillBucketType,fillBucketColor,drawShapeType,pathSelectedNodeIds,setPathSelectedNodeIds,pathSelectedSegmentIds,setPathSelectedSegmentIds,mutate,commitMutate,beginHistoryTransaction,endHistoryTransaction,snapEnabled,gridSnapEnabled,guideSnapEnabled,showRulers,showGrid,showHiddenElements,gridSizeMm,setStatus,mirrorGuideAxis}:{artboard:Artboard;assets:DesignTemplate['sharedAssets'];zoom:number;selection:DesignSelectionState;setSelection:(s:DesignSelectionState)=>void;interactionMode:'SELECT'|'EDIT_PATH'|'SCISSORS'|'PEN'|'TRIMMER'|'ERASER'|'FILL_BUCKET'|'DRAW_SHAPE'|'FLEXIBLE_LINE'|'SPLIT';setInteractionMode:(m:'SELECT'|'EDIT_PATH'|'SCISSORS'|'PEN'|'TRIMMER'|'ERASER'|'FILL_BUCKET'|'DRAW_SHAPE'|'FLEXIBLE_LINE'|'SPLIT')=>void;fillBucketType:'SOLID'|'NONE';fillBucketColor:string;drawShapeType:DesignShapeKind|null;pathSelectedNodeIds:string[];setPathSelectedNodeIds:(m:string[])=>void;pathSelectedSegmentIds:string[];setPathSelectedSegmentIds:(m:string[])=>void;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;commitMutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;beginHistoryTransaction:()=>void;endHistoryTransaction:()=>void;snapEnabled:boolean;gridSnapEnabled:boolean;guideSnapEnabled:boolean;showRulers:boolean;showGrid:boolean;showHiddenElements:boolean;gridSizeMm:number;setStatus:(message:string)=>void;mirrorGuideAxis:'HORIZONTAL'|'VERTICAL'|null}){
+function artboardSymmetrySnap(artboard:Artboard,elementIds:string[],rawDelta:{xMm:number;yMm:number},toleranceMm:number):{delta:{xMm:number;yMm:number};guides:SpacingGuide[]}{
+ const moving=artboard.elements.filter(e=>elementIds.includes(e.id)&&e.visible&&!e.locked),bounds=getSelectionBounds(moving);if(!bounds)return{delta:rawDelta,guides:[]};
+ const staticEls=artboard.elements.filter(e=>!elementIds.includes(e.id)&&e.visible&&!e.runtimeHidden);
+ const movedCenter={x:bounds.xMm+bounds.widthMm/2+rawDelta.xMm,y:bounds.yMm+bounds.heightMm/2+rawDelta.yMm};
+ const boardCenter={x:artboard.widthMm/2,y:artboard.heightMm/2};let dx=rawDelta.xMm,dy=rawDelta.yMm;const guides:SpacingGuide[]=[];
+ let bestX:{correction:number;source:number;target:number;cross:number}|undefined;
+ let bestY:{correction:number;source:number;target:number;cross:number}|undefined;
+ for(const e of staticEls){
+  const cx=e.position.xMm+e.size.widthMm/2,cy=e.position.yMm+e.size.heightMm/2;
+  const mirrorX=2*boardCenter.x-cx,correctionX=mirrorX-movedCenter.x;
+  if(Math.abs(correctionX)<=toleranceMm&&(!bestX||Math.abs(correctionX)<Math.abs(bestX.correction)))bestX={correction:correctionX,source:cx,target:mirrorX,cross:(cy+movedCenter.y)/2};
+  const mirrorY=2*boardCenter.y-cy,correctionY=mirrorY-movedCenter.y;
+  if(Math.abs(correctionY)<=toleranceMm&&(!bestY||Math.abs(correctionY)<Math.abs(bestY.correction)))bestY={correction:correctionY,source:cy,target:mirrorY,cross:(cx+movedCenter.x)/2};
+ }
+ if(bestX){dx+=bestX.correction;const gap=Math.abs(bestX.source-boardCenter.x);guides.push({axis:'X',fromMm:Math.min(bestX.source,boardCenter.x),toMm:Math.max(bestX.source,boardCenter.x),crossMm:movedCenter.y,gapMm:gap},{axis:'X',fromMm:Math.min(boardCenter.x,bestX.target),toMm:Math.max(boardCenter.x,bestX.target),crossMm:movedCenter.y,gapMm:gap});}
+ if(bestY){dy+=bestY.correction;const gap=Math.abs(bestY.source-boardCenter.y);guides.push({axis:'Y',fromMm:Math.min(bestY.source,boardCenter.y),toMm:Math.max(bestY.source,boardCenter.y),crossMm:movedCenter.x,gapMm:gap},{axis:'Y',fromMm:Math.min(boardCenter.y,bestY.target),toMm:Math.max(boardCenter.y,bestY.target),crossMm:movedCenter.x,gapMm:gap});}
+ return{delta:{xMm:dx,yMm:dy},guides};
+}
+type Op={mode:'MOVE';lastX:number;lastY:number;ids:string[]}|{mode:'RESIZE';element:DesignElement;anchor:'NW'|'N'|'NE'|'E'|'SE'|'S'|'SW'|'W';startX:number;startY:number;defaultKeepAspect:boolean;centerBased:boolean}|{mode:'MULTI_RESIZE';elements:DesignElement[];bounds:DesignRectMm;anchor:'NW'|'N'|'NE'|'E'|'SE'|'S'|'SW'|'W';startX:number;startY:number}|{mode:'ROTATE';element:DesignElement;startAngle:number;startRotation:number}|{mode:'PEN_DRAG';pathId:string;pointId:string;startX:number;startY:number}|{mode:'ERASER_LASSO'}|({mode:'DRAW_SHAPE_DRAG'}&DrawDraft);
+function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interactionMode,setInteractionMode,fillBucketType,fillBucketColor,drawShapeType,pathSelectedNodeIds,setPathSelectedNodeIds,pathSelectedSegmentIds,setPathSelectedSegmentIds,mutate,commitMutate,beginHistoryTransaction,endHistoryTransaction,snapEnabled,gridSnapEnabled,guideSnapEnabled,showRulers,showGrid,showHiddenElements,gridSizeMm,setStatus,mirrorGuideAxis,showSmartCenters,pathSymmetryMode}:{artboard:Artboard;assets:DesignTemplate['sharedAssets'];zoom:number;selection:DesignSelectionState;setSelection:(s:DesignSelectionState)=>void;interactionMode:'SELECT'|'EDIT_PATH'|'SCISSORS'|'PEN'|'TRIMMER'|'SPLIT'|'ERASER'|'FILL_BUCKET'|'DRAW_SHAPE'|'FLEXIBLE_LINE';setInteractionMode:(m:'SELECT'|'EDIT_PATH'|'SCISSORS'|'PEN'|'TRIMMER'|'SPLIT'|'ERASER'|'FILL_BUCKET'|'DRAW_SHAPE'|'FLEXIBLE_LINE')=>void;fillBucketType:'SOLID'|'NONE';fillBucketColor:string;drawShapeType:DesignShapeKind|null;pathSelectedNodeIds:string[];setPathSelectedNodeIds:React.Dispatch<React.SetStateAction<string[]>>;pathSelectedSegmentIds:string[];setPathSelectedSegmentIds:(m:string[])=>void;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;commitMutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;beginHistoryTransaction:()=>void;endHistoryTransaction:()=>void;snapEnabled:boolean;gridSnapEnabled:boolean;guideSnapEnabled:boolean;showRulers:boolean;showGrid:boolean;showHiddenElements:boolean;gridSizeMm:number;setStatus:(message:string)=>void;mirrorGuideAxis:'HORIZONTAL'|'VERTICAL'|null;showSmartCenters:boolean;pathSymmetryMode:'OFF'|'H'|'V'}){
  const canvas=useRef<HTMLDivElement|null>(null);const interaction=useRef<Op|null>(null);const marquee=useRef<{startX:number;startY:number;add:boolean}|null>(null);const guideDrag=useRef<{id:string;orientation:'VERTICAL'|'HORIZONTAL';creating:boolean}|null>(null);const [guidePreview,setGuidePreview]=useState<{orientation:'VERTICAL'|'HORIZONTAL';positionMm:number}|null>(null);const [marqueeRect,setMarqueeRect]=useState<DesignRectMm|null>(null);const [snapGuides,setSnapGuides]=useState<SnapGuideIndicator[]>([]);const eraserPointsRef=useRef<EraserPoint[]>([]);const [eraserPoints,setEraserPoints]=useState<EraserPoint[]>([]);const [spacingGuides,setSpacingGuides]=useState<Array<{axis:'X'|'Y';fromMm:number;toMm:number;crossMm:number;gapMm:number}>>([]);
- const [penHover, setPenHover] = useState<{xMm:number;yMm:number;angleLocked?:boolean;angleDeg?:number} | null>(null);
- const activePolylineSession=useRef<{tool:'PEN'|'FLEXIBLE_LINE';pathId:string}|null>(null);
- const [polylineSessionVersion,setPolylineSessionVersion]=useState(0);
+ const [penHover, setPenHover] = useState<{xMm: number, yMm: number} | null>(null);
  const [boundarySnap,setBoundarySnap]=useState<PointSnapResult|null>(null);
  const [boundaryHover,setBoundaryHover]=useState<BoundarySnap|null>(null);
  const [drawDraft,setDrawDraft]=useState<DrawDraft|null>(null);
- const resetPolylineSession=()=>{activePolylineSession.current=null;if(interaction.current?.mode==='PEN_DRAG')interaction.current=null;setPenHover(null);setPolylineSessionVersion(version=>version+1);};
- useEffect(()=>{const session=activePolylineSession.current;if(session&&interactionMode!==session.tool)resetPolylineSession();if(interactionMode!=='DRAW_SHAPE'&&interactionMode!=='SPLIT'){setDrawDraft(null);if(interaction.current?.mode==='DRAW_SHAPE_DRAG')interaction.current=null;}if(interactionMode!=='PEN'&&interactionMode!=='FLEXIBLE_LINE'&&interactionMode!=='DRAW_SHAPE'&&interactionMode!=='SPLIT'){setBoundarySnap(null);setBoundaryHover(null);}if(interactionMode!=='ERASER'){eraserPointsRef.current=[];setEraserPoints([]);}if(interactionMode!=='SELECT')setSpacingGuides([]);},[interactionMode]);
- useEffect(()=>{const finish=(event:KeyboardEvent)=>{if((event.key==='Enter'||event.key==='Escape')&&(interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE'))resetPolylineSession();};window.addEventListener('keydown',finish);return()=>window.removeEventListener('keydown',finish);},[interactionMode]);
+ useEffect(()=>{if(interactionMode!=='DRAW_SHAPE'&&interactionMode!=='SPLIT'){setDrawDraft(null);if(interaction.current?.mode==='DRAW_SHAPE_DRAG')interaction.current=null;}if(interactionMode!=='PEN'&&interactionMode!=='FLEXIBLE_LINE'&&interactionMode!=='DRAW_SHAPE'&&interactionMode!=='SPLIT'){setBoundarySnap(null);setBoundaryHover(null);}if(interactionMode!=='ERASER'){eraserPointsRef.current=[];setEraserPoints([]);}if(interactionMode!=='SELECT')setSpacingGuides([]);},[interactionMode]);
  useEffect(()=>{if(interactionMode==='DRAW_SHAPE'){setDrawDraft(null);if(interaction.current?.mode==='DRAW_SHAPE_DRAG')interaction.current=null;}},[drawShapeType]);
  const trimmerTargets = useMemo(() => {
   const targets = new Map<string, PathDesignElement>();
@@ -1178,17 +1173,18 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
   if(element.locked){setStatus('Fill Bucket — element is locked');return;}
   if(!element.visible||element.runtimeHidden){setStatus('Fill Bucket — hidden elements cannot be filled');return;}
   if(element.type!=='SHAPE'&&element.type!=='PATH'){setStatus('Fill Bucket — select a closed shape or section');return;}
-  const closedGeometry=fillableClosedGeometry(element);
-  if(!closedGeometry?.closed){setStatus('Fill Bucket — boundary is open; join its segments and close the path before filling');return;}
+  const closed=element.type==='PATH'?element.geometry.closed:shapeToPathGeometry(element.shape,element.size).closed;
+  if(!closed){setStatus('Fill Bucket — boundary is open; close the path before filling');return;}
   const fill=fillBucketType==='NONE'?{type:'NONE' as const}:{type:'SOLID' as const,color:fillBucketColor,opacity:1};
-  commitMutate(template=>updateDesignElement(template,artboard.id,element.id,current=>current.type==='PATH'?{...current,geometry:closedGeometry,fill}:current.type==='SHAPE'?{...current,fill}:current));
+  commitMutate(template=>updateDesignElement(template,artboard.id,element.id,current=>(current.type==='SHAPE'||current.type==='PATH')?{...current,fill}:current));
   setSelection({artboardId:artboard.id,elementIds:[element.id],primaryElementId:element.id});
   setStatus(fillBucketType==='NONE'?'Fill Bucket — fill removed':'Fill Bucket — solid fill applied');
  };
  const pointSnapToleranceMm=(screenPx:number)=>{const rect=canvas.current?.getBoundingClientRect();return rect&&rect.width>0?screenPx/rect.width*artboard.widthMm:screenPx/(MM_TO_CSS_PX*(zoom/100));};
  const drawingSnap=(raw:{xMm:number;yMm:number},excludeIds:string[]=[],lineStart?:{x:number;y:number})=>{const enhancedConnectTool=interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE'||interactionMode==='SPLIT'||(interactionMode==='DRAW_SHAPE'&&drawShapeType==='LINE');return snapEnabled&&enhancedConnectTool?resolvePointSnap(artboard,{x:raw.xMm,y:raw.yMm},{toleranceMm:pointSnapToleranceMm(POINT_SNAP_SCREEN_TOLERANCE_PX),excludeIds,lineStart,snapToBoundaries:true,snapToVertices:true,snapToIntersections:true,snapToGuides:guideSnapEnabled,snapToGrid:gridSnapEnabled,snapToObjectCenters:true,snapToArtboardCenter:true,gridSizeMm}):undefined;};
- const activePathLineStart=()=>{const session=activePolylineSession.current;if(!session||session.tool!==interactionMode)return undefined;const selected=artboard.elements.find(element=>element.id===session.pathId);if(!selected||selected.type!=='PATH'||selected.geometry.closed)return undefined;const endpoints=getPathEndpoints(selected.geometry);const lastId=endpoints[endpoints.length-1]??selected.geometry.points[selected.geometry.points.length-1]?.id;const last=selected.geometry.points.find(point=>point.id===lastId);return last?localToWorld({x:last.x,y:last.y},selected):undefined;};
+ const activePathLineStart=()=>{if(selection.elementIds.length!==1)return undefined;const selected=artboard.elements.find(element=>element.id===selection.elementIds[0]);if(!selected||selected.type!=='PATH'||selected.geometry.closed)return undefined;const endpoints=getPathEndpoints(selected.geometry);const lastId=endpoints[endpoints.length-1]??selected.geometry.points[selected.geometry.points.length-1]?.id;const last=selected.geometry.points.find(point=>point.id===lastId);return last?localToWorld({x:last.x,y:last.y},selected):undefined;};
  const commitDrawDraft=(draft:DrawDraft,end:{xMm:number;yMm:number},endSnap?:PointSnapResult)=>{
+   const splitOnly=draft.intent==='SPLIT';
    const sx=draft.startX,sy=draft.startY,ex=end.xMm,ey=end.yMm;
    const isCircle=draft.shapeType==='CIRCLE';
    let x=Math.min(sx,ex),y=Math.min(sy,ey),w=Math.abs(ex-sx),h=Math.abs(ey-sy);
@@ -1196,7 +1192,27 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
    else if(draft.isShift&&draft.shapeType!=='LINE'){const size=Math.max(w,h);w=size;h=size;x=ex<sx?sx-size:sx;y=ey<sy?sy-size:sy;}
    const lineLength=Math.hypot(ex-sx,ey-sy),minSize=2;
    if(draft.shapeType==='LINE'?(lineLength<0.5):(w<minSize&&h<minSize)){setDrawDraft(null);interaction.current=null;endHistoryTransaction();return;}
-   const newId=id('element');let generatedFaceIds:string[]=[],splitFailed=false;
+   const newId=id('element');let generatedFaceIds:string[]=[];
+   if(splitOnly){
+     const px=Math.min(sx,ex),py=Math.min(sy,ey),p1=id('point'),p2=id('point');
+     const divider:PathDesignElement={id:newId,type:'PATH',name:'Split Divider',position:{xMm:px,yMm:py},size:{widthMm:Math.max(Math.abs(ex-sx),0.1),heightMm:Math.max(Math.abs(ey-sy),0.1)},rotationDeg:0,opacity:1,zIndex:Math.max(-1,...artboard.elements.map(element=>element.zIndex))+1,visible:true,locked:false,geometry:{points:[{id:p1,x:sx-px,y:sy-py,mode:'CORNER' as const},{id:p2,x:ex-px,y:ey-py,mode:'CORNER' as const}],segments:[{id:id('segment'),type:'LINE' as const,fromPointId:p1,toPointId:p2}],closed:false},fill:{type:'NONE'},stroke:{style:'SOLID',color:'#000000',widthMm:0.5},metadata:draft.startSnap?{dividerBoundaryTargetId:draft.startSnap.elementId,faceComponentId:id('face-component')}:undefined};
+     const hinted=[draft.startSnap?.elementId,endSnap?.elementId].filter((value):value is string=>Boolean(value));
+     const hintedSource=artboard.elements.find(item=>hinted.includes(item.id));
+     const split=splitComponentFaceByDivider([...artboard.elements,divider],divider,hintedSource?.groupId??id('face-component'),hinted);
+     if(!split){
+       endHistoryTransaction();interaction.current=null;setDrawDraft(null);setBoundarySnap(null);setSelection({artboardId:artboard.id,elementIds:[],primaryElementId:undefined});setStatus('Split failed — line must start and end on a closed shape boundary');return;
+     }
+     const source=artboard.elements.find(item=>item.id===split.sourceId);
+     if(!source){
+       endHistoryTransaction();interaction.current=null;setDrawDraft(null);setBoundarySnap(null);setStatus('Split failed — target shape is no longer available');return;
+     }
+     const {componentId,faces}=split;const faceIds=faces.map(face=>face.id);
+     commitMutate(t=>{
+       const replaced=replaceElementsAtLayer(t,artboard.id,[source.id],faces);
+       return{...replaced,artboards:replaced.artboards.map(a=>{if(a.id!==artboard.id)return a;const existing=a.groups.find(group=>group.id===componentId);return{...a,groups:existing?a.groups.map(group=>group.id===componentId?{...group,elementIds:group.elementIds.flatMap(elementId=>elementId===source.id?faceIds:[elementId])}:group):[...a.groups,{id:componentId,name:`${source.name} Component`,elementIds:faceIds,visible:source.visible,locked:source.locked}]};})};
+     });
+     const firstFaceId=faceIds[0]!;setSelection({artboardId:artboard.id,elementIds:[firstFaceId],primaryElementId:firstFaceId});endHistoryTransaction();interaction.current=null;setDrawDraft(null);setBoundarySnap(null);setStatus(`Split created ${faceIds.length} independent parts`);return;
+   }
    commitMutate(t=>{
      const art=t.artboards.find(a=>a.id===artboard.id);if(!art)return t;
      let geometry;
@@ -1205,7 +1221,7 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
        geometry={points:[{id:p1,x:sx-px,y:sy-py,mode:'CORNER' as const},{id:p2,x:ex-px,y:ey-py,mode:'CORNER' as const}],segments:[{id:id('segment'),type:'LINE' as const,fromPointId:p1,toPointId:p2}],closed:false};
        x=px;y=py;w=Math.max(Math.abs(ex-sx),0.1);h=Math.max(Math.abs(ey-sy),0.1);
      }else geometry=shapeToPathGeometry(draft.shapeType,{widthMm:w,heightMm:h});
-     const el:PathDesignElement={id:newId,type:'PATH',name:draft.shapeType,position:{xMm:x,yMm:y},size:{widthMm:w,heightMm:h},rotationDeg:0,opacity:1,zIndex:nextElementZIndex(t,artboard.id),visible:true,locked:false,geometry,fill:(draft.shapeType==='LINE'||draft.shapeType==='ARC')?{type:'NONE'}:{type:'SOLID',color:'#d1d5db'},stroke:{style:'SOLID',color:'#000000',widthMm:0.5},metadata:draft.shapeType==='LINE'&&draft.startSnap?{dividerBoundaryTargetId:draft.startSnap.elementId,faceComponentId:id('face-component')}:undefined};
+     const el:PathDesignElement={id:newId,type:'PATH',name:splitOnly?'Split Divider':draft.shapeType,position:{xMm:x,yMm:y},size:{widthMm:w,heightMm:h},rotationDeg:0,opacity:1,zIndex:nextElementZIndex(t,artboard.id),visible:true,locked:false,geometry,fill:(draft.shapeType==='LINE'||draft.shapeType==='ARC')?{type:'NONE'}:{type:'SOLID',color:'#d1d5db'},stroke:{style:'SOLID',color:'#000000',widthMm:0.5},metadata:draft.shapeType==='LINE'&&draft.startSnap?{dividerBoundaryTargetId:draft.startSnap.elementId,faceComponentId:id('face-component')}:undefined};
      let next={...t,artboards:t.artboards.map(a=>a.id===artboard.id?{...a,elements:[...a.elements,el]}:a)};
      if(draft.shapeType==='LINE'){
        const nextArt=next.artboards.find(a=>a.id===artboard.id),divider=nextArt?.elements.find(item=>item.id===newId) as PathDesignElement|undefined;
@@ -1222,15 +1238,15 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
          const {componentId,faces}=split;generatedFaceIds=faces.map(face=>face.id);
          const replaced=replaceElementsAtLayer(next,artboard.id,[source.id,divider.id],faces);
          next={...replaced,artboards:replaced.artboards.map(a=>a.id!==artboard.id?a:{...a,groups:a.groups.some(g=>g.id===componentId)?a.groups.map(g=>g.id===componentId?{...g,elementIds:g.elementIds.flatMap(eid=>eid===source.id?generatedFaceIds:[eid])}:g):[...a.groups,{id:componentId,name:`${source.name} Component`,elementIds:generatedFaceIds,visible:source.visible,locked:source.locked}]})};
-        }else if(draft.splitOnly){splitFailed=true;return t;}
+        }
        }
      }
      return next;
    });
-   if(generatedFaceIds.length){const firstFaceId=generatedFaceIds[0]!;setSelection({artboardId:artboard.id,elementIds:[firstFaceId],primaryElementId:firstFaceId});if(draft.splitOnly)setStatus('Split complete — parts are independently editable');}else if(draft.splitOnly){setSelection({artboardId:artboard.id,elementIds:[],primaryElementId:undefined});setStatus(splitFailed?'Line must start and end on a shape boundary to split it':'Split could not be completed');}else setSelection({artboardId:artboard.id,elementIds:[newId],primaryElementId:newId});
+   if(generatedFaceIds.length){const firstFaceId=generatedFaceIds[0]!;setSelection({artboardId:artboard.id,elementIds:[firstFaceId],primaryElementId:firstFaceId});}else setSelection({artboardId:artboard.id,elementIds:[newId],primaryElementId:newId});
    endHistoryTransaction();
-   if(draft.shapeType==='LINE'&&!draft.splitOnly){
-     const chained:DrawDraft={startX:ex,startY:ey,currentX:ex,currentY:ey,shapeType:'LINE',isShift:false,pointerIsDown:false,movedDuringPress:false,startSnap:endSnap};
+   if(draft.shapeType==='LINE'&&!splitOnly){
+     const chained:DrawDraft={startX:ex,startY:ey,currentX:ex,currentY:ey,shapeType:'LINE',intent:'DRAW',isShift:false,pointerIsDown:false,movedDuringPress:false,startSnap:endSnap};
      interaction.current={mode:'DRAW_SHAPE_DRAG',...chained};setDrawDraft(chained);
    }else{interaction.current=null;setDrawDraft(null);}
  };
@@ -1240,10 +1256,7 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
    e.preventDefault();e.stopPropagation();
    const p=point(e);
    const target=[...artboard.elements].filter(element=>element.visible&&!element.runtimeHidden&&fillableElementContainsPoint(element,p)).sort((a,b)=>b.zIndex-a.zIndex).find(Boolean);
-   if(target){applyBucketFill(target);return;}
-   const joined=joinedLineRegionAtPoint(artboard.elements,p,Math.max(.15,pointSnapToleranceMm(5)));
-   if(joined){const faceId=id('joined-line-face'),fill=fillBucketType==='NONE'?{type:'NONE' as const}:{type:'SOLID' as const,color:fillBucketColor,opacity:1},sourceZ=artboard.elements.filter(element=>joined.sourceIds.includes(element.id)).map(element=>element.zIndex),face:PathDesignElement={id:faceId,type:'PATH',name:'Joined Line Section',position:joined.position,size:joined.size,rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:sourceZ.length?Math.min(...sourceZ)-1:0,geometry:joined.geometry,fill,stroke:{style:'NONE',color:'#000000',widthMm:0},metadata:{faceGeneration:'JOINED_LINE_REGION',boundarySourceIds:joined.sourceIds}};commitMutate(template=>addDesignElement(template,artboard.id,face));setSelection({artboardId:artboard.id,elementIds:[faceId],primaryElementId:faceId});setStatus('Fill Bucket — joined line boundary converted to an independently fillable section');return;}
-   if(target)applyBucketFill(target);else setStatus('Fill Bucket — no closed boundary here; join the segments and close the path first');
+   if(target)applyBucketFill(target);else setStatus('Fill Bucket — no closed boundary at this point');
    return;
   }
   if(interactionMode!=='ERASER')return;
@@ -1258,16 +1271,16 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
   }
   if ((interactionMode === 'DRAW_SHAPE' && drawShapeType) || interactionMode === 'SPLIT') {
     if(e.button!==0)return;
+    const activeShapeType:DesignShapeKind=interactionMode==='SPLIT'?'LINE':drawShapeType!;
     const raw=point(e);
     const existing=interaction.current?.mode==='DRAW_SHAPE_DRAG'?interaction.current:null;
     const snap=drawingSnap(raw,[],existing?{x:existing.startX,y:existing.startY}:undefined),p=snap?{xMm:snap.point.x,yMm:snap.point.y}:raw;
-    const isDistinctSecondPoint=existing?Math.hypot(p.xMm-existing.startX,p.yMm-existing.startY)>=.5:false;
-    if(existing&&(!existing.pointerIsDown||isDistinctSecondPoint)){
+    if(existing&&!existing.pointerIsDown){
       commitDrawDraft(existing,p,snap);
       return;
     }
     beginHistoryTransaction();
-    const draft:DrawDraft={startX:p.xMm,startY:p.yMm,currentX:p.xMm,currentY:p.yMm,shapeType:interactionMode==='SPLIT'?'LINE':drawShapeType!,isShift:e.shiftKey,pointerIsDown:true,movedDuringPress:false,splitOnly:interactionMode==='SPLIT',startSnap:snap};
+    const draft:DrawDraft={startX:p.xMm,startY:p.yMm,currentX:p.xMm,currentY:p.yMm,shapeType:activeShapeType,intent:interactionMode==='SPLIT'?'SPLIT':'DRAW',isShift:e.shiftKey,pointerIsDown:true,movedDuringPress:false,startSnap:snap};
     interaction.current={mode:'DRAW_SHAPE_DRAG',...draft};
     setDrawDraft(draft);
     setBoundarySnap(snap??null);
@@ -1277,17 +1290,15 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
     if(e.button!==0)return;
     const rawPoint=point(e);
     const excluded=selection.elementIds.filter(elementId=>{const element=artboard.elements.find(candidate=>candidate.id===elementId);return element?.type==='PATH'&&!element.geometry.closed;});
-    const lineStart=activePathLineStart(),snap=drawingSnap(rawPoint,excluded,lineStart),anglePoint=!snap&&e.shiftKey&&lineStart?constrainPointToAngle(lineStart,rawPoint):undefined;
-    const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:anglePoint??rawPoint;
+    const snap=drawingSnap(rawPoint,excluded,activePathLineStart());
+    const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:rawPoint;
     beginHistoryTransaction();
     let targetPathId: string | undefined;
-    let splitCommitted=false;
     let addedPointId: string = crypto.randomUUID();
-    const activeSession=activePolylineSession.current;
-    if (activeSession?.tool===interactionMode) {
-      const selectedId = activeSession.pathId;
+    if (selection.elementIds.length === 1) {
+      const selectedId = selection.elementIds[0];
       const selectedEl = artboard.elements.find(el => el.id === selectedId);
-      if (selectedEl && selectedEl.type === 'PATH'&&!selectedEl.geometry.closed) {
+      if (selectedEl && selectedEl.type === 'PATH') {
         const localPt = worldToLocal({ x: p.xMm, y: p.yMm }, selectedEl);
         const newPtId = addedPointId;
         const newSegId = crypto.randomUUID();
@@ -1344,11 +1355,10 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
             const replaced=replaceElementsAtLayer(extended,artboard.id,[source.id,divider.id],faces);
             return{...replaced,artboards:replaced.artboards.map(a=>{if(a.id!==artboard.id)return a;const existing=a.groups.find(group=>group.id===componentId);return{...a,groups:existing?a.groups.map(group=>group.id===componentId?{...group,elementIds:group.elementIds.flatMap(elementId=>elementId===source.id?generatedFaceIds:[elementId])}:group):[...a.groups,{id:componentId,name:`${source.name} Component`,elementIds:generatedFaceIds,visible:source.visible,locked:source.locked}]};})};
           });
-          if(generatedFaceIds.length){const firstFaceId=generatedFaceIds[0]!;splitCommitted=true;resetPolylineSession();setSelection({artboardId:artboard.id,elementIds:[firstFaceId],primaryElementId:firstFaceId});}
+          if(generatedFaceIds.length){const firstFaceId=generatedFaceIds[0]!;setSelection({artboardId:artboard.id,elementIds:[firstFaceId],primaryElementId:firstFaceId});}
         }
       }
     }
-      if(splitCommitted){endHistoryTransaction();return;}
       if (!targetPathId) {
         const newPathId = crypto.randomUUID();
         commitMutate(t => {
@@ -1366,7 +1376,6 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
           };
         });
         setSelection({ artboardId: artboard.id, elementIds: [newPathId], primaryElementId: newPathId });
-        activePolylineSession.current={tool:interactionMode,pathId:newPathId};setPolylineSessionVersion(version=>version+1);
         targetPathId = newPathId;
       }
       interaction.current = { mode: 'PEN_DRAG', pathId: targetPathId, pointId: addedPointId, startX: p.xMm, startY: p.yMm };
@@ -1381,8 +1390,7 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
     setMarqueeRect({xMm:pt.xMm,yMm:pt.yMm,widthMm:0,heightMm:0});
     if(!e.shiftKey)setSelection({artboardId:artboard.id,elementIds:[],primaryElementId:undefined});
   };
-  const moveCanvas=(e:React.PointerEvent<HTMLDivElement>)=>{const raw=point(e);const activeConnectTool=interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE'||interactionMode==='DRAW_SHAPE';const excluded=selection.elementIds.filter(elementId=>{const element=artboard.elements.find(candidate=>candidate.id===elementId);return element?.type==='PATH'&&!element.geometry.closed;});const drawOp=interaction.current?.mode==='DRAW_SHAPE_DRAG'?interaction.current:undefined;const lineStart=drawOp?{x:drawOp.startX,y:drawOp.startY}:activePathLineStart();const snap=activeConnectTool?drawingSnap(raw,excluded,lineStart):undefined;const anglePoint=!snap&&e.shiftKey&&(interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE')&&lineStart?constrainPointToAngle(lineStart,raw):undefined;const hover=activeConnectTool?findBoundarySnap(artboard.elements,{x:raw.xMm,y:raw.yMm},pointSnapToleranceMm(14),excluded):undefined;const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:anglePoint??raw;if(interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE')setPenHover({xMm:p.xMm,yMm:p.yMm,angleLocked:Boolean(anglePoint),angleDeg:anglePoint?.angleDeg});else if(interactionMode!=='DRAW_SHAPE')setPenHover(null);setBoundarySnap(snap??null);setBoundaryHover(hover??null);const guide=guideDrag.current;if(guide){const raw=guide.orientation==='VERTICAL'?p.xMm:p.yMm;const max=guide.orientation==='VERTICAL'?artboard.widthMm:artboard.heightMm;const positionMm=clamp(raw,0,max);setGuidePreview({orientation:guide.orientation,positionMm});if(!guide.creating)mutate(t=>moveGuide(t,artboard.id,guide.id,positionMm));return;}const op=interaction.current;if(op?.mode==='ERASER_LASSO'){const last=eraserPointsRef.current[eraserPointsRef.current.length-1];if(!last||Math.hypot(raw.xMm-last.xMm,raw.yMm-last.yMm)>=0.25){eraserPointsRef.current=[...eraserPointsRef.current,raw];setEraserPoints(eraserPointsRef.current);}return;}const snapOptions={enabled:snapEnabled&&!e.altKey,toleranceMm:1.5,snapToArtboard:true,snapToElements:true,snapToGuides:guideSnapEnabled,snapToGrid:gridSnapEnabled,gridSizeMm};if(op?.mode==='MOVE'){const dx=p.xMm-op.lastX,dy=p.yMm-op.lastY;interaction.current={...op,lastX:p.xMm,lastY:p.yMm};const snapped=snapMoveDelta(artboard,op.ids,{xMm:dx,yMm:dy},snapOptions);const spaced=snapEnabled&&!e.altKey?equalSpacingSnap(artboard,op.ids,snapped.delta,1.5):{delta:snapped.delta,guides:[] as SpacingGuide[]};setSnapGuides(snapped.guides);setSpacingGuides(spaced.guides);mutate(t=>moveElements(t,artboard.id,op.ids,spaced.delta));return;}if(op?.mode==='RESIZE'){const dx=p.xMm-op.startX,dy=p.yMm-op.startY,base=op.element.size;let w=base.widthMm,h=base.heightMm;if(op.anchor.includes('E'))w+=dx;if(op.anchor.includes('W'))w-=dx;if(op.anchor.includes('S'))h+=dy;if(op.anchor.includes('N'))h-=dy;const snapped=snapResizeSize(artboard,op.element,op.anchor,{widthMm:w,heightMm:h},snapOptions);setSnapGuides(snapped.guides);mutate(t=>resizeElement(t,artboard.id,op.element.id,snapped.size,{anchor:op.anchor,maintainAspectRatio:op.keepAspect}));return;}if(op?.mode==='ROTATE'){setSnapGuides([]);const c={xMm:op.element.position.xMm+op.element.size.widthMm/2,yMm:op.element.position.yMm+op.element.size.heightMm/2},angle=Math.atan2(p.yMm-c.yMm,p.xMm-c.xMm);mutate(t=>rotateElement(t,artboard.id,op.element.id,op.startRotation+(angle-op.startAngle)*180/Math.PI));return;}if(op?.mode==='PEN_DRAG'){const el=artboard.elements.find(el=>el.id===op.pathId);if(el&&el.type==='PATH'){const pEl=el as PathDesignElement;const localPt=worldToLocal({x:p.xMm,y:p.yMm},pEl);const startLocal=worldToLocal({x:op.startX,y:op.startY},pEl);const dx=localPt.x-startLocal.x;const dy=localPt.y-startLocal.y;if(Math.hypot(dx,dy)>1){mutate(t=>{return{...t,artboards:t.artboards.map(a=>a.id===artboard.id?{...a,elements:a.elements.map(e_=>{if(e_.id!==op.pathId)return e_;const pEl_=e_ as PathDesignElement;const newPts=pEl_.geometry.points.map(pt=>pt.id===op.pointId?{...pt,mode:'SYMMETRIC' as const,inHandle:{x:pt.x-dx,y:pt.y-dy},outHandle:{x:pt.x+dx,y:pt.y+dy}}:pt);const newSegs=pEl_.geometry.segments.map(seg=>seg.toPointId===op.pointId?{...seg,type:'CUBIC_BEZIER' as const}:seg);return{...pEl_,geometry:{...pEl_.geometry,points:newPts,segments:newSegs}};})}:a)};});}}return;}if(op?.mode==='DRAW_SHAPE_DRAG'){const movedDuringPress=op.movedDuringPress||(op.pointerIsDown&&Math.hypot(p.xMm-op.startX,p.yMm-op.startY)>0.6);const next:DrawDraft={...op,currentX:p.xMm,currentY:p.yMm,isShift:e.shiftKey,pointerIsDown:op.pointerIsDown,movedDuringPress,currentSnap:snap};interaction.current={mode:'DRAW_SHAPE_DRAG',...next};setDrawDraft(next);return;}if(marquee.current){const m=marquee.current;setMarqueeRect({xMm:Math.min(m.startX,p.xMm),yMm:Math.min(m.startY,p.yMm),widthMm:Math.abs(p.xMm-m.startX),heightMm:Math.abs(p.yMm-m.startY)});}};
-  const moveCanvasWithSplit=(e:React.PointerEvent<HTMLDivElement>)=>{if(interactionMode!=='SPLIT'){moveCanvas(e);return;}const raw=point(e),op=interaction.current?.mode==='DRAW_SHAPE_DRAG'?interaction.current:undefined;const snap=drawingSnap(raw,[],op?{x:op.startX,y:op.startY}:undefined),p=snap?{xMm:snap.point.x,yMm:snap.point.y}:raw;setBoundarySnap(snap??null);setBoundaryHover(findBoundarySnap(artboard.elements,{x:raw.xMm,y:raw.yMm},pointSnapToleranceMm(14))??null);if(!op)return;const movedDuringPress=op.movedDuringPress||(op.pointerIsDown&&Math.hypot(p.xMm-op.startX,p.yMm-op.startY)>0.6);const next:DrawDraft={...op,currentX:p.xMm,currentY:p.yMm,isShift:e.shiftKey,pointerIsDown:op.pointerIsDown,movedDuringPress,currentSnap:snap};interaction.current={mode:'DRAW_SHAPE_DRAG',...next};setDrawDraft(next);};
+  const moveCanvas=(e:React.PointerEvent<HTMLDivElement>)=>{const raw=point(e);const activeConnectTool=interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE'||interactionMode==='DRAW_SHAPE'||interactionMode==='SPLIT';const excluded=selection.elementIds.filter(elementId=>{const element=artboard.elements.find(candidate=>candidate.id===elementId);return element?.type==='PATH'&&!element.geometry.closed;});const drawOp=interaction.current?.mode==='DRAW_SHAPE_DRAG'?interaction.current:undefined;const lineStart=drawOp?{x:drawOp.startX,y:drawOp.startY}:activePathLineStart();const snap=activeConnectTool?drawingSnap(raw,excluded,lineStart):undefined;const hover=activeConnectTool?findBoundarySnap(artboard.elements,{x:raw.xMm,y:raw.yMm},pointSnapToleranceMm(14),excluded):undefined;const p=snap?{xMm:snap.point.x,yMm:snap.point.y}:raw;if(interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE')setPenHover({xMm:p.xMm,yMm:p.yMm});else if(interactionMode!=='DRAW_SHAPE'&&interactionMode!=='SPLIT')setPenHover(null);setBoundarySnap(snap??null);setBoundaryHover(hover??null);const guide=guideDrag.current;if(guide){const raw=guide.orientation==='VERTICAL'?p.xMm:p.yMm;const max=guide.orientation==='VERTICAL'?artboard.widthMm:artboard.heightMm;const positionMm=clamp(raw,0,max);setGuidePreview({orientation:guide.orientation,positionMm});if(!guide.creating)mutate(t=>moveGuide(t,artboard.id,guide.id,positionMm));return;}const op=interaction.current;if(op?.mode==='ERASER_LASSO'){const last=eraserPointsRef.current[eraserPointsRef.current.length-1];if(!last||Math.hypot(raw.xMm-last.xMm,raw.yMm-last.yMm)>=0.25){eraserPointsRef.current=[...eraserPointsRef.current,raw];setEraserPoints(eraserPointsRef.current);}return;}const snapOptions={enabled:snapEnabled&&!e.altKey,toleranceMm:1.5,snapToArtboard:true,snapToElements:true,snapToGuides:guideSnapEnabled,snapToGrid:gridSnapEnabled,gridSizeMm};if(op?.mode==='MOVE'){const dx=p.xMm-op.lastX,dy=p.yMm-op.lastY;interaction.current={...op,lastX:p.xMm,lastY:p.yMm};const snapped=snapMoveDelta(artboard,op.ids,{xMm:dx,yMm:dy},snapOptions);const spaced=snapEnabled&&!e.altKey?equalSpacingSnap(artboard,op.ids,snapped.delta,1.5):{delta:snapped.delta,guides:[] as SpacingGuide[]};const symmetric=snapEnabled&&!e.altKey?artboardSymmetrySnap(artboard,op.ids,spaced.delta,1.5):{delta:spaced.delta,guides:[] as SpacingGuide[]};setSnapGuides(snapped.guides);setSpacingGuides(symmetric.guides.length?symmetric.guides:spaced.guides);mutate(t=>moveElements(t,artboard.id,op.ids,symmetric.delta));return;}if(op?.mode==='RESIZE'){const worldDelta={xMm:p.xMm-op.startX,yMm:p.yMm-op.startY};const localDelta=worldDeltaToElementLocal(worldDelta,op.element.rotationDeg);const multiplier=op.centerBased?2:1,base=op.element.size;let w=base.widthMm,h=base.heightMm;if(op.anchor.includes('E'))w+=localDelta.xMm*multiplier;if(op.anchor.includes('W'))w-=localDelta.xMm*multiplier;if(op.anchor.includes('S'))h+=localDelta.yMm*multiplier;if(op.anchor.includes('N'))h-=localDelta.yMm*multiplier;const snapped=snapResizeSize(artboard,op.element,op.anchor,{widthMm:w,heightMm:h},snapOptions);const keepAspect=e.shiftKey?!op.defaultKeepAspect:op.defaultKeepAspect;setSnapGuides(snapped.guides);mutate(t=>resizeElement(t,artboard.id,op.element.id,snapped.size,{anchor:op.anchor,maintainAspectRatio:keepAspect,centerBased:op.centerBased}));return;}if(op?.mode==='MULTI_RESIZE'){const delta={xMm:p.xMm-op.startX,yMm:p.yMm-op.startY};const targetBounds=resizeSelectionBoundsFromDelta(op.bounds,op.anchor,delta,{maintainAspectRatio:e.shiftKey,centerBased:e.altKey});setSnapGuides([]);setSpacingGuides([]);mutate(t=>resizeElementsFromSnapshots(t,artboard.id,op.elements,op.bounds,targetBounds));return;}if(op?.mode==='ROTATE'){setSnapGuides([]);const c={xMm:op.element.position.xMm+op.element.size.widthMm/2,yMm:op.element.position.yMm+op.element.size.heightMm/2},angle=Math.atan2(p.yMm-c.yMm,p.xMm-c.xMm),nextRotation=op.startRotation+(angle-op.startAngle)*180/Math.PI;mutate(t=>rotateElement(t,artboard.id,op.element.id,e.shiftKey?snapRotationDeg(nextRotation,15):nextRotation));return;}if(op?.mode==='PEN_DRAG'){const el=artboard.elements.find(el=>el.id===op.pathId);if(el&&el.type==='PATH'){const pEl=el as PathDesignElement;const localPt=worldToLocal({x:p.xMm,y:p.yMm},pEl);const startLocal=worldToLocal({x:op.startX,y:op.startY},pEl);const dx=localPt.x-startLocal.x;const dy=localPt.y-startLocal.y;if(Math.hypot(dx,dy)>1){mutate(t=>{return{...t,artboards:t.artboards.map(a=>a.id===artboard.id?{...a,elements:a.elements.map(e_=>{if(e_.id!==op.pathId)return e_;const pEl_=e_ as PathDesignElement;const newPts=pEl_.geometry.points.map(pt=>pt.id===op.pointId?{...pt,mode:'SYMMETRIC' as const,inHandle:{x:pt.x-dx,y:pt.y-dy},outHandle:{x:pt.x+dx,y:pt.y+dy}}:pt);const newSegs=pEl_.geometry.segments.map(seg=>seg.toPointId===op.pointId?{...seg,type:'CUBIC_BEZIER' as const}:seg);return{...pEl_,geometry:{...pEl_.geometry,points:newPts,segments:newSegs}};})}:a)};});}}return;}if(op?.mode==='DRAW_SHAPE_DRAG'){const movedDuringPress=op.movedDuringPress||(op.pointerIsDown&&Math.hypot(p.xMm-op.startX,p.yMm-op.startY)>0.6);const next:DrawDraft={...op,currentX:p.xMm,currentY:p.yMm,isShift:e.shiftKey,pointerIsDown:op.pointerIsDown,movedDuringPress,currentSnap:snap};interaction.current={mode:'DRAW_SHAPE_DRAG',...next};setDrawDraft(next);return;}if(marquee.current){const m=marquee.current;setMarqueeRect({xMm:Math.min(m.startX,p.xMm),yMm:Math.min(m.startY,p.yMm),widthMm:Math.abs(p.xMm-m.startX),heightMm:Math.abs(p.yMm-m.startY)});}};
   const commitEraserStroke=(stroke:EraserPoint[])=>{
     let affected=0;
     const radiusMm=6/(MM_TO_CSS_PX*(zoom/100));
@@ -1427,14 +1435,16 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
   const upCanvas=()=>{if(interaction.current?.mode==='ERASER_LASSO'){const affected=commitEraserStroke(eraserPointsRef.current);endHistoryTransaction();setStatus(affected?`Eraser removed geometry from ${affected} element${affected===1?'':'s'}`:'Eraser — nothing intersected');interaction.current=null;eraserPointsRef.current=[];setEraserPoints([]);setSelection({artboardId:artboard.id,elementIds:[],primaryElementId:undefined});return;}if(guideDrag.current){const drag=guideDrag.current;if(drag.creating&&guidePreview)commitMutate(t=>addGuide(t,artboard.id,{id:drag.id,orientation:drag.orientation,positionMm:guidePreview.positionMm,locked:false}));else endHistoryTransaction();guideDrag.current=null;setGuidePreview(null);return;}if(marquee.current&&marqueeRect)setSelection(selectByMarquee(artboard,marqueeRect,marquee.current.add?'ADD':'REPLACE',selection));if(interaction.current?.mode==='DRAW_SHAPE_DRAG'){const op=interaction.current;if(op.pointerIsDown){/* CAD two-click invariant: pointer-up only arms the first point. Never commit from release, even if OSNAP moved the live preview to another nearby candidate. The second explicit pointer-down is the only commit trigger. */const next:DrawDraft={...op,pointerIsDown:false,movedDuringPress:false};interaction.current={mode:'DRAW_SHAPE_DRAG',...next};setDrawDraft(next);}}else if(interaction.current){endHistoryTransaction();interaction.current=null;}marquee.current=null;setMarqueeRect(null);setSnapGuides([]);setSpacingGuides([]);};
   const upCanvasWithLineCommit=()=>{const op=interaction.current;if(op?.mode==='DRAW_SHAPE_DRAG'&&op.shapeType==='LINE'&&op.pointerIsDown&&op.movedDuringPress){const effectiveEnd={xMm:op.currentX,yMm:op.currentY};commitDrawDraft(op,effectiveEnd,op.currentSnap);setBoundarySnap(op.currentSnap??null);setSnapGuides([]);setSpacingGuides([]);return;}upCanvas();};
   const capture=(ev:React.PointerEvent)=>{ev.stopPropagation();(ev.currentTarget.closest('.card-artboard-canvas') as HTMLElement)?.setPointerCapture?.(ev.pointerId);};
-  const ticks=rulerTicks(artboard,zoom),print=resolvePrintSettings(artboard.print),gridPx=gridSizeMm*MM_TO_CSS_PX,baseFill=artboardFillStyle(artboard.background,assets),baseImages=typeof baseFill.backgroundImage==='string'?baseFill.backgroundImage:'';const gridImages=`linear-gradient(to right, rgba(100,116,139,.16) 1px, transparent 1px),linear-gradient(to bottom, rgba(100,116,139,.16) 1px, transparent 1px)`;const canvasStyle:React.CSSProperties={...baseFill,width:`${artboard.widthMm*MM_TO_CSS_PX}px`,height:`${artboard.heightMm*MM_TO_CSS_PX}px`,transform:`scale(${zoom/100})`,backgroundImage:showGrid?`${gridImages}${baseImages?`,${baseImages}`:''}`:baseFill.backgroundImage,backgroundSize:showGrid?`${gridPx}px ${gridPx}px,${gridPx}px ${gridPx}px${baseImages?',auto':''}`:baseFill.backgroundSize,filter:artboard.colorSettings?.previewMode==='CMYK'?'saturate(.82) contrast(.98)':undefined,cursor: interactionMode === 'TRIMMER' ? TRIMMER_CURSOR : interactionMode==='ERASER' ? 'crosshair' : interactionMode==='FILL_BUCKET' ? 'copy' : (interactionMode === 'PEN' || interactionMode === 'FLEXIBLE_LINE' || interactionMode === 'DRAW_SHAPE' || interactionMode === 'SCISSORS') ? 'crosshair' : undefined};
-  const commandHint=interactionMode==='SPLIT'?(drawDraft?'SPLIT — Specify second boundary point':'SPLIT — Specify first boundary point'):interactionMode==='DRAW_SHAPE'?(drawShapeType==='LINE'?(drawDraft?'LINE — Specify next point':'LINE — Specify first point'):drawShapeType==='CIRCLE'?(drawDraft?'CIRCLE — Specify radius':'CIRCLE — Specify center'):(drawDraft?`${drawShapeType??'SHAPE'} — Specify opposite point`:`${drawShapeType??'SHAPE'} — Specify first point`)):interactionMode==='FLEXIBLE_LINE'?(activePolylineSession.current?.tool==='FLEXIBLE_LINE'?'POLYLINE — Specify next point':'POLYLINE — Specify first point'):interactionMode==='PEN'?(activePolylineSession.current?.tool==='PEN'?'PEN — Specify next point':'PEN — Specify first point'):interactionMode==='TRIMMER'?'ERASE SEGMENT — Select interval or first point':interactionMode==='ERASER'?'ERASER — Drag across geometry to erase':interactionMode==='FILL_BUCKET'?'FILL BUCKET — Click a closed shape or section':null;
- return <div ref={canvas} className={`card-artboard-canvas ${showRulers?'with-rulers':''} ${interactionMode==='SPLIT'?'split-mode':''}`} data-artboard-id={artboard.id} style={canvasStyle} onPointerDownCapture={toolDownCapture} onPointerDown={downCanvas} onPointerMove={moveCanvasWithSplit} onPointerUp={upCanvasWithLineCommit} onPointerCancel={cancelEraserStroke} onDoubleClick={()=>{if(interactionMode==='PEN'||interactionMode==='FLEXIBLE_LINE'){endHistoryTransaction();resetPolylineSession();setSelection(emptySelection(artboard.id));setStatus(`${interactionMode==='PEN'?'Pen':'Polyline'} — Specify first point`);}}}>
+  const ticks=rulerTicks(artboard,zoom),print=resolvePrintSettings(artboard.print),gridPx=gridSizeMm*MM_TO_CSS_PX;const canvasStyle:React.CSSProperties={width:`${artboard.widthMm*MM_TO_CSS_PX}px`,height:`${artboard.heightMm*MM_TO_CSS_PX}px`,transform:`scale(${zoom/100})`,backgroundColor:'transparent', cursor: interactionMode === 'TRIMMER' ? TRIMMER_CURSOR : interactionMode==='ERASER' ? 'crosshair' : interactionMode==='FILL_BUCKET' ? 'copy' : (interactionMode === 'PEN' || interactionMode === 'FLEXIBLE_LINE' || interactionMode === 'DRAW_SHAPE' || interactionMode === 'SPLIT' || interactionMode === 'SCISSORS') ? 'crosshair' : undefined};
+  const multiSelectionElements=artboard.elements.filter(element=>selection.elementIds.includes(element.id)&&element.visible&&!element.locked);
+  const multiSelectionBounds=selection.elementIds.length>1?getSelectionBounds(multiSelectionElements):null;
+  const commandHint=interactionMode==='SPLIT'?(drawDraft?'SPLIT — Specify end point on boundary':'SPLIT — Specify start point on boundary'):interactionMode==='DRAW_SHAPE'?(drawShapeType==='LINE'?(drawDraft?'LINE — Specify next point':'LINE — Specify first point'):drawShapeType==='CIRCLE'?(drawDraft?'CIRCLE — Specify radius':'CIRCLE — Specify center'):(drawDraft?`${drawShapeType??'SHAPE'} — Specify opposite point`:`${drawShapeType??'SHAPE'} — Specify first point`)):interactionMode==='FLEXIBLE_LINE'?(selection.elementIds.length?'POLYLINE — Specify next point':'POLYLINE — Specify first point'):interactionMode==='PEN'?(selection.elementIds.length?'PEN — Specify next point':'PEN — Specify first point'):interactionMode==='TRIMMER'?'ERASE SEGMENT — Select interval or first point':interactionMode==='ERASER'?'ERASER — Drag across geometry to erase':interactionMode==='FILL_BUCKET'?'FILL BUCKET — Click a closed shape or section':null;
+ return <div ref={canvas} className={`card-artboard-canvas ${showRulers?'with-rulers':''}`} data-artboard-id={artboard.id} style={canvasStyle} onPointerDownCapture={toolDownCapture} onPointerDown={downCanvas} onPointerMove={moveCanvas} onPointerUp={upCanvasWithLineCommit} onPointerCancel={cancelEraserStroke}>
+  <ArtboardBackgroundVisual artboard={artboard} assets={assets}/>
+  {showGrid&&<div data-artboard-grid-overlay style={{position:'absolute',inset:0,zIndex:90000,pointerEvents:'none',backgroundImage:`linear-gradient(to right, rgba(100,116,139,.16) 1px, transparent 1px),linear-gradient(to bottom, rgba(100,116,139,.16) 1px, transparent 1px)`,backgroundSize:`${gridPx}px ${gridPx}px`}}/>}
   {showRulers&&<><div className="card-ruler-corner"/><div className="card-ruler card-ruler-top" onPointerDown={ev=>{if(ev.button!==0)return;capture(ev);const p=point(ev);guideDrag.current={id:id('guide'),orientation:'VERTICAL',creating:true};setGuidePreview({orientation:'VERTICAL',positionMm:p.xMm});}}>{ticks.x.map(t=><i key={t.key} className={t.major?'major':''} style={{left:t.positionMm*MM_TO_CSS_PX}}><span>{t.label}</span></i>)}</div><div className="card-ruler card-ruler-left" onPointerDown={ev=>{if(ev.button!==0)return;capture(ev);const p=point(ev);guideDrag.current={id:id('guide'),orientation:'HORIZONTAL',creating:true};setGuidePreview({orientation:'HORIZONTAL',positionMm:p.yMm});}}>{ticks.y.map(t=><i key={t.key} className={t.major?'major':''} style={{top:t.positionMm*MM_TO_CSS_PX}}><span>{t.label}</span></i>)}</div></>}
   {print.showBleedInEditor&&<div className="card-print-bleed-boundary" style={{left:-print.bleed.leftMm*MM_TO_CSS_PX,top:-print.bleed.topMm*MM_TO_CSS_PX,right:-print.bleed.rightMm*MM_TO_CSS_PX,bottom:-print.bleed.bottomMm*MM_TO_CSS_PX}}/>}
   <div className="card-print-trim-boundary"/>
-  {artboard.watermark?.enabled&&<div style={{position:'absolute',inset:0,zIndex:artboard.watermark.zOrder==='BEHIND'?0:99997,pointerEvents:'none',display:'flex',alignItems:'center',justifyContent:'center',opacity:artboard.watermark.opacity,transform:`rotate(${artboard.watermark.rotationDeg}deg)`,fontSize:`${artboard.watermark.fontSizePt??28}pt`,fontWeight:600,color:artboard.watermark.color??'#64748b'}}>{artboard.watermark.type==='IMAGE'?<img src={assets.find(a=>a.id===artboard.watermark?.assetId)?.source} style={{width:`${artboard.watermark.scalePercent??35}%`,maxHeight:'80%',objectFit:'contain'}}/>:(artboard.watermark.text??'DRAFT')}</div>}
-  {artboard.border?.enabled&&<div style={{position:'absolute',inset:artboard.border.offsetMm*MM_TO_CSS_PX,border:`${Math.max(1,artboard.border.widthMm*MM_TO_CSS_PX)}px ${artboard.border.style.toLowerCase()} ${artboard.border.color}`,borderRadius:artboard.border.radiusMm*MM_TO_CSS_PX,boxSizing:'border-box',pointerEvents:'none',zIndex:99996}}/>}
    {mirrorGuideAxis&&<div data-page-center-mirror-guide data-axis={mirrorGuideAxis} style={mirrorGuideAxis==='VERTICAL'?{position:'absolute',left:(artboard.widthMm/2)*MM_TO_CSS_PX,top:0,bottom:0,borderLeft:`${1.5/(zoom/100)}px dashed #8b5cf6`,pointerEvents:'none',zIndex:100004}:{position:'absolute',top:(artboard.heightMm/2)*MM_TO_CSS_PX,left:0,right:0,borderTop:`${1.5/(zoom/100)}px dashed #8b5cf6`,pointerEvents:'none',zIndex:100004}}/>}
   {print.showSafeAreaInEditor&&<div className="card-print-safe-boundary" style={{left:print.safeArea.leftMm*MM_TO_CSS_PX,top:print.safeArea.topMm*MM_TO_CSS_PX,right:print.safeArea.rightMm*MM_TO_CSS_PX,bottom:print.safeArea.bottomMm*MM_TO_CSS_PX}}/>}
   {print.showCropMarksInEditor&&<div className="card-print-crop-marks"><i className="tl"/><i className="tr"/><i className="bl"/><i className="br"/></div>}
@@ -1457,22 +1467,26 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
   {spacingGuides.map((guide,index)=>guide.axis==='X'?<div key={`spacing-x-${index}`} data-spacing-guide style={{position:'absolute',left:guide.fromMm*MM_TO_CSS_PX,top:guide.crossMm*MM_TO_CSS_PX,width:Math.max(0,(guide.toMm-guide.fromMm)*MM_TO_CSS_PX),height:0,borderTop:`${1/(zoom/100)}px dashed #db2777`,pointerEvents:'none',zIndex:100002}}><span style={{position:'absolute',left:'50%',top:-18/(zoom/100),transform:'translateX(-50%)',fontSize:10/(zoom/100),padding:`${1/(zoom/100)}px ${4/(zoom/100)}px`,background:'#fff',color:'#be185d',border:`${1/(zoom/100)}px solid #f9a8d4`,borderRadius:3/(zoom/100),whiteSpace:'nowrap'}}>{normalizeDisplayValue(guide.gapMm)} mm</span><i style={{position:'absolute',left:0,top:-4/(zoom/100),height:8/(zoom/100),borderLeft:`${1/(zoom/100)}px solid #db2777`}}/><i style={{position:'absolute',right:0,top:-4/(zoom/100),height:8/(zoom/100),borderRight:`${1/(zoom/100)}px solid #db2777`}}/></div>:<div key={`spacing-y-${index}`} data-spacing-guide style={{position:'absolute',left:guide.crossMm*MM_TO_CSS_PX,top:guide.fromMm*MM_TO_CSS_PX,height:Math.max(0,(guide.toMm-guide.fromMm)*MM_TO_CSS_PX),width:0,borderLeft:`${1/(zoom/100)}px dashed #db2777`,pointerEvents:'none',zIndex:100002}}><span style={{position:'absolute',left:6/(zoom/100),top:'50%',transform:'translateY(-50%)',fontSize:10/(zoom/100),padding:`${1/(zoom/100)}px ${4/(zoom/100)}px`,background:'#fff',color:'#be185d',border:`${1/(zoom/100)}px solid #f9a8d4`,borderRadius:3/(zoom/100),whiteSpace:'nowrap'}}>{normalizeDisplayValue(guide.gapMm)} mm</span><i style={{position:'absolute',top:0,left:-4/(zoom/100),width:8/(zoom/100),borderTop:`${1/(zoom/100)}px solid #db2777`}}/><i style={{position:'absolute',bottom:0,left:-4/(zoom/100),width:8/(zoom/100),borderBottom:`${1/(zoom/100)}px solid #db2777`}}/></div>)}
    {eraserPoints.length>0&&<svg data-eraser-lasso viewBox={`0 0 ${artboard.widthMm} ${artboard.heightMm}`} preserveAspectRatio="none" style={{position:'absolute',inset:0,width:'100%',height:'100%',overflow:'visible',pointerEvents:'none',zIndex:100003}}><polyline points={eraserPoints.map(p=>`${p.xMm},${p.yMm}`).join(' ')} fill="none" stroke="rgba(239,68,68,.55)" strokeWidth={12/MM_TO_CSS_PX/(zoom/100)} strokeLinecap="round" strokeLinejoin="round"/></svg>}
   {boundarySnap&&(()=>{const scale=zoom/100,size=10/scale,left=boundarySnap.point.x*MM_TO_CSS_PX-size/2,top=boundarySnap.point.y*MM_TO_CSS_PX-size/2,label=boundarySnap.kind.replace('_',' ');const common:React.CSSProperties={position:'absolute',left,top,width:size,height:size,boxSizing:'border-box',pointerEvents:'none',zIndex:100000};if(boundarySnap.kind==='INTERSECTION')return <div data-boundary-snap-marker data-snap-kind={boundarySnap.kind} title={label} style={{...common,color:'#22c55e',fontSize:12/scale,lineHeight:`${size}px`,fontWeight:800,textAlign:'center'}}>×</div>;const square=boundarySnap.kind==='LINE_ENDPOINT'||boundarySnap.kind==='VERTEX';return <div data-boundary-snap-marker data-snap-kind={boundarySnap.kind} title={label} style={{...common,borderRadius:square?'2px':'50%',border:`${2/scale}px solid #22c55e`,background:'white'}}/>;})()}
+  {multiSelectionBounds&&interactionMode==='SELECT'&&<div className="card-multi-selection-box" style={{left:multiSelectionBounds.xMm*MM_TO_CSS_PX,top:multiSelectionBounds.yMm*MM_TO_CSS_PX,width:multiSelectionBounds.widthMm*MM_TO_CSS_PX,height:multiSelectionBounds.heightMm*MM_TO_CSS_PX}}>
+    {(['nw','n','ne','e','se','s','sw','w'] as const).map(h=><i key={h} className={`card-transform-handle ${h}`} onPointerDown={ev=>{capture(ev);const p=point(ev);beginHistoryTransaction();interaction.current={mode:'MULTI_RESIZE',elements:multiSelectionElements.map(element=>structuredClone(element)),bounds:{...multiSelectionBounds},anchor:h.toUpperCase() as Op extends {mode:'MULTI_RESIZE';anchor:infer A}?A:never,startX:p.xMm,startY:p.yMm};}}/>)}
+  </div>}
   {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e=>e.visible && (!e.runtimeHidden || showHiddenElements)).map(e=>{
     const isSelected=selection.elementIds.includes(e.id);
     const trimmerTarget = interactionMode === 'TRIMMER' ? trimmerTargets.get(e.id) : undefined;
     const isPathEditing = trimmerTarget !== undefined || ((interactionMode==='EDIT_PATH' || interactionMode==='SCISSORS') && isSelected && e.type === 'PATH');
-    const showSelectionBox = isSelected && interactionMode !== 'PEN' && interactionMode !== 'FLEXIBLE_LINE' && interactionMode !== 'SCISSORS' && interactionMode !== 'TRIMMER' && interactionMode !== 'ERASER' && interactionMode !== 'FILL_BUCKET' && !isPathEditing;
-    const showHandles = isSelected && !e.locked && interactionMode !== 'PEN' && interactionMode !== 'FLEXIBLE_LINE' && interactionMode !== 'SCISSORS' && interactionMode !== 'TRIMMER' && interactionMode !== 'ERASER' && interactionMode !== 'FILL_BUCKET' && !isPathEditing;
-    return <div key={e.id} data-element-id={e.id} className={`card-design-element-shell has-visual type-${e.type.toLowerCase()} ${showSelectionBox?'selected':''} ${e.locked?'locked':''} ${e.runtimeHidden?'ghosted':''} ${isPathEditing?'path-editing':''}`} style={{left:e.position.xMm*MM_TO_CSS_PX,top:e.position.yMm*MM_TO_CSS_PX,width:e.size.widthMm*MM_TO_CSS_PX,height:e.size.heightMm*MM_TO_CSS_PX,transform:`rotate(${e.rotationDeg}deg)`,opacity:e.runtimeHidden?e.opacity*0.4:e.opacity,zIndex:e.zIndex,outline:e.runtimeHidden?'1px dashed var(--accent-color)':undefined,cursor:interactionMode==='TRIMMER'?TRIMMER_CURSOR:undefined, pointerEvents: (interactionMode === 'PEN' || interactionMode === 'FLEXIBLE_LINE' || interactionMode === 'DRAW_SHAPE' || interactionMode==='ERASER') ? 'none' : undefined}} onDoubleClick={ev=>{if(e.type==='PATH'&&!e.locked){ev.stopPropagation();setInteractionMode('EDIT_PATH');setPathSelectedNodeIds([]);}}} onPointerDown={ev=>{if(ev.button!==0)return;if(interactionMode==='FILL_BUCKET'){ev.preventDefault();ev.stopPropagation();applyBucketFill(e);return;}if(interactionMode==='PEN' || interactionMode === 'FLEXIBLE_LINE' || interactionMode==='DRAW_SHAPE' || interactionMode==='TRIMMER')return;capture(ev);const p=point(ev),groupIds=e.metadata?.faceGeneration==='AUTO_SECTION'&&!ev.altKey?[e.id]:expandElementIdsToGroups(artboard,[e.id]),toggle=ev.ctrlKey||ev.metaKey||ev.shiftKey;let next:DesignSelectionState;if(toggle){const remove=groupIds.every(gid=>selection.elementIds.includes(gid));next=selection;for(const gid of groupIds)if(remove===next.elementIds.includes(gid))next=toggleSelection(next,gid);if(!remove)next={...next,primaryElementId:e.id};}else next=isSelected?selection:{artboardId:artboard.id,elementIds:groupIds,primaryElementId:e.id};setSelection(next);if(interactionMode==='EDIT_PATH' && (!isSelected || e.type !== 'PATH' || toggle)){setInteractionMode('SELECT');setPathSelectedNodeIds([]);} if(!toggle&&!e.locked&&next.elementIds.includes(e.id)){ if (!(interactionMode==='EDIT_PATH' && e.type === 'PATH' && isSelected)) { beginHistoryTransaction();interaction.current={mode:'MOVE',lastX:p.xMm,lastY:p.yMm,ids:next.elementIds.flatMap(elementId=>{const selected=artboard.elements.find(item=>item.id===elementId);return selected?.metadata?.faceGeneration==='AUTO_SECTION'?[elementId]:expandElementIdsToGroups(artboard,[elementId]);})}; }}}}>
+    const showSelectionBox = isSelected && interactionMode !== 'PEN' && interactionMode !== 'FLEXIBLE_LINE' && interactionMode !== 'SPLIT' && interactionMode !== 'SCISSORS' && interactionMode !== 'TRIMMER' && interactionMode !== 'ERASER' && interactionMode !== 'FILL_BUCKET' && !isPathEditing;
+    const isPrimarySelection = selection.elementIds.length > 1 && selection.primaryElementId === e.id;
+    const showHandles = selection.elementIds.length === 1 && isSelected && !e.locked && interactionMode !== 'PEN' && interactionMode !== 'FLEXIBLE_LINE' && interactionMode !== 'SPLIT' && interactionMode !== 'SCISSORS' && interactionMode !== 'TRIMMER' && interactionMode !== 'ERASER' && interactionMode !== 'FILL_BUCKET' && !isPathEditing;
+    return <div key={e.id} data-element-id={e.id} className={`card-design-element-shell has-visual type-${e.type.toLowerCase()} ${showSelectionBox?'selected':''} ${isPrimarySelection?'primary-selected':''} ${e.locked?'locked':''} ${e.runtimeHidden?'ghosted':''} ${isPathEditing?'path-editing':''}`} style={{left:e.position.xMm*MM_TO_CSS_PX,top:e.position.yMm*MM_TO_CSS_PX,width:e.size.widthMm*MM_TO_CSS_PX,height:e.size.heightMm*MM_TO_CSS_PX,transform:`rotate(${e.rotationDeg}deg)`,opacity:e.runtimeHidden?e.opacity*0.4:e.opacity,zIndex:e.zIndex+1,outline:e.runtimeHidden?'1px dashed var(--accent-color)':undefined,cursor:interactionMode==='TRIMMER'?TRIMMER_CURSOR:undefined, pointerEvents: (interactionMode === 'PEN' || interactionMode === 'FLEXIBLE_LINE' || interactionMode === 'DRAW_SHAPE' || interactionMode === 'SPLIT' || interactionMode==='ERASER') ? 'none' : undefined}} onDoubleClick={ev=>{if(e.type==='PATH'&&!e.locked){ev.stopPropagation();setInteractionMode('EDIT_PATH');setPathSelectedNodeIds([]);}}} onPointerDown={ev=>{if(ev.button!==0)return;if(interactionMode==='FILL_BUCKET'){ev.preventDefault();ev.stopPropagation();applyBucketFill(e);return;}if(interactionMode==='PEN' || interactionMode === 'FLEXIBLE_LINE' || interactionMode==='DRAW_SHAPE' || interactionMode==='SPLIT' || interactionMode==='TRIMMER')return;capture(ev);const p=point(ev),groupIds=e.metadata?.faceGeneration==='AUTO_SECTION'&&!ev.altKey?[e.id]:expandElementIdsToGroups(artboard,[e.id]),toggle=ev.ctrlKey||ev.metaKey||ev.shiftKey;let next:DesignSelectionState;if(toggle){const remove=groupIds.every(gid=>selection.elementIds.includes(gid));next=selection;for(const gid of groupIds)if(remove===next.elementIds.includes(gid))next=toggleSelection(next,gid);if(!remove)next={...next,primaryElementId:e.id};}else next=isSelected?selection:{artboardId:artboard.id,elementIds:groupIds,primaryElementId:e.id};setSelection(next);if(interactionMode==='EDIT_PATH' && (!isSelected || e.type !== 'PATH' || toggle)){setInteractionMode('SELECT');setPathSelectedNodeIds([]);} if(!toggle&&!e.locked&&next.elementIds.includes(e.id)){ if (!(interactionMode==='EDIT_PATH' && e.type === 'PATH' && isSelected)) { beginHistoryTransaction();interaction.current={mode:'MOVE',lastX:p.xMm,lastY:p.yMm,ids:next.elementIds.flatMap(elementId=>{const selected=artboard.elements.find(item=>item.id===elementId);return selected?.metadata?.faceGeneration==='AUTO_SECTION'?[elementId]:expandElementIdsToGroups(artboard,[elementId]);})}; }}}}>
     <ElementVisual element={e} assets={assets} mutate={commitMutate} artboardId={artboard.id}/>
-    {showHandles&&<><i className="card-rotation-stem"/><i className="card-rotation-handle" onPointerDown={ev=>{capture(ev);const p=point(ev),c={xMm:e.position.xMm+e.size.widthMm/2,yMm:e.position.yMm+e.size.heightMm/2};beginHistoryTransaction();interaction.current={mode:'ROTATE',element:e,startAngle:Math.atan2(p.yMm-c.yMm,p.xMm-c.xMm),startRotation:e.rotationDeg};}}/>{(['nw','n','ne','e','se','s','sw','w'] as const).map(h=><i key={h} className={`card-transform-handle ${h}`} onPointerDown={ev=>{capture(ev);const p=point(ev);beginHistoryTransaction();interaction.current={mode:'RESIZE',element:e,anchor:h.toUpperCase() as Op extends {mode:'RESIZE';anchor:infer A}?A:never,startX:p.xMm,startY:p.yMm,keepAspect:ev.shiftKey||(e.type==='IMAGE'&&e.maintainAspectRatio===true)};}}/>)}</>}
-    {isPathEditing && <PathNodeEditor element={(trimmerTarget ?? e) as PathDesignElement} zoom={zoom} interactionMode={interactionMode} pathSelectedNodeIds={pathSelectedNodeIds} setPathSelectedNodeIds={setPathSelectedNodeIds} pathSelectedSegmentIds={pathSelectedSegmentIds} setPathSelectedSegmentIds={setPathSelectedSegmentIds} mutate={commitMutate} artboardId={artboard.id} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} onTrimGeometry={geometry=>commitTrimFragments(e.id,geometry)} allElements={artboard.elements} artboard={artboard} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} gridSizeMm={gridSizeMm} />}
+    {showHandles&&<><i className="card-rotation-stem"/><i className="card-rotation-handle" onPointerDown={ev=>{capture(ev);const p=point(ev),c={xMm:e.position.xMm+e.size.widthMm/2,yMm:e.position.yMm+e.size.heightMm/2};beginHistoryTransaction();interaction.current={mode:'ROTATE',element:e,startAngle:Math.atan2(p.yMm-c.yMm,p.xMm-c.xMm),startRotation:e.rotationDeg};}}/>{(['nw','n','ne','e','se','s','sw','w'] as const).map(h=><i key={h} className={`card-transform-handle ${h}`} onPointerDown={ev=>{capture(ev);const p=point(ev);beginHistoryTransaction();interaction.current={mode:'RESIZE',element:e,anchor:h.toUpperCase() as Op extends {mode:'RESIZE';anchor:infer A}?A:never,startX:p.xMm,startY:p.yMm,defaultKeepAspect:e.type==='IMAGE'?(e.maintainAspectRatio??true):false,centerBased:ev.altKey};}}/>)}</>}
+    {isPathEditing && <PathNodeEditor element={(trimmerTarget ?? e) as PathDesignElement} zoom={zoom} interactionMode={interactionMode} pathSelectedNodeIds={pathSelectedNodeIds} setPathSelectedNodeIds={setPathSelectedNodeIds} pathSelectedSegmentIds={pathSelectedSegmentIds} setPathSelectedSegmentIds={setPathSelectedSegmentIds} mutate={commitMutate} artboardId={artboard.id} beginHistoryTransaction={beginHistoryTransaction} endHistoryTransaction={endHistoryTransaction} onTrimGeometry={geometry=>commitTrimFragments(e.id,geometry)} allElements={artboard.elements} artboard={artboard} snapEnabled={snapEnabled} gridSnapEnabled={gridSnapEnabled} guideSnapEnabled={guideSnapEnabled} gridSizeMm={gridSizeMm} showSmartCenters={showSmartCenters} symmetryMode={pathSymmetryMode} />}
    </div>})}
+  {showSmartCenters&&<><div data-artboard-center-guide="x" className="card-smart-center-guide vertical" style={{left:(artboard.widthMm/2)*MM_TO_CSS_PX}}/><div data-artboard-center-guide="y" className="card-smart-center-guide horizontal" style={{top:(artboard.heightMm/2)*MM_TO_CSS_PX}}/></>}
   {snapGuides.map((guide,index)=>guide.axis==='X'?<div key={`snap-x-${index}`} className={`card-smart-guide vertical source-${guide.source.toLowerCase()}`} style={{left:guide.positionMm*MM_TO_CSS_PX}}/>:<div key={`snap-y-${index}`} className={`card-smart-guide horizontal source-${guide.source.toLowerCase()}`} style={{top:guide.positionMm*MM_TO_CSS_PX}}/>)}
   {marqueeRect&&<div className="card-selection-marquee" style={{left:marqueeRect.xMm*MM_TO_CSS_PX,top:marqueeRect.yMm*MM_TO_CSS_PX,width:marqueeRect.widthMm*MM_TO_CSS_PX,height:marqueeRect.heightMm*MM_TO_CSS_PX}}/>}
-  {(interactionMode === 'PEN' || interactionMode === 'FLEXIBLE_LINE') && penHover && activePolylineSession.current?.tool===interactionMode && (()=>{
-     void polylineSessionVersion;
-     const selectedId = activePolylineSession.current!.pathId;
+  {(interactionMode === 'PEN' || interactionMode === 'FLEXIBLE_LINE') && penHover && selection.elementIds.length === 1 && (()=>{
+     const selectedId = selection.elementIds[0];
      const el = artboard.elements.find(e => e.id === selectedId);
      if (el && el.type === 'PATH') {
         const pEl = el as PathDesignElement;
@@ -1483,9 +1497,8 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
            const localHover = worldToLocal({ x: penHover.xMm, y: penHover.yMm }, pEl);
            return <div style={{position:'absolute',left:pEl.position.xMm*MM_TO_CSS_PX,top:pEl.position.yMm*MM_TO_CSS_PX,width:pEl.size.widthMm*MM_TO_CSS_PX,height:pEl.size.heightMm*MM_TO_CSS_PX,pointerEvents:'none',zIndex:9999}}>
              <svg style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',overflow:'visible'}} viewBox={`0 0 ${pEl.size.widthMm} ${pEl.size.heightMm}`} preserveAspectRatio="none">
-                <line x1={lastNode.x} y1={lastNode.y} x2={localHover.x} y2={localHover.y} stroke={penHover.angleLocked?'#f59e0b':'var(--accent-color)'} strokeWidth={1/MM_TO_CSS_PX} strokeDasharray={`${4/MM_TO_CSS_PX} ${4/MM_TO_CSS_PX}`} />
-                <circle cx={localHover.x} cy={localHover.y} r={3/MM_TO_CSS_PX} fill="none" stroke={penHover.angleLocked?'#f59e0b':'var(--accent-color)'} strokeWidth={1/MM_TO_CSS_PX} />
-                {penHover.angleLocked&&<text x={localHover.x+2/MM_TO_CSS_PX} y={localHover.y-3/MM_TO_CSS_PX} fill="#f59e0b" fontSize={11/MM_TO_CSS_PX}>{penHover.angleDeg}°</text>}
+                <line x1={lastNode.x} y1={lastNode.y} x2={localHover.x} y2={localHover.y} stroke="var(--accent-color)" strokeWidth={1/MM_TO_CSS_PX} strokeDasharray={`${4/MM_TO_CSS_PX} ${4/MM_TO_CSS_PX}`} />
+                <circle cx={localHover.x} cy={localHover.y} r={3/MM_TO_CSS_PX} fill="none" stroke="var(--accent-color)" strokeWidth={1/MM_TO_CSS_PX} />
              </svg>
            </div>;
         }
@@ -1495,52 +1508,102 @@ function CardArtboardCanvas({artboard,assets,zoom,selection,setSelection,interac
  </div>;
 }
 
-function LayerPanel({artboard,selection,interactionMode,setSelection,mutate,duplicateSelected,groupSelected,ungroupSelected}:{artboard:Artboard;selection:DesignSelectionState;interactionMode:'SELECT'|'EDIT_PATH'|'SCISSORS'|'PEN'|'TRIMMER'|'ERASER'|'FILL_BUCKET'|'DRAW_SHAPE'|'FLEXIBLE_LINE'|'SPLIT';setSelection:(s:DesignSelectionState)=>void;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;duplicateSelected:()=>void;groupSelected:()=>void;ungroupSelected:()=>void}){
-  const layers=orderedLayers(artboard);const selectedSet=new Set(selection.elementIds);const selectedGroups=[...new Set(selection.elementIds.map(id=>groupForElement(artboard,id)?.id).filter(Boolean) as string[])];
-  const getLayerIcon = (type: string) => {
-    switch (type) {
-      case 'TEXT': return <Type size={14} />;
-      case 'IMAGE': return <ImageIcon size={14} />;
-      case 'SVG': return <PenLine size={14} />;
-      case 'SHAPE': return <Box size={14} />;
-      default: return <Shapes size={14} />;
+function LayerPanel({artboard,selection,interactionMode,setSelection,mutate,duplicateSelected,groupSelected,ungroupSelected,regroupSelected,canRegroup}:{artboard:Artboard;selection:DesignSelectionState;interactionMode:'SELECT'|'EDIT_PATH'|'SCISSORS'|'PEN'|'TRIMMER'|'SPLIT'|'ERASER'|'FILL_BUCKET'|'DRAW_SHAPE'|'FLEXIBLE_LINE';setSelection:(s:DesignSelectionState)=>void;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;duplicateSelected:()=>void;groupSelected:()=>void;ungroupSelected:()=>void;regroupSelected:()=>void;canRegroup:boolean}){
+  const layers=orderedLayers(artboard),selectedSet=new Set(selection.elementIds);
+  const [collapsedGroups,setCollapsedGroups]=useState<Record<string,boolean>>({});
+  const selectedGroups=[...new Set(selection.elementIds.map(id=>groupForElement(artboard,id)?.id).filter(Boolean) as string[])];
+  const groupById=new Map(artboard.groups.map(group=>[group.id,group] as const));
+  const renderedGroups=new Set<string>();
+  const layerUnits:Array<{kind:'GROUP';group:Artboard['groups'][number];members:DesignElement[]}|{kind:'ELEMENT';element:DesignElement}>=[];
+  for(const layer of layers){
+    const group=layer.groupId?groupById.get(layer.groupId):undefined;
+    if(!group){layerUnits.push({kind:'ELEMENT',element:layer});continue;}
+    if(renderedGroups.has(group.id))continue;
+    renderedGroups.add(group.id);
+    const memberSet=new Set(group.elementIds);
+    layerUnits.push({kind:'GROUP',group,members:layers.filter(item=>memberSet.has(item.id))});
+  }
+  const getLayerIcon=(type:string)=>{
+    switch(type){
+      case 'TEXT':return <Type size={14}/>;
+      case 'IMAGE':return <ImageIcon size={14}/>;
+      case 'SVG':return <PenLine size={14}/>;
+      case 'SHAPE':return <Box size={14}/>;
+      default:return <Shapes size={14}/>;
     }
   };
+  const selectGroup=(group:Artboard['groups'][number])=>{
+    const members=layers.filter(layer=>group.elementIds.includes(layer.id));
+    setSelection({artboardId:artboard.id,elementIds:members.map(member=>member.id),primaryElementId:members[0]?.id});
+  };
+  const renameGroupOnBlur=(group:Artboard['groups'][number],value:string)=>{
+    const name=value.trim();if(name&&name!==group.name)mutate(t=>renameGroup(t,artboard.id,group.id,name));
+  };
+  const orderDisabled=!selection.elementIds.length||interactionMode!=='SELECT';
   return <div className="card-layers-panel">
-    <div className="card-panel-heading"><div><strong>Layers</strong><small>{layers.length} element{layers.length===1?'':'s'}</small></div></div>
+    <div className="card-panel-heading"><div><strong>Layers</strong><small>{layers.length} element{layers.length===1?'':'s'} · {artboard.groups.length} group{artboard.groups.length===1?'':'s'}</small></div></div>
     <div className="card-layer-toolbar">
       <div className="card-layer-actions">
         <button onClick={duplicateSelected} disabled={!selection.elementIds.length}>Duplicate</button>
         <button onClick={groupSelected} disabled={selection.elementIds.length<2||selectedGroups.length>0}>Group</button>
         <button onClick={ungroupSelected} disabled={!selectedGroups.length}>Ungroup</button>
+        <button onClick={regroupSelected} disabled={!canRegroup}>Regroup</button>
       </div>
       <div className="card-layer-order-actions" aria-label="Layer order actions">
-        <button title="Bring to front" aria-label="Bring to front" disabled={!selection.elementIds.length||interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'FRONT'))}><ArrowUp size={12}/><ArrowUp size={12}/><span>Front</span></button>
-        <button title="Move up" aria-label="Move up" disabled={!selection.elementIds.length||interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'FORWARD'))}><ArrowUp size={12}/><span>Up</span></button>
-        <button title="Move down" aria-label="Move down" disabled={!selection.elementIds.length||interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'BACKWARD'))}><ArrowDown size={12}/><span>Down</span></button>
-        <button title="Send to back" aria-label="Send to back" disabled={!selection.elementIds.length||interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'BACK'))}><ArrowDown size={12}/><ArrowDown size={12}/><span>Back</span></button>
+        <button title="Bring to front" aria-label="Bring to front" disabled={orderDisabled} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'FRONT'))}><ArrowUp size={12}/><ArrowUp size={12}/><span>Front</span></button>
+        <button title="Move up" aria-label="Move up" disabled={orderDisabled} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'FORWARD'))}><ArrowUp size={12}/><span>Up</span></button>
+        <button title="Move down" aria-label="Move down" disabled={orderDisabled} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'BACKWARD'))}><ArrowDown size={12}/><span>Down</span></button>
+        <button title="Send to back" aria-label="Send to back" disabled={orderDisabled} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selection.elementIds,'BACK'))}><ArrowDown size={12}/><ArrowDown size={12}/><span>Back</span></button>
       </div>
     </div>
     <div className="card-layer-list">
-      {layers.length?layers.map(layer=>{
-        const group=groupForElement(artboard,layer.id);
+      {layerUnits.length?layerUnits.map(unit=>{
+        if(unit.kind==='GROUP'){
+          const {group,members}=unit,groupSelected=group.elementIds.length===selection.elementIds.length&&group.elementIds.every(id=>selectedSet.has(id));
+          const collapsed=Boolean(collapsedGroups[group.id]);
+          const groupVisible=members.every(member=>member.visible),groupLocked=members.every(member=>member.locked);
+          return <div key={group.id} className={`card-layer-group-container ${groupSelected?'active':''}`}>
+            <div className="card-layer-group-header" onClick={()=>selectGroup(group)}>
+              <button className="card-layer-collapse" title={collapsed?'Expand group':'Collapse group'} aria-label={collapsed?'Expand group':'Collapse group'} onClick={event=>{event.stopPropagation();setCollapsedGroups(current=>({...current,[group.id]:!collapsed}));}}>{collapsed?<ChevronRight size={14}/>:<ChevronDown size={14}/>}</button>
+              <div className="card-layer-group-icon"><Layers3 size={14}/></div>
+              <div className="card-layer-group-title">
+                <input key={`${group.id}:${group.name}`} aria-label={`Rename group ${group.name}`} defaultValue={group.name} onClick={event=>event.stopPropagation()} onBlur={event=>renameGroupOnBlur(group,event.target.value)} onKeyDown={event=>{if(event.key==='Enter')(event.currentTarget as HTMLInputElement).blur();if(event.key==='Escape'){event.currentTarget.value=group.name;(event.currentTarget as HTMLInputElement).blur();}}}/>
+                <small>{members.length} item{members.length===1?'':'s'}</small>
+              </div>
+              <div className="card-layer-group-quick-actions" onClick={event=>event.stopPropagation()}>
+                <button title={groupVisible?'Hide group':'Show group'} onClick={()=>mutate(t=>setGroupVisibility(t,artboard.id,group.id,!groupVisible))}>{groupVisible?<Eye size={12}/>:<EyeOff size={12}/>}</button>
+                <button title={groupLocked?'Unlock group':'Lock group'} onClick={()=>mutate(t=>setGroupLocked(t,artboard.id,group.id,!groupLocked))}>{groupLocked?<Lock size={12}/>:<Unlock size={12}/>}</button>
+              </div>
+            </div>
+            <div className="card-layer-group-order" aria-label={`${group.name} layer order`}>
+              <button title="Bring group to front" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,group.elementIds,'FRONT'))}><ArrowUp size={12}/><ArrowUp size={12}/></button>
+              <button title="Move group up" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,group.elementIds,'FORWARD'))}><ArrowUp size={12}/></button>
+              <button title="Move group down" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,group.elementIds,'BACKWARD'))}><ArrowDown size={12}/></button>
+              <button title="Send group to back" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,group.elementIds,'BACK'))}><ArrowDown size={12}/><ArrowDown size={12}/></button>
+            </div>
+            {!collapsed&&<div className="card-layer-group-children">{members.map(layer=><div key={layer.id} className={`card-layer-child ${selectedSet.has(layer.id)?'active':''}`}>
+              <div className="card-layer-child-guide"/>
+              <div className="card-layer-icon">{getLayerIcon(layer.type)}</div>
+              <input aria-label={`Rename ${layer.name}`} value={layer.name||''} placeholder={layer.type} onChange={event=>mutate(t=>renameElement(t,artboard.id,layer.id,event.target.value))}/>
+              <span className="card-layer-child-state" title="Inherited from group">{layer.locked?<Lock size={11}/>:null}{!layer.visible?<EyeOff size={11}/>:null}</span>
+            </div>)}</div>}
+          </div>;
+        }
+        const layer=unit.element;
         return <div key={layer.id} className={`card-layer-row ${selectedSet.has(layer.id)?'active':''}`}>
           <button className="card-layer-main" title={layer.metadata?.faceGeneration==='AUTO_SECTION'?'Click: select section · Alt+Click: select component':undefined} onClick={event=>setSelection({artboardId:artboard.id,elementIds:layer.metadata?.faceGeneration==='AUTO_SECTION'&&!event.altKey?[layer.id]:expandElementIdsToGroups(artboard,[layer.id]),primaryElementId:layer.id})}>
             <div className="card-layer-icon">{getLayerIcon(layer.type)}</div>
-            <div className="card-layer-content">
-              <input aria-label={`Rename ${layer.name}`} value={layer.name || ''} placeholder={layer.type} onClick={e=>e.stopPropagation()} onChange={e=>mutate(t=>renameElement(t,artboard.id,layer.id,e.target.value))}/>
-              {group&&<span className="card-layer-group">{group.name}</span>}
-            </div>
+            <div className="card-layer-content"><input aria-label={`Rename ${layer.name}`} value={layer.name||''} placeholder={layer.type} onClick={event=>event.stopPropagation()} onChange={event=>mutate(t=>renameElement(t,artboard.id,layer.id,event.target.value))}/></div>
           </button>
           <div className="card-layer-mini">
-            <button title={layer.visible?(layer.runtimeHidden?'Hidden by condition':'Hide'):'Show'} style={{color: layer.runtimeHidden?'var(--accent-color)':undefined}} onClick={()=>mutate(t=>group?setGroupVisibility(t,artboard.id,group.id,!layer.visible):setElementVisibility(t,artboard.id,layer.id,!layer.visible))}>{layer.visible?(layer.runtimeHidden?<EyeOff size={12}/>:<Eye size={12}/>):<EyeOff size={12}/>}</button>
-            <button title={layer.locked?'Unlock':'Lock'} onClick={()=>mutate(t=>group?setGroupLocked(t,artboard.id,group.id,!layer.locked):setElementLocked(t,artboard.id,layer.id,!layer.locked))}>{layer.locked?<Lock size={12}/>:<Unlock size={12}/>}</button>
-            <button title="Bring to front" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selectedSet.has(layer.id)?selection.elementIds:[layer.id],'FRONT'))}><ArrowUp size={12}/><ArrowUp size={12}/></button>
-            <button title="Bring forward" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selectedSet.has(layer.id)?selection.elementIds:[layer.id],'FORWARD'))}><ArrowUp size={12}/></button>
-            <button title="Send backward" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selectedSet.has(layer.id)?selection.elementIds:[layer.id],'BACKWARD'))}><ArrowDown size={12}/></button>
-            <button title="Send to back" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,selectedSet.has(layer.id)?selection.elementIds:[layer.id],'BACK'))}><ArrowDown size={12}/><ArrowDown size={12}/></button>
+            <button title={layer.visible?(layer.runtimeHidden?'Hidden by condition':'Hide'):'Show'} style={{color:layer.runtimeHidden?'var(--accent-color)':undefined}} onClick={()=>mutate(t=>setElementVisibility(t,artboard.id,layer.id,!layer.visible))}>{layer.visible?(layer.runtimeHidden?<EyeOff size={12}/>:<Eye size={12}/>):<EyeOff size={12}/>}</button>
+            <button title={layer.locked?'Unlock':'Lock'} onClick={()=>mutate(t=>setElementLocked(t,artboard.id,layer.id,!layer.locked))}>{layer.locked?<Lock size={12}/>:<Unlock size={12}/>}</button>
+            <button title="Bring to front" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,[layer.id],'FRONT'))}><ArrowUp size={12}/><ArrowUp size={12}/></button>
+            <button title="Bring forward" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,[layer.id],'FORWARD'))}><ArrowUp size={12}/></button>
+            <button title="Send backward" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,[layer.id],'BACKWARD'))}><ArrowDown size={12}/></button>
+            <button title="Send to back" disabled={interactionMode!=='SELECT'} onClick={()=>mutate(t=>moveLayers(t,artboard.id,[layer.id],'BACK'))}><ArrowDown size={12}/><ArrowDown size={12}/></button>
           </div>
-        </div>
+        </div>;
       }):<div className="card-layer-empty">Add an element to create the first layer.</div>}
     </div>
   </div>;
@@ -1554,16 +1617,7 @@ function ElementVisual({element,assets,mutate,artboardId}:{element:DesignElement
     const src=resolveRasterImageElementSource(element,assets);
     const asset=assets.find(a=>a.id===element.assetId);
     const kind=src ? 'RASTER_IMAGE' : assetRenderKind(asset);
-    return (
-      <div className="card-image-visual" style={{position:'relative',borderRadius:`${element.cornerRadiusMm??0}mm`,border:strokeCss(element.stroke),boxShadow:boxShadowCss(element.shadow)}}>
-        {kind==='RASTER_IMAGE'&&src?<img src={src} alt={element.name} draggable={false} style={{objectFit:element.fit==='FIT'?'contain':element.fit==='FILL'?'cover':'fill',transform:`scale(${element.flipX?-1:1},${element.flipY?-1:1})`}}/>:<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}
-        {element.hyperlink && (
-          <div style={{ position: 'absolute', top: '6px', right: '6px', padding: '3px', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', zIndex: 10 }}>
-            <Link size={10} style={{ color: 'var(--accent-color)' }} />
-          </div>
-        )}
-      </div>
-    );
+    return <div className="card-image-visual" style={{borderRadius:`${element.cornerRadiusMm??0}mm`,border:strokeCss(element.stroke),boxShadow:boxShadowCss(element.shadow)}}>{kind==='RASTER_IMAGE'&&src?<img src={src} alt={element.name} draggable={false} style={{objectFit:element.fit==='FIT'?'contain':element.fit==='FILL'?'cover':'fill',transform:`scale(${element.flipX?-1:1},${element.flipY?-1:1})`}}/>:<div className="card-missing-asset">{kind==='MISSING'?'Missing Asset':'Unsupported Asset'}</div>}</div>;
   }
   if(element.type==='SVG'){
     const dynamicSource = (element as any).source;
@@ -1587,7 +1641,7 @@ function QrVisual({element}:{element:QrDesignElement}){
   </div>;
 }
 
-function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, setPathSelectedNodeIds, pathSelectedSegmentIds, setPathSelectedSegmentIds, mutate, artboardId, beginHistoryTransaction, endHistoryTransaction, onTrimGeometry, allElements, artboard, snapEnabled, gridSnapEnabled, guideSnapEnabled, gridSizeMm}: {element: PathDesignElement; zoom: number; interactionMode: string; pathSelectedNodeIds: string[]; setPathSelectedNodeIds: (m: string[]) => void; pathSelectedSegmentIds: string[]; setPathSelectedSegmentIds: (m: string[]) => void; mutate: (f: (t: DesignTemplate) => DesignTemplate) => void; artboardId: string; beginHistoryTransaction: () => void; endHistoryTransaction: () => void; onTrimGeometry: (geometry: PathDesignElement['geometry']) => void; allElements?: DesignElement[]; artboard:Artboard; snapEnabled:boolean; gridSnapEnabled:boolean; guideSnapEnabled:boolean; gridSizeMm:number}) {
+function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, setPathSelectedNodeIds, pathSelectedSegmentIds, setPathSelectedSegmentIds, mutate, artboardId, beginHistoryTransaction, endHistoryTransaction, onTrimGeometry, allElements, artboard, snapEnabled, gridSnapEnabled, guideSnapEnabled, gridSizeMm,showSmartCenters,symmetryMode}: {element: PathDesignElement; zoom: number; interactionMode: string; pathSelectedNodeIds: string[]; setPathSelectedNodeIds: React.Dispatch<React.SetStateAction<string[]>>; pathSelectedSegmentIds: string[]; setPathSelectedSegmentIds: (m: string[]) => void; mutate: (f: (t: DesignTemplate) => DesignTemplate) => void; artboardId: string; beginHistoryTransaction: () => void; endHistoryTransaction: () => void; onTrimGeometry: (geometry: PathDesignElement['geometry']) => void; allElements?: DesignElement[]; artboard:Artboard; snapEnabled:boolean; gridSnapEnabled:boolean; guideSnapEnabled:boolean; gridSizeMm:number; showSmartCenters:boolean; symmetryMode:'OFF'|'H'|'V'}) {
   const [nodeSnap,setNodeSnap]=useState<PointSnapResult|null>(null);
   const [trimmerHover, setTrimmerHover] = useState<string | null>(null);
   // Smart trimmer: interval hover state
@@ -1604,6 +1658,19 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
   const trimNodeHitSize = 20 / (zoom / 100);
   // --- Central bulge handle state (used by bulge handle pointer drag) ---
   const [_bulgeSegId, setBulgeSegId] = useState<string | null>(null);
+  const pathCenter={x:element.size.widthMm/2,y:element.size.heightMm/2};
+  const findMirrorNode=(points:PathDesignElement['geometry']['points'],sourceId:string,mode:'H'|'V')=>{
+    const source=points.find(point=>point.id===sourceId);if(!source)return undefined;
+    const target=mode==='H'?{x:2*pathCenter.x-source.x,y:source.y}:{x:source.x,y:2*pathCenter.y-source.y};
+    const tolerance=Math.max(2,8/(MM_TO_CSS_PX*(zoom/100)));
+    return points.filter(point=>point.id!==sourceId).map(point=>({point,d:Math.hypot(point.x-target.x,point.y-target.y)})).sort((a,b)=>a.d-b.d)[0]?.d<=tolerance?points.filter(point=>point.id!==sourceId).map(point=>({point,d:Math.hypot(point.x-target.x,point.y-target.y)})).sort((a,b)=>a.d-b.d)[0]?.point:undefined;
+  };
+  const nodeSymmetryGuides=(()=>{
+    const selected=new Set(pathSelectedNodeIds),pairs:Array<{mode:'H'|'V';a:typeof activeGeometry.points[number];b:typeof activeGeometry.points[number];distance:number}>=[];const seen=new Set<string>();
+    for(const point of activeGeometry.points){if(!selected.has(point.id))continue;for(const mode of ['H','V'] as const){const mirror=findMirrorNode(activeGeometry.points,point.id,mode);if(!mirror||!selected.has(mirror.id))continue;const key=[mode,...[point.id,mirror.id].sort()].join(':');if(seen.has(key))continue;seen.add(key);pairs.push({mode,a:point,b:mirror,distance:mode==='H'?Math.abs(point.x-pathCenter.x):Math.abs(point.y-pathCenter.y)});}}
+    return pairs;
+  })();
+
 
   useEffect(() => {
     setTrimGeometry(null);
@@ -1745,6 +1812,8 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
       <button type="button" onClick={clearManualTrim}>Clear Trim Selection</button>
     </div>}
     <svg style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',pointerEvents:'none',overflow:'visible'}} viewBox={`0 0 ${element.size.widthMm} ${element.size.heightMm}`} preserveAspectRatio="none">
+      {interactionMode==='EDIT_PATH'&&showSmartCenters&&<g data-path-center-guides pointerEvents="none"><line x1={pathCenter.x} y1={0} x2={pathCenter.x} y2={element.size.heightMm} className="card-path-center-guide"/><line x1={0} y1={pathCenter.y} x2={element.size.widthMm} y2={pathCenter.y} className="card-path-center-guide"/></g>}
+      {interactionMode==='EDIT_PATH'&&showSmartCenters&&nodeSymmetryGuides.map((guide,index)=>guide.mode==='H'?<g key={`node-eq-h-${index}`} data-node-equidistance-guide pointerEvents="none"><line x1={guide.a.x} y1={guide.a.y} x2={pathCenter.x} y2={guide.a.y} className="card-path-equal-guide"/><line x1={pathCenter.x} y1={guide.b.y} x2={guide.b.x} y2={guide.b.y} className="card-path-equal-guide"/><text x={pathCenter.x} y={(guide.a.y+guide.b.y)/2-1} textAnchor="middle" className="card-path-guide-label">{normalizeDisplayValue(guide.distance)} mm = {normalizeDisplayValue(guide.distance)} mm</text></g>:<g key={`node-eq-v-${index}`} data-node-equidistance-guide pointerEvents="none"><line x1={guide.a.x} y1={guide.a.y} x2={guide.a.x} y2={pathCenter.y} className="card-path-equal-guide"/><line x1={guide.b.x} y1={pathCenter.y} x2={guide.b.x} y2={guide.b.y} className="card-path-equal-guide"/><text x={(guide.a.x+guide.b.x)/2+1} y={pathCenter.y} className="card-path-guide-label">{normalizeDisplayValue(guide.distance)} mm = {normalizeDisplayValue(guide.distance)} mm</text></g>)}
       {/* Intersection markers (editor-only, not persisted) */}
       {interactionMode === 'EDIT_PATH' && allElements && activeGeometry.segments.map(seg => {
         const intervals = computeIntervals(seg.id as string);
@@ -1871,6 +1940,41 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
                 } else {
                   selectTrimPointOnSegment(seg.id, snappedT);
                 }
+              } else if (interactionMode === 'EDIT_PATH' && ev.shiftKey) {
+                const shell = ev.currentTarget.closest('.card-path-node-editor') as HTMLElement;
+                if (!shell) return;
+                const r = shell.getBoundingClientRect();
+                const clickPt = {
+                  x: (ev.clientX - r.left) / r.width * element.size.widthMm,
+                  y: (ev.clientY - r.top) / r.height * element.size.heightMm
+                };
+                const { t } = hitTestSegment(activeGeometry, seg.id as string, clickPt);
+                const clampedT = Math.max(0.001, Math.min(0.999, t));
+                const insertResult = insertPathNodeWithSymmetry(
+                  activeGeometry,
+                  seg.id as string,
+                  clampedT,
+                  symmetryMode,
+                  pathCenter,
+                  Math.max(0.35, 10 / (MM_TO_CSS_PX * (zoom / 100))),
+                );
+                if (!insertResult.insertedPointIds.length) return;
+                beginHistoryTransaction();
+                mutate(t_ => {
+                  const art = t_.artboards.find(a => a.id === artboardId);
+                  if (!art) return t_;
+                  const el = art.elements.find(e => e.id === element.id) as PathDesignElement;
+                  if (!el || el.type !== 'PATH') return t_;
+                  return {
+                    ...t_,
+                    artboards: t_.artboards.map(a => a.id === artboardId
+                      ? { ...a, elements: a.elements.map(e => e.id === el.id ? { ...e, geometry: insertResult.geometry } : e) }
+                      : a)
+                  };
+                });
+                endHistoryTransaction();
+                setPathSelectedSegmentIds([]);
+                setPathSelectedNodeIds(prev => [...new Set([...prev, ...insertResult.insertedPointIds])]);
               } else {
                 setPathSelectedSegmentIds([seg.id as string]);
                 setPathSelectedNodeIds([]);
@@ -1996,7 +2100,7 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
               return {...t, artboards: t.artboards.map(a=>a.id===artboardId?{...a,elements:a.elements.map(e=>e.id===el.id?{...e,geometry:nextGeo}:e)}:a)};
             });
           };
-          const up = () => {window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+          const up = () => {endHistoryTransaction();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
           window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
         }}/>}
         {isSelected && p.outHandle && <i className="card-path-handle out-handle" style={{position:'absolute',left:p.outHandle.x*MM_TO_CSS_PX,top:p.outHandle.y*MM_TO_CSS_PX,width:6,height:6,marginLeft:-3,marginTop:-3,backgroundColor:'white',border:'1px solid var(--accent-color)',borderRadius:'50%',cursor:'pointer'}} onPointerDown={ev=>{
@@ -2026,10 +2130,10 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
               return {...t, artboards: t.artboards.map(a=>a.id===artboardId?{...a,elements:a.elements.map(e=>e.id===el.id?{...e,geometry:nextGeo}:e)}:a)};
             });
           };
-          const up = () => {window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+          const up = () => {endHistoryTransaction();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
           window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
         }}/>}
-        <i className={`card-path-node ${isSelected?'selected':''}`} style={{position:'absolute',left:p.x*MM_TO_CSS_PX,top:p.y*MM_TO_CSS_PX,width:interactionMode==='TRIMMER'?trimNodeHitSize:8,height:interactionMode==='TRIMMER'?trimNodeHitSize:8,marginLeft:interactionMode==='TRIMMER'?-trimNodeHitSize/2:-4,marginTop:interactionMode==='TRIMMER'?-trimNodeHitSize/2:-4,background:interactionMode==='TRIMMER'?`radial-gradient(circle, ${p.id===trimStartNodeId?'#22c55e':p.id===trimEndNodeId?'#3b82f6':'white'} 0 3px, var(--accent-color) 3px 4px, transparent 4px)`:undefined,backgroundColor:interactionMode==='TRIMMER'?undefined:isSelected?'var(--accent-color)':'white',border:interactionMode==='TRIMMER'?'none':'1px solid var(--accent-color)',borderRadius:'50%',cursor:interactionMode==='TRIMMER'?TRIMMER_CURSOR:'pointer',zIndex:interactionMode==='TRIMMER'?10:undefined}} onPointerDown={ev=>{
+        <i className={`card-path-node ${isSelected?'selected':''}`} style={{position:'absolute',left:p.x*MM_TO_CSS_PX,top:p.y*MM_TO_CSS_PX,width:interactionMode==='TRIMMER'?trimNodeHitSize:(isSelected?12:9),height:interactionMode==='TRIMMER'?trimNodeHitSize:(isSelected?12:9),marginLeft:interactionMode==='TRIMMER'?-trimNodeHitSize/2:(isSelected?-6:-4.5),marginTop:interactionMode==='TRIMMER'?-trimNodeHitSize/2:(isSelected?-6:-4.5),background:interactionMode==='TRIMMER'?`radial-gradient(circle, ${p.id===trimStartNodeId?'#22c55e':p.id===trimEndNodeId?'#3b82f6':'white'} 0 3px, var(--accent-color) 3px 4px, transparent 4px)`:undefined,backgroundColor:interactionMode==='TRIMMER'?undefined:isSelected?'#ef4444':'white',border:interactionMode==='TRIMMER'?'none':isSelected?'2px solid #b91c1c':'1.5px solid #ef4444',boxShadow:interactionMode==='TRIMMER'?undefined:isSelected?'0 0 0 2px rgba(255,255,255,.9),0 0 0 3px rgba(239,68,68,.35)':undefined,borderRadius:'50%',cursor:interactionMode==='TRIMMER'?TRIMMER_CURSOR:'pointer',zIndex:interactionMode==='TRIMMER'?10:undefined}} onPointerDown={ev=>{
           ev.stopPropagation();
           if (interactionMode === 'TRIMMER') {
             ev.preventDefault();
@@ -2038,13 +2142,13 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
           }
           ev.currentTarget.setPointerCapture(ev.pointerId);
           const toggle = ev.shiftKey;
-          let nextIds = pathSelectedNodeIds;
-          if (toggle) {
-            nextIds = nextIds.includes(p.id) ? nextIds.filter(id=>id!==p.id) : [...nextIds, p.id];
-          } else if (!nextIds.includes(p.id)) {
-            nextIds = [p.id];
-          }
-          setPathSelectedNodeIds(nextIds);
+          const dragIds = toggle
+            ? (pathSelectedNodeIds.includes(p.id) ? pathSelectedNodeIds.filter(id=>id!==p.id) : [...pathSelectedNodeIds, p.id])
+            : (pathSelectedNodeIds.includes(p.id) ? pathSelectedNodeIds : [p.id]);
+          setPathSelectedNodeIds(prev => {
+            if (toggle) return prev.includes(p.id) ? prev.filter(id=>id!==p.id) : [...prev, p.id];
+            return prev.includes(p.id) ? prev : [p.id];
+          });
           beginHistoryTransaction();
           const shell = ev.currentTarget.parentElement!.parentElement!;
           const r = shell.getBoundingClientRect();
@@ -2062,16 +2166,26 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
               if (!art) return t;
               const el = art.elements.find(e=>e.id===element.id) as PathDesignElement;
               if (!el) return t;
-              const updatedPoints = el.geometry.points.map(pt => {
-                if (nextIds.includes(pt.id)) {
-                  if (pt.id === p.id) {
-                    const dx = lx - pt.x; const dy = ly - pt.y;
-                    const inH = pt.inHandle ? {x:pt.inHandle.x+dx, y:pt.inHandle.y+dy} : undefined;
-                    const outH = pt.outHandle ? {x:pt.outHandle.x+dx, y:pt.outHandle.y+dy} : undefined;
-                    return { ...pt, x: lx, y: ly, inHandle: inH, outHandle: outH };
-                  }
+              const anchor = el.geometry.points.find(point => point.id === p.id);
+              if (!anchor) return t;
+              const dx = lx - anchor.x; const dy = ly - anchor.y;
+              const deltas=new Map<string,{dx:number;dy:number}>();
+              for(const id of dragIds)deltas.set(id,{dx,dy});
+              if(symmetryMode!=='OFF'){
+                for(const id of dragIds){
+                  const source=el.geometry.points.find(point=>point.id===id);
+                  const mirror=findMirrorNode(el.geometry.points,id,symmetryMode);
+                  if(!source||!mirror||dragIds.includes(mirror.id))continue;
+                  deltas.set(mirror.id,symmetryMode==='H'?{dx:-dx,dy}:{dx,dy:-dy});
                 }
-                return pt;
+              }
+              const updatedPoints = el.geometry.points.map(pt => {
+                const delta=deltas.get(pt.id);if(!delta)return pt;
+                return {
+                  ...pt, x: pt.x + delta.dx, y: pt.y + delta.dy,
+                  inHandle: pt.inHandle ? {x:pt.inHandle.x+delta.dx, y:pt.inHandle.y+delta.dy} : undefined,
+                  outHandle: pt.outHandle ? {x:pt.outHandle.x+delta.dx, y:pt.outHandle.y+delta.dy} : undefined
+                };
               });
               return {
                 ...t, artboards: t.artboards.map(a=>a.id===artboardId ? {
@@ -2095,55 +2209,84 @@ function PathNodeEditor({element, zoom, interactionMode, pathSelectedNodeIds, se
 }
 
 
+function vectorFillPaint(fill:DesignFill,ids:{linear:string;radial:string;pattern:string;image:string}){
+ if(fill.type==='SOLID')return fill.color;
+ if(fill.type==='LINEAR_GRADIENT')return `url(#${ids.linear})`;
+ if(fill.type==='RADIAL_GRADIENT')return `url(#${ids.radial})`;
+ if(fill.type==='PATTERN')return `url(#${ids.pattern})`;
+ if(fill.type==='IMAGE')return `url(#${ids.image})`;
+ return 'transparent';
+}
+function vectorFillOpacity(fill:DesignFill){return fill.type==='SOLID'||fill.type==='IMAGE'?(fill.opacity??1):1;}
+function vectorStrokeProps(stroke:DesignStroke,unitScale=1){
+ const dash=normalizeStrokeDashArray(stroke)?.map(value=>value*unitScale).join(' ');
+ return {
+  stroke:stroke.style==='NONE'?'none':stroke.color,
+  strokeOpacity:stroke.opacity??1,
+  strokeDasharray:dash,
+  strokeDashoffset:(stroke.dashOffset??0)*unitScale,
+  strokeLinecap:(stroke.lineCap??'BUTT').toLowerCase() as 'butt'|'round'|'square',
+  strokeLinejoin:(stroke.lineJoin??'MITER').toLowerCase() as 'miter'|'round'|'bevel',
+  strokeMiterlimit:stroke.miterLimit??4,
+ };
+}
+function PatternFillDef({id,fill}:{id:string;fill:Extract<DesignFill,{type:'PATTERN'}>}){
+ const p=fill.pattern,size=Math.max(.025,.12*p.scale),opacity=p.opacity??1;
+ return <pattern id={id} patternUnits="objectBoundingBox" width={size} height={size} viewBox="0 0 10 10" preserveAspectRatio="none" patternTransform={`rotate(${p.rotationDeg})`}>
+  <rect x="0" y="0" width="10" height="10" fill={p.background}/>
+  {p.kind==='HATCH'&&<path d="M 0 10 L 10 0" stroke={p.foreground} strokeOpacity={opacity} strokeWidth="0.8"/>}
+  {p.kind==='DOT'&&<circle cx="5" cy="5" r="1.6" fill={p.foreground} fillOpacity={opacity}/>} 
+  {p.kind==='CHECKER'&&<><rect x="0" y="0" width="5" height="5" fill={p.foreground} fillOpacity={opacity}/><rect x="5" y="5" width="5" height="5" fill={p.foreground} fillOpacity={opacity}/></>}
+ </pattern>;
+}
+function VectorFillDefs({fill,ids,assets,width,height}:{fill:DesignFill;ids:{linear:string;radial:string;pattern:string;image:string};assets:DesignTemplate['sharedAssets'];width:number;height:number}){
+ return <defs>
+  {fill.type==='LINEAR_GRADIENT'&&<linearGradient id={ids.linear} gradientTransform={`rotate(${fill.gradient.angleDeg} .5 .5)`}>{fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} stopOpacity={stop.opacity??1}/>)}</linearGradient>}
+  {fill.type==='RADIAL_GRADIENT'&&<radialGradient id={ids.radial} cx={`${fill.gradient.centerX}%`} cy={`${fill.gradient.centerY}%`} r={`${fill.gradient.radius}%`} fx={`${fill.gradient.focalX??fill.gradient.centerX}%`} fy={`${fill.gradient.focalY??fill.gradient.centerY}%`}>{fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} stopOpacity={stop.opacity??1}/>)}</radialGradient>}
+  {fill.type==='PATTERN'&&<PatternFillDef id={ids.pattern} fill={fill}/>} 
+  {fill.type==='IMAGE'&&<ImageFillPattern id={ids.image} fill={fill} assets={assets} width={width} height={height}/>} 
+ </defs>;
+}
+function ArtboardBackgroundVisual({artboard,assets}:{artboard:Artboard;assets:DesignTemplate['sharedAssets']}){
+ const clean=artboard.id.replace(/[^a-zA-Z0-9_-]/g,'');
+ const ids={linear:`artboard-gradient-${clean}`,radial:`artboard-radial-${clean}`,pattern:`artboard-pattern-${clean}`,image:`artboard-image-${clean}`};
+ const fill=vectorFillPaint(artboard.background,ids),fillOpacity=vectorFillOpacity(artboard.background);
+ return <svg data-artboard-background width="100%" height="100%" viewBox={`0 0 ${artboard.widthMm} ${artboard.heightMm}`} preserveAspectRatio="none" style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none',overflow:'hidden'}}>
+  <VectorFillDefs fill={artboard.background} ids={ids} assets={assets} width={artboard.widthMm} height={artboard.heightMm}/>
+  <rect x="0" y="0" width={artboard.widthMm} height={artboard.heightMm} fill={fill} fillOpacity={fillOpacity}/>
+ </svg>;
+}
+
 function PathVisual({element,assets}:{element:PathDesignElement;assets:DesignTemplate['sharedAssets']}) {
-  const gradientId = `gradient-${element.id.replace(/[^a-zA-Z0-9_-]/g,'')}`;
-  const imageId = `image-fill-${element.id.replace(/[^a-zA-Z0-9_-]/g,'')}`;
-  const fill = element.fill.type === 'SOLID' ? element.fill.color : element.fill.type === 'LINEAR_GRADIENT' ? `url(#${gradientId})` : element.fill.type === 'IMAGE' ? `url(#${imageId})` : 'transparent';
-  const fillOpacity = element.fill.type === 'SOLID' || element.fill.type === 'IMAGE' ? (element.fill.opacity ?? 1) : 1;
-  const stroke = element.stroke.style === 'NONE' ? 'none' : colorWithOpacity(element.stroke.color, element.stroke.opacity ?? 1);
-  const sw = Math.max(0.4, element.stroke.widthMm * MM_TO_CSS_PX);
-  const dash = element.stroke.style === 'DASHED' ? '6 4' : element.stroke.style === 'DOTTED' ? '2 3' : undefined;
-  
-  const d = geometryToSvgPath(element.geometry);
-  const w = element.size.widthMm;
-  const h = element.size.heightMm;
-  
-  const label=element.label;
-  return (
-    <div className="card-path-visual" style={{position:'relative',width:'100%',height:'100%'}}>
-      <svg style={{filter:dropShadowCss(element.shadow), width: '100%', height: '100%', overflow: 'visible', position: 'absolute', top: 0, left: 0}} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-        {element.fill.type === 'LINEAR_GRADIENT' && (
-          <defs>
-            <linearGradient id={gradientId} gradientTransform={`rotate(${element.fill.gradient.angleDeg} .5 .5)`}>
-              {element.fill.gradient.stops.map((stop, index) => (
-                <stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} stopOpacity={stop.opacity ?? 1} />
-              ))}
-            </linearGradient>
-          </defs>
-        )}
-        {element.fill.type === 'IMAGE' && <ImageFillPattern id={imageId} fill={element.fill} assets={assets} width={w} height={h}/>} 
-        <path d={d} fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={sw / MM_TO_CSS_PX} strokeDasharray={dash ? dash.split(' ').map(n=>Number(n)/MM_TO_CSS_PX).join(' ') : undefined} />
-      </svg>
-      {label?.enabled&&label.text&&<div data-path-label style={{position:'absolute',inset:`${Math.max(0,label.paddingMm)*MM_TO_CSS_PX}px`,display:'flex',alignItems:label.verticalAlignment==='TOP'?'flex-start':label.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:label.alignment==='LEFT'?'flex-start':label.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',pointerEvents:'none',fontFamily:label.fontFamily,fontSize:`${label.fontSizePt}pt`,fontWeight:label.fontWeight,fontStyle:label.italic?'italic':'normal',textDecoration:label.underline?'underline':'none',color:label.color,lineHeight:label.lineHeight,textAlign:label.alignment.toLowerCase() as React.CSSProperties['textAlign'],whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{label.text}</div>}
-    </div>
-  );
+  const clean=element.id.replace(/[^a-zA-Z0-9_-]/g,'');
+  const ids={linear:`gradient-${clean}`,radial:`radial-${clean}`,pattern:`pattern-${clean}`,image:`image-fill-${clean}`};
+  const fill=vectorFillPaint(element.fill,ids),fillOpacity=vectorFillOpacity(element.fill);
+  const strokeProps=vectorStrokeProps(element.stroke,1);
+  const sw=Math.max(0.1,element.stroke.widthMm);
+  const d=geometryToSvgPath(element.geometry),w=element.size.widthMm,h=element.size.heightMm,label=element.label;
+  return <div className="card-path-visual" style={{position:'relative',width:'100%',height:'100%'}}>
+   <svg style={{filter:dropShadowCss(element.shadow),width:'100%',height:'100%',overflow:'visible',position:'absolute',top:0,left:0}} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+    <VectorFillDefs fill={element.fill} ids={ids} assets={assets} width={w} height={h}/>
+    <path d={d} fill={fill} fillOpacity={fillOpacity} strokeWidth={element.stroke.style==='NONE'?0:sw} {...strokeProps}/>
+   </svg>
+   {label?.enabled&&label.text&&<div data-path-label style={{position:'absolute',inset:`${Math.max(0,label.paddingMm)*MM_TO_CSS_PX}px`,display:'flex',alignItems:label.verticalAlignment==='TOP'?'flex-start':label.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:label.alignment==='LEFT'?'flex-start':label.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',pointerEvents:'none',fontFamily:label.fontFamily,fontSize:`${label.fontSizePt}pt`,fontWeight:label.fontWeight,fontStyle:label.italic?'italic':'normal',textDecoration:label.underline?'underline':'none',color:label.color,lineHeight:label.lineHeight,textAlign:label.alignment.toLowerCase() as React.CSSProperties['textAlign'],whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{label.text}</div>}
+  </div>;
 }
-
-function ImageFillPattern({id,fill,assets,width,height}:{id:string;fill:Extract<ShapeDesignElement['fill'],{type:'IMAGE'}>;assets:DesignTemplate['sharedAssets'];width:number;height:number}){
- const source=resolveRasterImageFillSource(fill,assets);
- if(!source)return null;
+function ImageFillPattern({id,fill,assets,width,height}:{id:string;fill:Extract<DesignFill,{type:'IMAGE'}>;assets:DesignTemplate['sharedAssets'];width:number;height:number}){
+ const source=resolveRasterImageFillSource(fill,assets);if(!source)return null;
  const preserveAspectRatio=fill.fit==='FIT'?'xMidYMid meet':fill.fit==='FILL'?'xMidYMid slice':'none';
- return <defs><pattern id={id} patternUnits="userSpaceOnUse" width={width} height={height}><image href={source} x="0" y="0" width={width} height={height} preserveAspectRatio={preserveAspectRatio}/></pattern></defs>;
+ const t=normalizeImageFillTransform(fill.transform),cx=width/2,cy=height/2,dx=t.offsetX/100*width,dy=t.offsetY/100*height;
+ const transform=`translate(${cx+dx} ${cy+dy}) rotate(${t.rotationDeg}) scale(${t.scale}) translate(${-cx} ${-cy})`;
+ return <pattern id={id} patternUnits="userSpaceOnUse" width={width} height={height}><image href={source} x="0" y="0" width={width} height={height} preserveAspectRatio={preserveAspectRatio} transform={transform}/></pattern>;
 }
-
 function ShapeVisual({element,assets}:{element:ShapeDesignElement;assets:DesignTemplate['sharedAssets']}){
- const gradientId=`gradient-${element.id.replace(/[^a-zA-Z0-9_-]/g,'')}`,imageId=`image-fill-${element.id.replace(/[^a-zA-Z0-9_-]/g,'')}`,fill=element.fill.type==='SOLID'?element.fill.color:element.fill.type==='LINEAR_GRADIENT'?`url(#${gradientId})`:element.fill.type==='IMAGE'?`url(#${imageId})`:'transparent',fillOpacity=element.fill.type==='SOLID'||element.fill.type==='IMAGE'?(element.fill.opacity??1):1,stroke=element.stroke.style==='NONE'?'none':colorWithOpacity(element.stroke.color,element.stroke.opacity??1),sw=Math.max(.4,element.stroke.widthMm*MM_TO_CSS_PX),dash=element.stroke.style==='DASHED'?'6 4':element.stroke.style==='DOTTED'?'2 3':undefined;
- const common={fill,fillOpacity,stroke,strokeWidth:sw,strokeDasharray:dash,vectorEffect:'non-scaling-stroke' as const};
+ const clean=element.id.replace(/[^a-zA-Z0-9_-]/g,''),ids={linear:`gradient-${clean}`,radial:`radial-${clean}`,pattern:`pattern-${clean}`,image:`image-fill-${clean}`};
+ const fill=vectorFillPaint(element.fill,ids),fillOpacity=vectorFillOpacity(element.fill),sw=Math.max(.4,element.stroke.widthMm*MM_TO_CSS_PX),strokeProps=vectorStrokeProps(element.stroke,MM_TO_CSS_PX);
+ const common={fill,fillOpacity,strokeWidth:element.stroke.style==='NONE'?0:sw,...strokeProps,vectorEffect:'non-scaling-stroke' as const};
  const label=element.label;
  return <div className="card-shape-visual" style={{position:'relative',width:'100%',height:'100%',filter:dropShadowCss(element.shadow)}}>
    <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',transform:`scale(${element.flipX?-1:1},${element.flipY?-1:1})`}} viewBox="0 0 100 100" preserveAspectRatio="none">
-     {element.fill.type==='LINEAR_GRADIENT'&&<defs><linearGradient id={gradientId} gradientTransform={`rotate(${element.fill.gradient.angleDeg} .5 .5)`}>{element.fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={stop.color} stopOpacity={stop.opacity??1}/>)}</linearGradient></defs>}
-     {element.fill.type==='IMAGE'&&<ImageFillPattern id={imageId} fill={element.fill} assets={assets} width={100} height={100}/>} 
+     <VectorFillDefs fill={element.fill} ids={ids} assets={assets} width={100} height={100}/>
      {shapeNode(element,common)}
    </svg>
    {label?.enabled&&label.text&&<div data-shape-label style={{position:'absolute',inset:`${Math.max(0,label.paddingMm)*MM_TO_CSS_PX}px`,display:'flex',alignItems:label.verticalAlignment==='TOP'?'flex-start':label.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:label.alignment==='LEFT'?'flex-start':label.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',pointerEvents:'none',fontFamily:label.fontFamily,fontSize:`${label.fontSizePt}pt`,fontWeight:label.fontWeight,fontStyle:label.italic?'italic':'normal',textDecoration:label.underline?'underline':'none',color:label.color,lineHeight:label.lineHeight,textAlign:label.alignment.toLowerCase() as React.CSSProperties['textAlign'],whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{label.text}</div>}
@@ -2177,7 +2320,7 @@ function ElementProperties({element,asset,assets,artboard,mutate,availableFields
   {element.type==='TEXT'&&<AdvancedTextProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SHAPE'&&<AdvancedShapeProperties element={element} update={update} assets={assets} mutate={mutate} artboardId={artboardId} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='PATH'&&<AdvancedPathProperties element={element} update={update} assets={assets} mutate={mutate} artboardId={artboardId} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='IMAGE'&&<AdvancedImageProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='SVG'&&<SvgProperties element={element} asset={asset} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} {element.type==='QR'&&<AdvancedQrProperties element={element as QrDesignElement} update={update} availableFields={availableFields} />} {element.type==='BARCODE'&&<AdvancedBarcodeProperties element={element as BarcodeDesignElement} update={update} availableFields={availableFields} />} 
   <ConditionalVisibilityProperties element={element} update={update} availableFields={availableFields} datasourceStatus={datasourceStatus}/>
   {(element.type==='IMAGE'||element.type==='SVG')&&<Section sectionKey="ADVANCED" title="Print Quality"><ElementPrintQuality element={element} asset={asset} print={artboard.print}/></Section>} 
-  <Section sectionKey="TRANSFORM" title="Transform"><div className="card-property-grid">{num('X (mm)',element.position.xMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:v,yMm:element.position.yMm})))}{num('Y (mm)',element.position.yMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:element.position.xMm,yMm:v})))}{num('Width (mm)',element.size.widthMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:v,heightMm:element.size.heightMm})))}{num('Height (mm)',element.size.heightMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:element.size.widthMm,heightMm:v})))}</div>{num('Rotation (°)',element.rotationDeg,v=>mutate(t=>rotateElement(t,artboardId,element.id,v)))}<div className="card-layer-action-grid" data-page-center-mirror-inspector><button disabled={element.locked} title="Mirror Across Page Horizontal Center" onClick={()=>mutate(t=>mirrorElementsAcrossArtboard(t,artboardId,[element.id],'HORIZONTAL'))}>↕ Mirror H</button><button disabled={element.locked} title="Mirror Across Page Vertical Center" onClick={()=>mutate(t=>mirrorElementsAcrossArtboard(t,artboardId,[element.id],'VERTICAL'))}>↔ Mirror V</button></div></Section>
+  <Section sectionKey="TRANSFORM" title="Transform"><div className="card-property-grid">{num('X (mm)',element.position.xMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:v,yMm:element.position.yMm})))}{num('Y (mm)',element.position.yMm,v=>mutate(t=>setElementPosition(t,artboardId,element.id,{xMm:element.position.xMm,yMm:v})))}{num('Width (mm)',element.size.widthMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:v,heightMm:element.size.heightMm})))}{num('Height (mm)',element.size.heightMm,v=>mutate(t=>resizeElement(t,artboardId,element.id,{widthMm:element.size.widthMm,heightMm:v})))}</div>{num('Rotation (°)',element.rotationDeg,v=>mutate(t=>rotateElement(t,artboardId,element.id,v)))}<div className="card-property-note"><span>Drag resize: Shift toggles aspect lock · Alt resizes from center · Shift+Rotate snaps to 15°</span></div><div className="card-layer-action-grid" data-in-place-flip-inspector><button disabled={element.locked||!(element.type==='SHAPE'||element.type==='PATH'||element.type==='IMAGE'||element.type==='SVG')} title="Flip Horizontally in Place" onClick={()=>mutate(t=>flipElementsInPlace(t,artboardId,[element.id],'VERTICAL'))}>↔ Flip H</button><button disabled={element.locked||!(element.type==='SHAPE'||element.type==='PATH'||element.type==='IMAGE'||element.type==='SVG')} title="Flip Vertically in Place" onClick={()=>mutate(t=>flipElementsInPlace(t,artboardId,[element.id],'HORIZONTAL'))}>↕ Flip V</button></div><div className="card-layer-action-grid" data-page-center-mirror-inspector><button disabled={element.locked} title="Create Mirrored Copy Across Page Horizontal Center" onClick={()=>mutate(t=>mirrorElementsAcrossArtboard(t,artboardId,[element.id],'HORIZONTAL'))}>↕ Page Mirror H</button><button disabled={element.locked} title="Create Mirrored Copy Across Page Vertical Center" onClick={()=>mutate(t=>mirrorElementsAcrossArtboard(t,artboardId,[element.id],'VERTICAL'))}>↔ Page Mirror V</button></div></Section>
   <Section sectionKey="TRANSFORM" title="Align to Artboard"><div className="card-layer-action-grid card-align-grid"><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'LEFT','ARTBOARD'))}>Left</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'HCENTER','ARTBOARD'))}>H Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'RIGHT','ARTBOARD'))}>Right</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'TOP','ARTBOARD'))}>Top</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'VCENTER','ARTBOARD'))}>V Center</button><button disabled={element.locked} onClick={()=>mutate(t=>alignElements(t,artboardId,[element.id],'BOTTOM','ARTBOARD'))}>Bottom</button><button disabled={element.locked} onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboardId,[element.id],'BOTH'))}>Center Both</button></div></Section>
   <Section sectionKey="ADVANCED" title="Actions"><button className="card-delete-element" disabled={element.locked} onClick={()=>mutate(t=>deleteDesignElements(t,artboardId,[element.id]))}><Trash2 size={14}/>Delete Element</button></Section>
  </div>;
@@ -2193,7 +2336,31 @@ function FaceFillQuickControl({element,update}:{element:PathDesignElement;update
 
 function OpacityControl({value,onChange}:{value:number;onChange:(value:number)=>void}){const percent=Math.round(clamp(value,0,1)*100);return <label>Opacity<div className="card-range-row"><input type="range" min="0" max="100" value={percent} onChange={e=>onChange(Number(e.target.value)/100)}/><input type="number" min="0" max="100" value={percent} onChange={e=>onChange(clamp(Number(e.target.value)||0,0,100)/100)}/><span>%</span></div></label>}
 function ShadowControls({shadow,onChange}:{shadow?:DesignShadow;onChange:(shadow:DesignShadow)=>void}){const s=shadow??DEFAULT_DESIGN_SHADOW,patch=(p:Partial<DesignShadow>)=>onChange({...s,...p});return <div className="card-property-details"><label className="card-check-row"><input type="checkbox" checked={s.enabled} onChange={e=>patch({enabled:e.target.checked})}/>Enabled</label>{s.enabled&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round(s.opacity*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label><label>Blur (mm)<input type="number" min="0" step=".1" value={s.blurMm} onChange={e=>patch({blurMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Offset X (mm)<input type="number" step=".1" value={s.offsetXmm} onChange={e=>patch({offsetXmm:Number(e.target.value)||0})}/></label><label>Offset Y (mm)<input type="number" step=".1" value={s.offsetYmm} onChange={e=>patch({offsetYmm:Number(e.target.value)||0})}/></label></div></>}</div>}
-function BorderControls({stroke,onChange}:{stroke?:ShapeDesignElement['stroke'];onChange:(stroke:ShapeDesignElement['stroke'])=>void}){const s=stroke??{color:'#000000',widthMm:0,style:'NONE',opacity:1},patch=(p:Partial<typeof s>)=>onChange({...s,...p});return <div className="card-property-details"><label>Style<select value={s.style} onChange={e=>patch({style:e.target.value as typeof s.style})}><option value="NONE">None</option><option value="SOLID">Solid</option><option value="DASHED">Dashed</option><option value="DOTTED">Dotted</option></select></label>{s.style!=='NONE'&&<><label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label><div className="card-property-grid"><label>Width (mm)<input type="number" min="0" step=".1" value={s.widthMm} onChange={e=>patch({widthMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round((s.opacity??1)*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></div></>}</div>}
+function StrokeControls({stroke,onChange}:{stroke?:ShapeDesignElement['stroke'];onChange:(stroke:ShapeDesignElement['stroke'])=>void}){
+ const s:DesignStroke=stroke??{color:'#000000',widthMm:0,style:'NONE',opacity:1,lineCap:'BUTT',lineJoin:'MITER',miterLimit:4,dashOffset:0};
+ const patch=(p:Partial<DesignStroke>)=>onChange({...s,...p});
+ const normalizedDashText=(s.dashArray??[2,1]).join(', ');
+ const [dashDraft,setDashDraft]=useState(normalizedDashText);
+ const [dashError,setDashError]=useState('');
+ useEffect(()=>{setDashDraft(normalizedDashText);setDashError('');},[normalizedDashText]);
+ const commitDashDraft=()=>{
+  const parsed=parseStrokeDashPatternText(dashDraft);
+  if(!parsed.dashArray){setDashError(parsed.error??'Invalid dash pattern.');return false;}
+  patch({dashArray:parsed.dashArray});setDashDraft(parsed.dashArray.join(', '));setDashError('');return true;
+ };
+ return <div className="card-property-details" data-phase82-stroke-controls>
+  <label>Style<select value={s.style} onChange={e=>patch({style:e.target.value as DesignStroke['style']})}><option value="NONE">None</option><option value="SOLID">Solid</option><option value="DASHED">Dashed</option><option value="DOTTED">Dotted</option><option value="CUSTOM">Custom Dash</option></select></label>
+  {s.style!=='NONE'&&<>
+   <label>Color<div className="card-color-row"><input type="color" value={s.color} onChange={e=>patch({color:e.target.value})}/><input value={s.color} onChange={e=>patch({color:e.target.value})}/></div></label>
+   <div className="card-property-grid"><label>Width (mm)<input type="number" min="0" step=".1" value={s.widthMm} onChange={e=>patch({widthMm:Math.max(0,Number(e.target.value)||0)})}/></label><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round((s.opacity??1)*100)} onChange={e=>patch({opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></div>
+   <div className="card-property-grid"><label>Line cap<select value={s.lineCap??'BUTT'} onChange={e=>patch({lineCap:e.target.value as DesignStroke['lineCap']})}><option value="BUTT">Butt</option><option value="ROUND">Round</option><option value="SQUARE">Square</option></select></label><label>Line join<select value={s.lineJoin??'MITER'} onChange={e=>patch({lineJoin:e.target.value as DesignStroke['lineJoin']})}><option value="MITER">Miter</option><option value="ROUND">Round</option><option value="BEVEL">Bevel</option></select></label></div>
+   {(s.lineJoin??'MITER')==='MITER'&&<label>Miter limit<input type="number" min="1" step=".5" value={s.miterLimit??4} onChange={e=>patch({miterLimit:Math.max(1,Number(e.target.value)||4)})}/></label>}
+   {s.style==='CUSTOM'&&<label>Dash pattern (mm)<input aria-label="Custom dash pattern" type="text" inputMode="decimal" value={dashDraft} onChange={e=>{setDashDraft(e.target.value);setDashError('');}} onBlur={commitDashDraft} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();commitDashDraft();e.currentTarget.blur();}else if(e.key==='Escape'){setDashDraft(normalizedDashText);setDashError('');e.currentTarget.blur();}}} placeholder="12, 3, 2, 3" aria-invalid={dashError?true:undefined} aria-describedby="custom-dash-help"/><small id="custom-dash-help" style={{color:dashError?'var(--danger, #b91c1c)':'var(--text-secondary)'}}>{dashError||'Comma or space separated positive lengths, e.g. 12, 3, 2, 3. Press Enter or leave the field to apply.'}</small></label>}
+   {s.style==='CUSTOM'&&<label>Dash offset (mm)<input type="number" step=".1" value={s.dashOffset??0} onChange={e=>patch({dashOffset:Number(e.target.value)||0})}/></label>}
+   <label title="Inside and Outside stroke alignment are deferred until renderer/export parity is guaranteed.">Stroke alignment<select value="CENTER" disabled aria-label="Stroke alignment"><option value="CENTER">Center</option></select><small style={{color:'var(--text-secondary)'}}>Center is supported in this phase. Inside/Outside are deferred.</small></label>
+  </>}
+ </div>;
+}
 function ConditionalVisibilityProperties({element,update,availableFields,datasourceStatus}:{element:DesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
   const rule = element.visibilityRule;
   const isEnabled = rule?.enabled ?? false;
@@ -2383,41 +2550,99 @@ function ShapeTextControls({label,onChange}:{label?:ShapeDesignElement['label'];
 }
 function ShapeImageFillControls({element,assets,mutate,artboardId,availableFields,datasourceStatus}:{element:ShapeDesignElement|PathDesignElement;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
  const fill=element.fill.type==='IMAGE'?element.fill:undefined;
+ const crop=normalizeImageFillTransform(fill?.transform);
  const imageAssets=assets.filter(asset=>asset.kind==='IMAGE'||asset.kind==='LOGO'||asset.mimeType?.startsWith('image/'));
  const sourceBinding=getFillImageSourceBinding(element);
  const imageSourceFields=availableFields.filter(field=>field.type==='string');
  const isBound=!!sourceBinding;
  const isMissingField=isBound&&sourceBinding.sourceType==='FIELD'&&!availableFields.some(field=>field.name===sourceBinding.fieldPath);
  const setFill=(next:NonNullable<typeof fill>)=>mutate(t=>updateDesignElement(t,artboardId,element.id,e=>(e.type==='SHAPE'||e.type==='PATH')?{...e,fill:next}:e));
+ const setCrop=(patch:Partial<typeof crop>)=>fill&&setFill({...fill,transform:{...crop,...patch}});
  const updateBinding=(fieldPath:string)=>mutate(t=>updateDesignElement(t,artboardId,element.id,e=>{if(e.type!=='SHAPE'&&e.type!=='PATH')return e;return fieldPath==='__NONE__'?removeFillImageSourceBinding(e):setFillImageSourceFieldBinding(e,fieldPath);}));
  const upload=async(file?:File)=>{if(!file)return;if(!file.type.startsWith('image/'))return;const source=await readAsDataUrl(file);const dimensions=await readImageDimensions(source);const assetId=id('asset-shape-fill');mutate(t=>{const next=addAssetReference(t,{id:assetId,name:file.name,kind:'IMAGE',sourceType:'DATA_URL',source,mimeType:file.type,widthPx:dimensions.widthPx,heightPx:dimensions.heightPx,metadata:{originalFileName:file.name,userUploaded:true}});return updateDesignElement(next,artboardId,element.id,e=>(e.type==='SHAPE'||e.type==='PATH')?{...e,fill:{type:'IMAGE',assetId,fit:'FILL',opacity:1}}:e);});};
- return <div className="card-property-details" data-shape-image-fill-controls>
-  <label>Image<select value={fill?.assetId??''} onChange={e=>e.target.value&&setFill({type:'IMAGE',assetId:e.target.value,fit:fill?.fit??'FILL',opacity:fill?.opacity??1})}><option value="">Select image…</option>{imageAssets.map(asset=><option key={asset.id} value={asset.id}>{asset.name}</option>)}</select></label>
+ return <div className="card-property-details" data-shape-image-fill-controls data-phase82-image-crop-controls>
+  <label>Image<select value={fill?.assetId??''} onChange={e=>e.target.value&&setFill({type:'IMAGE',assetId:e.target.value,fit:fill?.fit??'FILL',opacity:fill?.opacity??1,transform:fill?.transform})}><option value="">Select image…</option>{imageAssets.map(asset=><option key={asset.id} value={asset.id}>{asset.name}</option>)}</select></label>
   <label className="secondary">Upload image<input aria-label="Upload shape fill image" type="file" accept="image/*" onChange={e=>{void upload(e.target.files?.[0]);e.currentTarget.value='';}}/></label>
   <label>Dynamic image field
-   {imageSourceFields.length===0?<div style={{fontSize:'11px',color:'var(--text-secondary)',marginTop:'4px'}}>{availableFields.length===0?datasourceStatus:'No string/image source fields available.'}</div>:<SearchableFieldPicker availableFields={imageSourceFields} currentFieldPath={sourceBinding?.fieldPath??'__NONE__'} onSelectField={updateBinding}/>}
+   {imageSourceFields.length===0?<div style={{fontSize:'11px',color:'var(--text-secondary)',marginTop:'4px'}}>{availableFields.length===0?datasourceStatus:'No string/image source fields available.'}</div>:<SearchableFieldPicker availableFields={imageSourceFields} currentFieldPath={sourceBinding?.fieldPath??'__NONE__'} onSelectField={updateBinding}/>} 
   </label>
   {isBound&&<div style={{fontSize:'11px',color:'var(--text-secondary)'}}>Fallback: selected image asset</div>}
   {isMissingField&&<div style={{color:'red',fontSize:'11px'}}>⚠ {sourceBinding.fieldPath} Not available in current datasource</div>}
   {isBound&&<button className="secondary" onClick={()=>updateBinding('__NONE__')}>Remove Image Binding</button>}
-  {fill&&<><label>Fit<select value={fill.fit} onChange={e=>setFill({...fill,fit:e.target.value as typeof fill.fit})}><option value="FIT">Fit</option><option value="FILL">Fill / Crop</option><option value="STRETCH">Stretch</option></select></label><label>Image opacity<input type="range" min="0" max="1" step="0.05" value={fill.opacity??1} onChange={e=>setFill({...fill,opacity:Number(e.target.value)})}/></label></>}
+  {fill&&<>
+   <label>Fit<select value={fill.fit} onChange={e=>setFill({...fill,fit:e.target.value as typeof fill.fit})}><option value="FIT">Fit</option><option value="FILL">Fill / Crop</option><option value="STRETCH">Stretch</option></select></label>
+   <label>Image opacity<input type="range" min="0" max="1" step="0.05" value={fill.opacity??1} onChange={e=>setFill({...fill,opacity:Number(e.target.value)})}/></label>
+   <div className="card-property-grid"><label>Zoom (%)<input type="number" min="10" max="1000" step="5" value={Math.round(crop.scale*100)} onChange={e=>setCrop({scale:clamp(Number(e.target.value)||100,10,1000)/100})}/></label><label>Rotation (°)<input type="number" min="-360" max="360" step="1" value={Math.round(crop.rotationDeg)} onChange={e=>setCrop({rotationDeg:Number(e.target.value)||0})}/></label></div>
+   <div className="card-property-grid"><label>Offset X (%)<input type="number" min="-200" max="200" step="1" value={Math.round(crop.offsetX)} onChange={e=>setCrop({offsetX:clamp(Number(e.target.value)||0,-200,200)})}/></label><label>Offset Y (%)<input type="number" min="-200" max="200" step="1" value={Math.round(crop.offsetY)} onChange={e=>setCrop({offsetY:clamp(Number(e.target.value)||0,-200,200)})}/></label></div>
+   <button className="secondary" onClick={()=>setFill({...fill,transform:undefined})}>Reset Crop</button>
+  </>}
  </div>;
 }
-function AdvancedShapeProperties({element,update,assets,mutate,artboardId,availableFields,datasourceStatus}:{element:ShapeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
- const patch=(p:Partial<ShapeDesignElement>)=>update(e=>e.type==='SHAPE'?{...e,...p}:e),mode=element.fill.type==='NONE'?'NONE':element.fill.type==='LINEAR_GRADIENT'?'LINEAR_GRADIENT':element.fill.type==='IMAGE'?'IMAGE':'SOLID',solid=element.fill.type==='SOLID'?element.fill:{type:'SOLID' as const,color:'#dbeafe',opacity:1},gradient=element.fill.type==='LINEAR_GRADIENT'?element.fill.gradient:{type:'LINEAR' as const,angleDeg:0,stops:[{offset:0,color:'#2563eb'},{offset:100,color:'#dbeafe'}]},setGradient=(p:Partial<typeof gradient>)=>patch({fill:{type:'LINEAR_GRADIENT',gradient:{...gradient,...p}}}),setStop=(index:number,p:Partial<(typeof gradient.stops)[number]>)=>setGradient({stops:gradient.stops.map((s,i)=>i===index?{...s,...p}:s)});
- return <><Section sectionKey="APPEARANCE" title="Appearance"><label>Shape Kind<input type="text" value={shapeLabel(element.shape)} readOnly disabled/></label><label>Fill<select value={mode} onChange={e=>patch({fill:e.target.value==='NONE'?{type:'NONE'}:e.target.value==='LINEAR_GRADIENT'?{type:'LINEAR_GRADIENT',gradient}:e.target.value==='IMAGE'?(element.fill.type==='IMAGE'?element.fill:{type:'IMAGE',assetId:'',fit:'FILL',opacity:1}):solid})}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear Gradient</option><option value="IMAGE">Image</option></select></label>{mode==='SOLID'&&<label>Fill color<div className="card-color-row"><input type="color" value={solid.color} onChange={e=>patch({fill:{...solid,color:e.target.value}})}/><input value={solid.color} readOnly/></div></label>}{mode==='LINEAR_GRADIENT'&&<div className="card-gradient-editor"><label>Angle (°)<input type="number" min="0" max="360" value={gradient.angleDeg} onChange={e=>setGradient({angleDeg:clamp(Number(e.target.value)||0,0,360)})}/></label>{gradient.stops.map((stop,index)=><div className="card-gradient-stop" key={index}><input type="color" value={stop.color} onChange={e=>setStop(index,{color:e.target.value})}/><input aria-label="Stop position" type="number" min="0" max="100" value={stop.offset} onChange={e=>setStop(index,{offset:clamp(Number(e.target.value)||0,0,100)})}/></div>)}</div>}{mode==='IMAGE'&&<ShapeImageFillControls element={element} assets={assets} mutate={mutate} artboardId={artboardId} availableFields={availableFields} datasourceStatus={datasourceStatus}/>}<OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></Section><Section sectionKey="APPEARANCE" title="Shape Text"><ShapeTextControls label={element.label} onChange={label=>patch({label})}/></Section><Section sectionKey="APPEARANCE" title="Border"><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>;
+function GradientStopsEditor({stops,onChange}:{stops:Extract<DesignFill,{type:'LINEAR_GRADIENT'}>['gradient']['stops'];onChange:(stops:Extract<DesignFill,{type:'LINEAR_GRADIENT'}>['gradient']['stops'])=>void}){
+ const setStop=(index:number,patch:Partial<(typeof stops)[number]>)=>onChange(stops.map((stop,i)=>i===index?{...stop,...patch}:stop));
+ return <div className="card-gradient-editor" data-phase82-gradient-stops>{stops.map((stop,index)=><div className="card-gradient-stop" key={index}><input type="color" value={stop.color} onChange={e=>setStop(index,{color:e.target.value})}/><input aria-label="Stop position" type="number" min="0" max="100" value={stop.offset} onChange={e=>setStop(index,{offset:clamp(Number(e.target.value)||0,0,100)})}/><input aria-label="Stop opacity" title="Stop opacity %" type="number" min="0" max="100" value={Math.round((stop.opacity??1)*100)} onChange={e=>setStop(index,{opacity:clamp(Number(e.target.value)||0,0,100)/100})}/><button disabled={index===0} onClick={()=>onChange(moveItem(stops,index,index-1))}>↑</button><button disabled={index===stops.length-1} onClick={()=>onChange(moveItem(stops,index,index+1))}>↓</button><button disabled={stops.length<=2} onClick={()=>onChange(stops.filter((_,i)=>i!==index))}>×</button></div>)}<button onClick={()=>onChange([...stops,{offset:100,color:'#ffffff',opacity:1}])}>Add Stop</button></div>;
 }
-function AdvancedPathProperties({element,update,assets,mutate,artboardId,availableFields,datasourceStatus}:{element:PathDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){const patch=(p:Partial<PathDesignElement>)=>update(e=>e.type==='PATH'?{...e,...p}:e),mode=element.fill.type==='NONE'?'NONE':element.fill.type==='LINEAR_GRADIENT'?'LINEAR_GRADIENT':element.fill.type==='IMAGE'?'IMAGE':'SOLID',solid=element.fill.type==='SOLID'?element.fill:{type:'SOLID' as const,color:'#dbeafe',opacity:1},gradient=element.fill.type==='LINEAR_GRADIENT'?element.fill.gradient:{type:'LINEAR' as const,angleDeg:0,stops:[{offset:0,color:'#2563eb'},{offset:100,color:'#dbeafe'}]},setGradient=(p:Partial<typeof gradient>)=>patch({fill:{type:'LINEAR_GRADIENT',gradient:{...gradient,...p}}}),setStop=(index:number,p:Partial<(typeof gradient.stops)[number]>)=>setGradient({stops:gradient.stops.map((s,i)=>i===index?{...s,...p}:s)});return <><Section sectionKey="APPEARANCE" title="Appearance"><label>Shape Kind<input type="text" value={element.name} readOnly disabled/></label><label>Fill<select value={mode} onChange={e=>patch({fill:e.target.value==='NONE'?{type:'NONE'}:e.target.value==='LINEAR_GRADIENT'?{type:'LINEAR_GRADIENT',gradient}:e.target.value==='IMAGE'?(element.fill.type==='IMAGE'?element.fill:{type:'IMAGE',assetId:'',fit:'FILL',opacity:1}):solid})}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear Gradient</option><option value="IMAGE">Image</option></select></label>{mode==='SOLID'&&<label>Fill color<div className="card-color-row"><input type="color" value={solid.color} onChange={e=>patch({fill:{...solid,color:e.target.value}})}/><input value={solid.color} readOnly/></div></label>}{mode==='LINEAR_GRADIENT'&&<div className="card-gradient-editor"><label>Angle (°)<input type="number" min="0" max="360" value={gradient.angleDeg} onChange={e=>setGradient({angleDeg:clamp(Number(e.target.value)||0,0,360)})}/></label>{gradient.stops.map((stop,index)=><div className="card-gradient-stop" key={index}><input type="color" value={stop.color} onChange={e=>setStop(index,{color:e.target.value})}/><input aria-label="Stop position" type="number" min="0" max="100" value={stop.offset} onChange={e=>setStop(index,{offset:clamp(Number(e.target.value)||0,0,100)})}/><button disabled={index===0} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index-1)})}>↑</button><button disabled={index===gradient.stops.length-1} onClick={()=>setGradient({stops:moveItem(gradient.stops,index,index+1)})}>↓</button><button disabled={gradient.stops.length<=2} onClick={()=>setGradient({stops:gradient.stops.filter((_,i)=>i!==index)})}>×</button></div>)}<button onClick={()=>setGradient({stops:[...gradient.stops,{offset:100,color:'#ffffff'}]})}>Add Stop</button></div>}{mode==='IMAGE'&&<ShapeImageFillControls element={element} assets={assets} mutate={mutate} artboardId={artboardId} availableFields={availableFields} datasourceStatus={datasourceStatus}/>}<OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></Section><Section sectionKey="APPEARANCE" title="Shape Text"><ShapeTextControls label={element.label} onChange={label=>patch({label})}/></Section><Section sectionKey="APPEARANCE" title="Border"><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
+function VectorFillControls({element,fill,onChange,assets,mutate,artboardId,availableFields,datasourceStatus}:{element:ShapeDesignElement|PathDesignElement;fill:DesignFill;onChange:(fill:DesignFill)=>void;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+ const solid=fill.type==='SOLID'?fill:{type:'SOLID' as const,color:'#dbeafe',opacity:1};
+ const linear=fill.type==='LINEAR_GRADIENT'?fill.gradient:{type:'LINEAR' as const,angleDeg:0,stops:[{offset:0,color:'#2563eb',opacity:1},{offset:100,color:'#dbeafe',opacity:1}]};
+ const radial=fill.type==='RADIAL_GRADIENT'?fill.gradient:DEFAULT_RADIAL_GRADIENT;
+ const pattern=fill.type==='PATTERN'?fill.pattern:DEFAULT_PATTERN_FILL;
+ const selectFill=(value:string)=>{
+   if(value==='NONE')onChange({type:'NONE'});
+   else if(value==='SOLID')onChange(solid);
+   else if(value==='LINEAR_GRADIENT')onChange({type:'LINEAR_GRADIENT',gradient:linear});
+   else if(value==='RADIAL_GRADIENT')onChange({type:'RADIAL_GRADIENT',gradient:{...radial,stops:radial.stops.map(stop=>({...stop}))}});
+   else if(value==='PATTERN')onChange({type:'PATTERN',pattern:{...pattern}});
+   else if(value==='IMAGE')onChange(fill.type==='IMAGE'?fill:{type:'IMAGE',assetId:'',fit:'FILL',opacity:1});
+ };
+ return <div className="card-property-details" data-phase82-fill-controls>
+  <label>Fill<select value={fill.type} onChange={e=>selectFill(e.target.value)}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear Gradient</option><option value="RADIAL_GRADIENT">Radial Gradient</option><option value="PATTERN">Pattern</option><option value="IMAGE">Image</option></select></label>
+  {fill.type==='SOLID'&&<><label>Fill color<div className="card-color-row"><input type="color" value={fill.color} onChange={e=>onChange({...fill,color:e.target.value})}/><input value={fill.color} readOnly/></div></label><label>Fill opacity (%)<input type="number" min="0" max="100" value={Math.round((fill.opacity??1)*100)} onChange={e=>onChange({...fill,opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></>}
+  {fill.type==='LINEAR_GRADIENT'&&<><label>Angle (°)<input type="number" min="0" max="360" value={fill.gradient.angleDeg} onChange={e=>onChange({type:'LINEAR_GRADIENT',gradient:{...fill.gradient,angleDeg:clamp(Number(e.target.value)||0,0,360)}})}/></label><GradientStopsEditor stops={fill.gradient.stops} onChange={stops=>onChange({type:'LINEAR_GRADIENT',gradient:{...fill.gradient,stops}})}/></>}
+  {fill.type==='RADIAL_GRADIENT'&&<><div className="card-property-grid"><label>Center X (%)<input type="number" min="0" max="100" value={fill.gradient.centerX} onChange={e=>onChange({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,centerX:clamp(Number(e.target.value)||0,0,100)}})}/></label><label>Center Y (%)<input type="number" min="0" max="100" value={fill.gradient.centerY} onChange={e=>onChange({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,centerY:clamp(Number(e.target.value)||0,0,100)}})}/></label><label>Radius (%)<input type="number" min="1" max="200" value={fill.gradient.radius} onChange={e=>onChange({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,radius:clamp(Number(e.target.value)||1,1,200)}})}/></label></div><GradientStopsEditor stops={fill.gradient.stops} onChange={stops=>onChange({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,stops}})}/></>}
+  {fill.type==='PATTERN'&&<><label>Pattern<select value={fill.pattern.kind} onChange={e=>onChange({type:'PATTERN',pattern:{...fill.pattern,kind:e.target.value as typeof fill.pattern.kind}})}><option value="HATCH">Hatch</option><option value="DOT">Dots</option><option value="CHECKER">Checker</option></select></label><div className="card-property-grid"><label>Foreground<input type="color" value={fill.pattern.foreground} onChange={e=>onChange({type:'PATTERN',pattern:{...fill.pattern,foreground:e.target.value}})}/></label><label>Background<input type="color" value={fill.pattern.background} onChange={e=>onChange({type:'PATTERN',pattern:{...fill.pattern,background:e.target.value}})}/></label><label>Scale<input type="number" min="0.25" max="8" step=".25" value={fill.pattern.scale} onChange={e=>onChange({type:'PATTERN',pattern:{...fill.pattern,scale:clamp(Number(e.target.value)||1,.25,8)}})}/></label><label>Rotation (°)<input type="number" min="0" max="360" value={fill.pattern.rotationDeg} onChange={e=>onChange({type:'PATTERN',pattern:{...fill.pattern,rotationDeg:clamp(Number(e.target.value)||0,0,360)}})}/></label></div><label>Pattern opacity (%)<input type="number" min="0" max="100" value={Math.round((fill.pattern.opacity??1)*100)} onChange={e=>onChange({type:'PATTERN',pattern:{...fill.pattern,opacity:clamp(Number(e.target.value)||0,0,100)/100}})}/></label></>}
+  {fill.type==='IMAGE'&&<ShapeImageFillControls element={element} assets={assets} mutate={mutate} artboardId={artboardId} availableFields={availableFields} datasourceStatus={datasourceStatus}/>} 
+ </div>;
+}
+
+function ArtboardBackgroundControls({artboard,template,mutate,availableFields,datasourceStatus}:{artboard:Artboard;template:DesignTemplate;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+ const fill=artboard.background;
+ const assets=template.sharedAssets;
+ const imageAssets=assets.filter(asset=>asset.kind==='IMAGE'||asset.kind==='LOGO'||asset.mimeType?.startsWith('image/'));
+ const binding=getArtboardBackgroundImageSourceBinding(artboard);
+ const imageFields=availableFields.filter(field=>field.type==='string');
+ const setFill=(next:DesignFill)=>mutate(t=>setArtboardBackground(t,artboard.id,next));
+ const solid=fill.type==='SOLID'?fill:{type:'SOLID' as const,color:'#ffffff',opacity:1};
+ const linear=fill.type==='LINEAR_GRADIENT'?fill.gradient:{type:'LINEAR' as const,angleDeg:0,stops:[{offset:0,color:'#2563eb',opacity:1},{offset:100,color:'#ffffff',opacity:1}]};
+ const radial=fill.type==='RADIAL_GRADIENT'?fill.gradient:DEFAULT_RADIAL_GRADIENT;
+ const pattern=fill.type==='PATTERN'?fill.pattern:DEFAULT_PATTERN_FILL;
+ const selectType=(value:string)=>{if(value==='NONE')setFill({type:'NONE'});else if(value==='SOLID')setFill(solid);else if(value==='LINEAR_GRADIENT')setFill({type:'LINEAR_GRADIENT',gradient:linear});else if(value==='RADIAL_GRADIENT')setFill({type:'RADIAL_GRADIENT',gradient:{...radial,stops:radial.stops.map(stop=>({...stop}))}});else if(value==='PATTERN')setFill({type:'PATTERN',pattern:{...pattern}});else if(value==='IMAGE')setFill(fill.type==='IMAGE'?fill:{type:'IMAGE',assetId:imageAssets[0]?.id??'',fit:'FILL',opacity:1});};
+ const upload=async(file?:File)=>{if(!file||!file.type.startsWith('image/'))return;const source=await readAsDataUrl(file);const dimensions=await readImageDimensions(source);const assetId=id('asset-artboard-bg');mutate(t=>{const next=addAssetReference(t,{id:assetId,name:file.name,kind:'IMAGE',sourceType:'DATA_URL',source,mimeType:file.type,widthPx:dimensions.widthPx,heightPx:dimensions.heightPx,metadata:{originalFileName:file.name,userUploaded:true}});return setArtboardBackground(next,artboard.id,{type:'IMAGE',assetId,fit:'FILL',opacity:1});});};
+ const updateBinding=(fieldPath:string)=>mutate(t=>({...t,artboards:t.artboards.map(a=>a.id!==artboard.id?a:fieldPath==='__NONE__'?removeArtboardBackgroundImageSourceBinding(a):setArtboardBackgroundImageSourceFieldBinding(a,fieldPath))}));
+ const crop=fill.type==='IMAGE'?normalizeImageFillTransform(fill.transform):normalizeImageFillTransform(undefined);
+ return <div className="card-property-details" data-phase86-artboard-background-controls>
+  <label>Background fill<select value={fill.type} onChange={e=>selectType(e.target.value)}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear Gradient</option><option value="RADIAL_GRADIENT">Radial Gradient</option><option value="PATTERN">Pattern</option><option value="IMAGE">Image</option></select></label>
+  {fill.type==='SOLID'&&<><label>Color<div className="card-color-row"><input type="color" value={fill.color} onChange={e=>setFill({...fill,color:e.target.value})}/><input value={fill.color} readOnly/></div></label><label>Opacity (%)<input type="number" min="0" max="100" value={Math.round((fill.opacity??1)*100)} onChange={e=>setFill({...fill,opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label></>}
+  {fill.type==='LINEAR_GRADIENT'&&<><label>Angle (°)<input type="number" min="0" max="360" value={fill.gradient.angleDeg} onChange={e=>setFill({type:'LINEAR_GRADIENT',gradient:{...fill.gradient,angleDeg:clamp(Number(e.target.value)||0,0,360)}})}/></label><GradientStopsEditor stops={fill.gradient.stops} onChange={stops=>setFill({type:'LINEAR_GRADIENT',gradient:{...fill.gradient,stops}})}/></>}
+  {fill.type==='RADIAL_GRADIENT'&&<><div className="card-property-grid"><label>Center X (%)<input type="number" min="0" max="100" value={fill.gradient.centerX} onChange={e=>setFill({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,centerX:clamp(Number(e.target.value)||0,0,100)}})}/></label><label>Center Y (%)<input type="number" min="0" max="100" value={fill.gradient.centerY} onChange={e=>setFill({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,centerY:clamp(Number(e.target.value)||0,0,100)}})}/></label><label>Radius (%)<input type="number" min="1" max="200" value={fill.gradient.radius} onChange={e=>setFill({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,radius:clamp(Number(e.target.value)||1,1,200)}})}/></label></div><GradientStopsEditor stops={fill.gradient.stops} onChange={stops=>setFill({type:'RADIAL_GRADIENT',gradient:{...fill.gradient,stops}})}/></>}
+  {fill.type==='PATTERN'&&<><label>Pattern<select value={fill.pattern.kind} onChange={e=>setFill({type:'PATTERN',pattern:{...fill.pattern,kind:e.target.value as typeof fill.pattern.kind}})}><option value="HATCH">Hatch</option><option value="DOT">Dots</option><option value="CHECKER">Checker</option></select></label><div className="card-property-grid"><label>Foreground<input type="color" value={fill.pattern.foreground} onChange={e=>setFill({type:'PATTERN',pattern:{...fill.pattern,foreground:e.target.value}})}/></label><label>Background<input type="color" value={fill.pattern.background} onChange={e=>setFill({type:'PATTERN',pattern:{...fill.pattern,background:e.target.value}})}/></label><label>Scale<input type="number" min="0.25" max="8" step=".25" value={fill.pattern.scale} onChange={e=>setFill({type:'PATTERN',pattern:{...fill.pattern,scale:clamp(Number(e.target.value)||1,.25,8)}})}/></label><label>Rotation (°)<input type="number" min="0" max="360" value={fill.pattern.rotationDeg} onChange={e=>setFill({type:'PATTERN',pattern:{...fill.pattern,rotationDeg:clamp(Number(e.target.value)||0,0,360)}})}/></label></div><label>Pattern opacity (%)<input type="number" min="0" max="100" value={Math.round((fill.pattern.opacity??1)*100)} onChange={e=>setFill({type:'PATTERN',pattern:{...fill.pattern,opacity:clamp(Number(e.target.value)||0,0,100)/100}})}/></label></>}
+  {fill.type==='IMAGE'&&<><label>Image<select value={fill.assetId} onChange={e=>setFill({...fill,assetId:e.target.value})}><option value="">Select image…</option>{imageAssets.map(asset=><option key={asset.id} value={asset.id}>{asset.name}</option>)}</select></label><label className="secondary">Upload background image<input aria-label="Upload artboard background image" type="file" accept="image/*" onChange={e=>{void upload(e.target.files?.[0]);e.currentTarget.value='';}}/></label><label>Dynamic image field{imageFields.length===0?<div style={{fontSize:'11px',color:'var(--text-secondary)',marginTop:4}}>{availableFields.length===0?datasourceStatus:'No string/image source fields available.'}</div>:<SearchableFieldPicker availableFields={imageFields} currentFieldPath={binding?.fieldPath??'__NONE__'} onSelectField={updateBinding}/>}</label>{binding&&<button className="secondary" onClick={()=>updateBinding('__NONE__')}>Remove Image Binding</button>}<label>Fit<select value={fill.fit} onChange={e=>setFill({...fill,fit:e.target.value as typeof fill.fit})}><option value="FIT">Fit</option><option value="FILL">Fill / Crop</option><option value="STRETCH">Stretch</option></select></label><label>Image opacity<input type="range" min="0" max="1" step="0.05" value={fill.opacity??1} onChange={e=>setFill({...fill,opacity:Number(e.target.value)})}/></label><div className="card-property-grid"><label>Zoom (%)<input type="number" min="10" max="1000" step="5" value={Math.round(crop.scale*100)} onChange={e=>setFill({...fill,transform:{...crop,scale:clamp(Number(e.target.value)||100,10,1000)/100}})}/></label><label>Rotation (°)<input type="number" min="-360" max="360" value={crop.rotationDeg} onChange={e=>setFill({...fill,transform:{...crop,rotationDeg:Number(e.target.value)||0}})}/></label></div><div className="card-property-grid"><label>Offset X (%)<input type="number" min="-200" max="200" value={crop.offsetX} onChange={e=>setFill({...fill,transform:{...crop,offsetX:clamp(Number(e.target.value)||0,-200,200)}})}/></label><label>Offset Y (%)<input type="number" min="-200" max="200" value={crop.offsetY} onChange={e=>setFill({...fill,transform:{...crop,offsetY:clamp(Number(e.target.value)||0,-200,200)}})}/></label></div><button className="secondary" onClick={()=>setFill({...fill,transform:undefined})}>Reset Crop</button></>}
+ </div>;
+}
+
+function AdvancedShapeProperties({element,update,assets,mutate,artboardId,availableFields,datasourceStatus}:{element:ShapeDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+ const patch=(p:Partial<ShapeDesignElement>)=>update(e=>e.type==='SHAPE'?{...e,...p}:e);
+ return <><Section sectionKey="APPEARANCE" title="Appearance"><label>Shape Kind<input type="text" value={shapeLabel(element.shape)} readOnly disabled/></label><VectorFillControls element={element} fill={element.fill} onChange={fill=>patch({fill})} assets={assets} mutate={mutate} artboardId={artboardId} availableFields={availableFields} datasourceStatus={datasourceStatus}/><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></Section><Section sectionKey="APPEARANCE" title="Shape Text"><ShapeTextControls label={element.label} onChange={label=>patch({label})}/></Section><Section sectionKey="APPEARANCE" title="Stroke"><StrokeControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>;
+}
+function AdvancedPathProperties({element,update,assets,mutate,artboardId,availableFields,datasourceStatus}:{element:PathDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;assets:DesignTemplate['sharedAssets'];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;artboardId:string;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
+ const patch=(p:Partial<PathDesignElement>)=>update(e=>e.type==='PATH'?{...e,...p}:e);
+ return <><Section sectionKey="APPEARANCE" title="Appearance"><label>Shape Kind<input type="text" value={element.name} readOnly disabled/></label><VectorFillControls element={element} fill={element.fill} onChange={fill=>patch({fill})} assets={assets} mutate={mutate} artboardId={artboardId} availableFields={availableFields} datasourceStatus={datasourceStatus}/><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/></Section><Section sectionKey="APPEARANCE" title="Shape Text"><ShapeTextControls label={element.label} onChange={label=>patch({label})}/></Section><Section sectionKey="APPEARANCE" title="Stroke"><StrokeControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>;
+}
 function AdvancedImageProperties({element,update,availableFields,datasourceStatus}:{element:ImageDesignElement;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
   const patch=(p:Partial<ImageDesignElement>)=>update(e=>e.type==='IMAGE'?{...e,...p}:e);
   const sourceBinding=getSourceBinding(element);
   const isBound=!!sourceBinding;
   const isMissingField=isBound&&sourceBinding.sourceType==='FIELD'&&!availableFields.some(f=>f.name===sourceBinding.fieldPath);
-  
-  const hyperlinkBinding = getHyperlinkBinding(element);
-  const isHyperlinkBound = !!hyperlinkBinding;
-  const isMissingHyperlinkField = isHyperlinkBound && hyperlinkBinding.sourceType === 'FIELD' && !availableFields.some(f => f.name === hyperlinkBinding.fieldPath);
-
   return <><Section sectionKey="APPEARANCE" title="Image"><label>Fit<select value={element.fit} onChange={e=>patch({fit:e.target.value as ImageDesignElement['fit']})}><option value="FIT">Fit</option><option value="FILL">Fill</option><option value="STRETCH">Stretch</option></select></label><div className="card-segmented-control"><button className={element.flipX?'active':''} onClick={()=>patch({flipX:!element.flipX})}>Flip X</button><button className={element.flipY?'active':''} onClick={()=>patch({flipY:!element.flipY})}>Flip Y</button></div><label className="card-check-row"><input type="checkbox" checked={element.maintainAspectRatio??true} onChange={e=>patch({maintainAspectRatio:e.target.checked})}/>Lock aspect ratio</label></Section>
   <Section sectionKey="DATA_BINDING" title="Dynamic Binding">
     {availableFields.length===0?<div style={{fontSize:'12px',color:'var(--text-secondary)'}}>{datasourceStatus}</div>:
@@ -2438,37 +2663,7 @@ function AdvancedImageProperties({element,update,availableFields,datasourceStatu
       </div>
     }
   </Section>
-  <Section sectionKey="DATA_BINDING" title="Hyperlink">
-    <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-      <label>URL / Hyperlink
-        <input 
-          type="text" 
-          placeholder="https://example.com" 
-          value={element.hyperlink ?? ''} 
-          onChange={e => patch({ hyperlink: e.target.value || undefined })} 
-          disabled={isHyperlinkBound}
-        />
-      </label>
-      {availableFields.length > 0 && (
-        <div style={{display:'flex',flexDirection:'column',gap:'8px',marginTop:'4px'}}>
-          <label>Dynamic Link Field:
-            <SearchableFieldPicker 
-              availableFields={availableFields} 
-              currentFieldPath={hyperlinkBinding?.fieldPath ?? '__NONE__'} 
-              onSelectField={val => {
-                if (val === '__NONE__') update(el => removeHyperlinkBinding(el as ImageDesignElement));
-                else update(el => setHyperlinkFieldBinding(el as ImageDesignElement, val));
-              }} 
-            />
-          </label>
-          {isHyperlinkBound && <div style={{fontSize:'11px',color:'var(--text-secondary)'}}>Fallback: Static URL</div>}
-          {isMissingHyperlinkField && <div style={{color:'red',fontSize:'11px'}}>⚠ {hyperlinkBinding.fieldPath} Not available in current datasource</div>}
-          {isHyperlinkBound && <button className="secondary" onClick={() => update(el => removeHyperlinkBinding(el as ImageDesignElement))}>Remove Link Binding</button>}
-        </div>
-      )}
-    </div>
-  </Section>
-  <Section sectionKey="APPEARANCE" title="Appearance"><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></Section><Section sectionKey="APPEARANCE" title="Border"><BorderControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
+  <Section sectionKey="APPEARANCE" title="Appearance"><OpacityControl value={element.opacity} onChange={opacity=>patch({opacity})}/><label>Corner radius (mm)<input type="number" min="0" step=".5" value={element.cornerRadiusMm??0} onChange={e=>patch({cornerRadiusMm:Math.max(0,Number(e.target.value)||0)})}/></label></Section><Section sectionKey="APPEARANCE" title="Stroke"><StrokeControls stroke={element.stroke} onChange={stroke=>patch({stroke})}/></Section><Section sectionKey="ADVANCED" title="Shadow"><ShadowControls shadow={element.shadow} onChange={shadow=>patch({shadow})}/></Section></>}
 function SvgProperties({element,asset,update,availableFields,datasourceStatus}:{element:SvgDesignElement;asset?:AssetReference;update:(f:(e:DesignElement)=>DesignElement)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){
   const patch=(p:Partial<SvgDesignElement>)=>update(e=>e.type==='SVG'?{...e,...p}:e),canTint=asset?.metadata?.recolorable===true;
   const sourceBinding=getSourceBinding(element);
@@ -2599,22 +2794,42 @@ function AdvancedBarcodeProperties({element,update,availableFields}:{element:Bar
 }
 function BatchOpacityProperties({elements,artboard,mutate}:{elements:DesignElement[];artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const compatible=elements.filter(e=>['TEXT','SHAPE','IMAGE','SVG'].includes(e.type)),first=compatible[0]?.opacity,mixed=compatible.some(e=>Math.abs(e.opacity-(first??e.opacity))>.0001),percent=Math.round((first??1)*100);if(!compatible.length)return null;return <Section sectionKey="APPEARANCE" title="Appearance"><label>Opacity {mixed?'(Mixed)':''}<div className="card-range-row"><input type="range" min="0" max="100" value={mixed?100:percent} onChange={e=>mutate(t=>updateElementsOpacity(t,artboard.id,compatible.map(x=>x.id),Number(e.target.value)/100))}/><span>{mixed?'Mixed':`${percent}%`}</span></div></label></Section>}
 function ElementPrintQuality({element,asset,print}:{element:ImageDesignElement|SvgDesignElement;asset?:AssetReference;print:Artboard['print']}){if(element.type==='SVG')return <div className={`card-print-quality ${assetRenderKind(asset)==='VECTOR_SVG'?'good':'error'}`}><strong>{assetRenderKind(asset)==='VECTOR_SVG'?'Vector — resolution independent':asset?'Unsupported Asset':'Missing Asset'}</strong></div>;const quality=imagePrintQuality(element,asset,print);return <div className={`card-print-quality ${quality.status.toLowerCase()}`}><strong>{quality.message}</strong><span>Source: {asset?.widthPx&&asset?.heightPx?`${asset.widthPx} × ${asset.heightPx} px`:'Dimensions unavailable'}</span><span>Placed: {normalizeDisplayValue(element.size.widthMm)} × {normalizeDisplayValue(element.size.heightMm)} mm</span><span>Effective: {quality.effectiveDpi?`${Math.round(quality.effectiveDpi)} DPI`:'Unknown'}</span></div>}
-function MultiSelectionProperties({elements,artboard,mutate,groupSelected,ungroupSelected}:{elements:DesignElement[];artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;groupSelected:()=>void;ungroupSelected:()=>void}){
+function MultiSelectionProperties({elements,primaryElementId,artboard,mutate,groupSelected,ungroupSelected,regroupSelected,canRegroup}:{elements:DesignElement[];primaryElementId?:string;artboard:Artboard;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;groupSelected:()=>void;ungroupSelected:()=>void;regroupSelected:()=>void;canRegroup:boolean}){
  const [reference,setReference]=useState<DesignAlignmentReference>('SELECTION');
  const b=getSelectionBounds(elements),ids=elements.map(e=>e.id),grouped=elements.some(e=>e.groupId),unitCount=getAlignmentUnitCount(artboard,ids);
- const align=(mode:'LEFT'|'HCENTER'|'RIGHT'|'TOP'|'VCENTER'|'BOTTOM')=>mutate(t=>alignElements(t,artboard.id,ids,mode,reference));
-  const distribute=(axis:'HORIZONTAL'|'VERTICAL')=>mutate(t=>distributeElements(t,artboard.id,ids,axis,reference));
-  return <div className="card-property-sections">
+ const groupIds=[...new Set(elements.map(e=>e.groupId).filter(Boolean) as string[])];
+ const singleGroup=groupIds.length===1?artboard.groups.find(g=>g.id===groupIds[0]&&g.elementIds.length===ids.length&&g.elementIds.every(id=>ids.includes(id))):undefined;
+ const primary=elements.find(e=>e.id===primaryElementId)??elements[0];
+ const unlocked=elements.filter(e=>!e.locked);
+ const mixed=(getter:(e:DesignElement)=>number)=>resolveMixedValue(unlocked,getter,(a,b)=>Math.abs(a-b)<.0001);
+ const x=mixed(e=>e.position.xMm),y=mixed(e=>e.position.yMm),w=mixed(e=>e.size.widthMm),h=mixed(e=>e.size.heightMm),r=mixed(e=>e.rotationDeg);
+ const align=(mode:'LEFT'|'HCENTER'|'RIGHT'|'TOP'|'VCENTER'|'BOTTOM')=>mutate(t=>alignElements(t,artboard.id,ids,mode,reference,primary?.id));
+ const distribute=(axis:'HORIZONTAL'|'VERTICAL')=>mutate(t=>distributeElements(t,artboard.id,ids,axis,reference==='PRIMARY'?'SELECTION':reference));
+ const exact=(label:string,value:ReturnType<typeof mixed>,commit:(value:number)=>void,positive=false)=>{
+   const key=`${label}-${value.mixed?'mixed':value.value}`;
+   return <label>{label}<input key={key} type="number" step="0.1" min={positive?0.01:undefined} defaultValue={value.mixed?'':normalizeDisplayValue(value.value)} placeholder={value.mixed?'Mixed':''} onKeyDown={e=>{if(e.key==='Enter')(e.currentTarget as HTMLInputElement).blur();}} onBlur={e=>{if(e.target.value.trim()==='')return;const n=Number(e.target.value);if(Number.isFinite(n)&&(!positive||n>0))commit(n);}}/></label>;
+ };
+ return <div className="card-property-sections">
   <Section sectionKey="GENERAL" title="General">
-    <div className="card-property-note"><strong>{elements.length} elements selected</strong><span>{unitCount} alignment unit{unitCount===1?'':'s'} · groups stay atomic · locked units stay fixed.</span></div>
-    <div className="card-layer-action-grid"><button onClick={groupSelected} disabled={grouped}>Group</button><button onClick={ungroupSelected} disabled={!grouped}>Ungroup</button></div>
+    <div className="card-property-note"><strong>{elements.length} elements selected</strong><span>{unitCount} alignment unit{unitCount===1?'':'s'} · Primary: {primary?.name??'None'} · locked items stay fixed.</span></div>
+    <div className="card-layer-action-grid"><button onClick={groupSelected} disabled={grouped}>Group</button><button onClick={ungroupSelected} disabled={!grouped}>Ungroup</button><button onClick={regroupSelected} disabled={!canRegroup}>Regroup</button></div>{singleGroup&&<label>Group name<input key={singleGroup.id} defaultValue={singleGroup.name} onKeyDown={e=>{if(e.key==='Enter')(e.currentTarget as HTMLInputElement).blur();}} onBlur={e=>{const name=e.target.value.trim();if(name&&name!==singleGroup.name)mutate(t=>renameGroup(t,artboard.id,singleGroup.id,name));}}/></label>}
   </Section>
   <Section sectionKey="TRANSFORM" title="Transform">
-    <div className="card-layer-action-grid"><button onClick={()=>mutate(t=>scaleElements(t,artboard.id,ids,1.1))}>Scale +10%</button><button onClick={()=>mutate(t=>rotateElementsAsGroup(t,artboard.id,ids,15))}>Rotate +15°</button></div>
-    <label>Reference<select value={reference} onChange={e=>setReference(e.target.value as DesignAlignmentReference)}><option value="SELECTION">Selection bounds</option><option value="ARTBOARD">Artboard</option></select></label><div className="card-layer-action-grid card-align-grid"><button onClick={()=>align('LEFT')}>Left</button><button onClick={()=>align('HCENTER')}>H Center</button><button onClick={()=>align('RIGHT')}>Right</button><button onClick={()=>align('TOP')}>Top</button><button onClick={()=>align('VCENTER')}>V Center</button><button onClick={()=>align('BOTTOM')}>Bottom</button><button onClick={()=>distribute('HORIZONTAL')} disabled={unitCount<3}>Distribute H</button><button onClick={()=>distribute('VERTICAL')} disabled={unitCount<3}>Distribute V</button><button onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboard.id,ids,'BOTH'))}>Center Artboard</button></div>
-    {b&&<div className="card-property-grid"><label>X (mm)<input readOnly value={normalizeDisplayValue(b.xMm)}/></label><label>Y (mm)<input readOnly value={normalizeDisplayValue(b.yMm)}/></label><label>Width (mm)<input readOnly value={normalizeDisplayValue(b.widthMm)}/></label><label>Height (mm)<input readOnly value={normalizeDisplayValue(b.heightMm)}/></label></div>}
+    <div className="card-layer-action-grid"><button onClick={()=>mutate(t=>scaleElements(t,artboard.id,ids,1.1))}>Scale +10%</button><button onClick={()=>mutate(t=>rotateElementsAsGroup(t,artboard.id,ids,15))}>Rotate +15°</button>{singleGroup&&<><button onClick={()=>mutate(t=>flipElementsAsGroup(t,artboard.id,ids,'VERTICAL'))}>Flip Group H</button><button onClick={()=>mutate(t=>flipElementsAsGroup(t,artboard.id,ids,'HORIZONTAL'))}>Flip Group V</button></>}</div>
+    <label>Reference<select value={reference} onChange={e=>setReference(e.target.value as DesignAlignmentReference)}><option value="SELECTION">Selection bounds</option><option value="PRIMARY">Primary element</option><option value="ARTBOARD">Artboard</option></select></label>
+    <div className="card-layer-action-grid card-align-grid"><button onClick={()=>align('LEFT')}>Left</button><button onClick={()=>align('HCENTER')}>H Center</button><button onClick={()=>align('RIGHT')}>Right</button><button onClick={()=>align('TOP')}>Top</button><button onClick={()=>align('VCENTER')}>V Center</button><button onClick={()=>align('BOTTOM')}>Bottom</button><button onClick={()=>distribute('HORIZONTAL')} disabled={unitCount<3||reference==='PRIMARY'} title={reference==='PRIMARY'?'Distribution uses selection or artboard bounds.':''}>Distribute H</button><button onClick={()=>distribute('VERTICAL')} disabled={unitCount<3||reference==='PRIMARY'} title={reference==='PRIMARY'?'Distribution uses selection or artboard bounds.':''}>Distribute V</button><button onClick={()=>mutate(t=>centerElementsOnArtboard(t,artboard.id,ids,'BOTH'))}>Center Artboard</button></div>
+    <div className="card-layer-action-grid"><button disabled={!primary} onClick={()=>primary&&mutate(t=>matchAlignmentUnitsSize(t,artboard.id,ids,primary.id,'WIDTH'))}>Same Width</button><button disabled={!primary} onClick={()=>primary&&mutate(t=>matchAlignmentUnitsSize(t,artboard.id,ids,primary.id,'HEIGHT'))}>Same Height</button><button disabled={!primary} onClick={()=>primary&&mutate(t=>matchAlignmentUnitsSize(t,artboard.id,ids,primary.id,'BOTH'))}>Same Size</button></div>
+    <div className="card-property-note"><span>Mixed values show blank. Enter a value and leave the field to apply that exact value to every unlocked selected element.</span></div>
+    <div className="card-property-grid">
+      {exact('X (mm)',x,n=>mutate(t=>setElementsPositionAxis(t,artboard.id,ids,'X',n)))}
+      {exact('Y (mm)',y,n=>mutate(t=>setElementsPositionAxis(t,artboard.id,ids,'Y',n)))}
+      {exact('Width (mm)',w,n=>mutate(t=>setElementsSizeDimension(t,artboard.id,ids,'WIDTH',n)),true)}
+      {exact('Height (mm)',h,n=>mutate(t=>setElementsSizeDimension(t,artboard.id,ids,'HEIGHT',n)),true)}
+      {exact('Rotation (°)',r,n=>mutate(t=>setElementsRotation(t,artboard.id,ids,n)))}
+    </div>
+    {b&&<div className="card-property-note"><span>Selection bounds: X {normalizeDisplayValue(b.xMm)} · Y {normalizeDisplayValue(b.yMm)} · W {normalizeDisplayValue(b.widthMm)} · H {normalizeDisplayValue(b.heightMm)} mm</span></div>}
   </Section>
-  </div>}
+ </div>}
 function MultiArtboardProperties({artboards,mutate}:{artboards:Artboard[];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){
   if(!artboards.length) return null;
   const ids=artboards.map(a=>a.id);
@@ -2628,32 +2843,9 @@ function MultiArtboardProperties({artboards,mutate}:{artboards:Artboard[];mutate
     </Section>
   </div>;
 }
-function PageStyleProperties({artboard,assets,mutate}:{artboard:Artboard;assets:AssetReference[];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){
- const update=(patch:Partial<Artboard>)=>mutate(t=>({...t,artboards:t.artboards.map(a=>a.id===artboard.id?{...a,...patch}:a)}));
- const fill=artboard.background,mode=fill.type;
- const border=artboard.border??{enabled:false,color:'#111827',widthMm:.3,style:'SOLID' as const,offsetMm:0,radiusMm:0};
- const editor=artboard.editor??{showGrid:false,gridSizeMm:5,gridSnapEnabled:false,showRulers:true,guideSnapEnabled:true,rulerOrigin:{xMm:0,yMm:0}};
- const watermark=artboard.watermark??{enabled:false,type:'TEXT' as const,text:'DRAFT',color:'#64748b',opacity:.16,rotationDeg:-30,fontSizePt:28,scalePercent:35,tiled:false,spacingMm:20,zOrder:'ABOVE' as const};
- const setFill=(next:Artboard['background'])=>update({background:next});
- const chooseBackgroundFile=async(file?:File)=>{if(!file)return;if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)){window.alert('Choose a PNG, JPG, WebP or GIF image.');return;}const source=await readAsDataUrl(file),dimensions=await readImageDimensions(source),assetId=id('asset-page-background');mutate(t=>{const withAsset=addAssetReference(t,{id:assetId,name:file.name,kind:'IMAGE',sourceType:'DATA_URL',source,mimeType:file.type,widthPx:dimensions.widthPx,heightPx:dimensions.heightPx,metadata:{originalFileName:file.name,userUploaded:true}});return{...withAsset,artboards:withAsset.artboards.map(a=>a.id===artboard.id?{...a,background:{type:'IMAGE',assetId,fit:'FILL',opacity:1,positionXPercent:50,positionYPercent:50}}:a)};});};
- return <>
- <Section sectionKey="GENERAL" title="Page Background"><label>Type<select value={mode} onChange={e=>{const v=e.target.value;setFill(v==='NONE'?{type:'NONE'}:v==='LINEAR_GRADIENT'?{type:'LINEAR_GRADIENT',gradient:{type:'LINEAR',angleDeg:90,stops:[{offset:0,color:'#ffffff'},{offset:100,color:'#dbeafe'}]}}:v==='RADIAL_GRADIENT'?{type:'RADIAL_GRADIENT',gradient:{type:'RADIAL',centerXPercent:50,centerYPercent:50,stops:[{offset:0,color:'#ffffff'},{offset:100,color:'#dbeafe'}]}}:v==='PATTERN'?{type:'PATTERN',pattern:'DOTS',foreground:'#cbd5e1',background:'#ffffff',scaleMm:4}:v==='IMAGE'?{type:'IMAGE',assetId:assets[0]?.id??'',fit:'FILL',opacity:1}:{type:'SOLID',color:'#ffffff',opacity:1});}}><option value="SOLID">Solid</option><option value="NONE">Transparent</option><option value="LINEAR_GRADIENT">Linear gradient</option><option value="RADIAL_GRADIENT">Radial gradient</option><option value="IMAGE">Image / texture</option><option value="PATTERN">Pattern</option></select></label>
- {mode==='SOLID'&&<label>Color<input type="color" value={fill.color} onChange={e=>setFill({...fill,color:e.target.value})}/></label>}
- {(mode==='LINEAR_GRADIENT'||mode==='RADIAL_GRADIENT')&&<div>{fill.gradient.stops.map((s,i)=><label key={i}>Stop {i+1}<input type="color" value={s.color} onChange={e=>setFill({...fill,gradient:{...fill.gradient,stops:fill.gradient.stops.map((x,n)=>n===i?{...x,color:e.target.value}:x)}} as Artboard['background'])}/></label>)}</div>}
- {mode==='LINEAR_GRADIENT'&&<label>Angle<input type="number" value={fill.gradient.angleDeg} onChange={e=>setFill({...fill,gradient:{...fill.gradient,angleDeg:Number(e.target.value)||0}})}/></label>}
- {mode==='IMAGE'&&<><label>Image / texture<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>{const file=e.target.files?.[0];if(file)void chooseBackgroundFile(file);e.currentTarget.value='';}}/></label><label>Existing asset<select value={fill.assetId} onChange={e=>setFill({...fill,assetId:e.target.value})}><option value="">Choose asset</option>{assets.filter(a=>a.kind==='IMAGE'||a.kind==='LOGO'||a.kind==='DECORATION').map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label>Style<select value={fill.fit} onChange={e=>setFill({...fill,fit:e.target.value as typeof fill.fit})}><option value="FILL">Fill / full bleed</option><option value="FIT">Fit inside page</option><option value="STRETCH">Stretch to page</option><option value="TILE">Tile texture</option></select></label><div className="card-property-grid"><label>Opacity %<input type="number" min="0" max="100" value={Math.round((fill.opacity??1)*100)} onChange={e=>setFill({...fill,opacity:clamp(Number(e.target.value)||0,0,100)/100})}/></label>{fill.fit==='TILE'&&<label>Tile size (mm)<input type="number" min="1" step="1" value={fill.tileSizeMm??20} onChange={e=>setFill({...fill,tileSizeMm:Math.max(1,Number(e.target.value)||20)})}/></label>}<label>Position X %<input type="number" min="0" max="100" value={fill.positionXPercent??50} onChange={e=>setFill({...fill,positionXPercent:clamp(Number(e.target.value)||0,0,100)})}/></label><label>Position Y %<input type="number" min="0" max="100" value={fill.positionYPercent??50} onChange={e=>setFill({...fill,positionYPercent:clamp(Number(e.target.value)||0,0,100)})}/></label></div></>}
- {mode==='PATTERN'&&<><label>Pattern<select value={fill.pattern} onChange={e=>setFill({...fill,pattern:e.target.value as typeof fill.pattern})}><option value="DOTS">Dots</option><option value="GRID">Grid</option><option value="DIAGONAL">Diagonal</option></select></label><label>Foreground<input type="color" value={fill.foreground} onChange={e=>setFill({...fill,foreground:e.target.value})}/></label><label>Background<input type="color" value={fill.background} onChange={e=>setFill({...fill,background:e.target.value})}/></label></>}
- </Section>
- <Section sectionKey="GENERAL" title="Page Border"><label className="card-check-row"><input type="checkbox" checked={border.enabled} onChange={e=>update({border:{...border,enabled:e.target.checked}})}/>Enable border</label>{border.enabled&&<><label>Style<select value={border.style} onChange={e=>update({border:{...border,style:e.target.value as typeof border.style}})}><option value="SOLID">Solid</option><option value="DASHED">Dashed</option><option value="DOTTED">Dotted</option></select></label><div className="card-property-grid"><label>Width (mm)<input type="number" min="0" step=".1" value={border.widthMm} onChange={e=>update({border:{...border,widthMm:Math.max(0,Number(e.target.value)||0)}})}/></label><label>Offset (mm)<input type="number" min="0" step=".5" value={border.offsetMm} onChange={e=>update({border:{...border,offsetMm:Math.max(0,Number(e.target.value)||0)}})}/></label><label>Radius (mm)<input type="number" min="0" step=".5" value={border.radiusMm} onChange={e=>update({border:{...border,radiusMm:Math.max(0,Number(e.target.value)||0)}})}/></label><label>Color<input type="color" value={border.color} onChange={e=>update({border:{...border,color:e.target.value}})}/></label></div></>}</Section>
- <Section sectionKey="GENERAL" title="Grid, Guides & Origin"><label className="card-check-row"><input type="checkbox" checked={editor.showGrid} onChange={e=>update({editor:{...editor,showGrid:e.target.checked}})}/>Show grid by default</label><label className="card-check-row"><input type="checkbox" checked={editor.gridSnapEnabled} onChange={e=>update({editor:{...editor,gridSnapEnabled:e.target.checked}})}/>Snap to grid</label><label>Grid spacing (mm)<input type="number" min=".5" step=".5" value={editor.gridSizeMm} onChange={e=>update({editor:{...editor,gridSizeMm:Math.max(.5,Number(e.target.value)||5)}})}/></label><div className="card-property-grid"><label>Origin X<input type="number" step=".1" value={editor.rulerOrigin.xMm} onChange={e=>update({editor:{...editor,rulerOrigin:{...editor.rulerOrigin,xMm:Number(e.target.value)||0}}})}/></label><label>Origin Y<input type="number" step=".1" value={editor.rulerOrigin.yMm} onChange={e=>update({editor:{...editor,rulerOrigin:{...editor.rulerOrigin,yMm:Number(e.target.value)||0}}})}/></label></div></Section>
- <Section sectionKey="GENERAL" title="Watermark"><label className="card-check-row"><input type="checkbox" checked={watermark.enabled} onChange={e=>update({watermark:{...watermark,enabled:e.target.checked}})}/>Enable watermark</label>{watermark.enabled&&<><label>Type<select value={watermark.type} onChange={e=>update({watermark:{...watermark,type:e.target.value as 'TEXT'|'IMAGE'}})}><option value="TEXT">Text</option><option value="IMAGE">Image</option></select></label>{watermark.type==='TEXT'?<label>Text<input value={watermark.text??''} onChange={e=>update({watermark:{...watermark,text:e.target.value}})}/></label>:<label>Asset<select value={watermark.assetId??''} onChange={e=>update({watermark:{...watermark,assetId:e.target.value}})}>{assets.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}<div className="card-property-grid"><label>Opacity<input type="number" min="0" max="1" step=".05" value={watermark.opacity} onChange={e=>update({watermark:{...watermark,opacity:clamp(Number(e.target.value),0,1)}})}/></label><label>Rotation<input type="number" value={watermark.rotationDeg} onChange={e=>update({watermark:{...watermark,rotationDeg:Number(e.target.value)||0}})}/></label></div><label>Z order<select value={watermark.zOrder} onChange={e=>update({watermark:{...watermark,zOrder:e.target.value as 'BEHIND'|'ABOVE'}})}><option value="BEHIND">Behind content</option><option value="ABOVE">Above content</option></select></label></>}</Section>
- <Section sectionKey="GENERAL" title="Color Preview"><label>Preview<select value={artboard.colorSettings?.previewMode??'RGB'} onChange={e=>update({colorSettings:{previewMode:e.target.value as 'RGB'|'CMYK',warnOnRgbExport:true}})}><option value="RGB">RGB</option><option value="CMYK">CMYK approximation</option></select></label>{artboard.colorSettings?.previewMode==='CMYK'&&<div className="card-property-note"><span>Soft-proof preview is approximate; exports remain RGB without an ICC workflow.</span></div>}</Section>
- </>;
-}
-function Properties({artboard,template,mutate}:{artboard:Artboard;template:DesignTemplate;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const unit=artboard.displayUnit,w=normalizeDisplayValue(mmToUnit(artboard.widthMm,unit)),h=normalizeDisplayValue(mmToUnit(artboard.heightMm,unit)),preset=ARTBOARD_PRESETS.find(p=>near(p.widthMm,artboard.widthMm)&&near(p.heightMm,artboard.heightMm));const dimensions=(nw:number,nh:number)=>{const wm=unitToMm(nw,unit),hm=unitToMm(nh,unit);if(wm>0&&hm>0&&Number.isFinite(wm)&&Number.isFinite(hm))mutate(t=>resizeArtboard(t,artboard.id,wm,hm));};
+function Properties({artboard,template,mutate,availableFields,datasourceStatus}:{artboard:Artboard;template:DesignTemplate;mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void;availableFields:import('@document-tool/contracts').FieldDefinition[];datasourceStatus:string}){const unit=artboard.displayUnit,w=normalizeDisplayValue(mmToUnit(artboard.widthMm,unit)),h=normalizeDisplayValue(mmToUnit(artboard.heightMm,unit)),preset=ARTBOARD_PRESETS.find(p=>near(p.widthMm,artboard.widthMm)&&near(p.heightMm,artboard.heightMm));const dimensions=(nw:number,nh:number)=>{const wm=unitToMm(nw,unit),hm=unitToMm(nh,unit);if(wm>0&&hm>0&&Number.isFinite(wm)&&Number.isFinite(hm))mutate(t=>resizeArtboard(t,artboard.id,wm,hm));};
 const availableToPair=template.artboards.filter(a=>a.id!==artboard.id&&!a.pairId);
 return <div className="card-property-sections">
-<PageStyleProperties artboard={artboard} assets={template.sharedAssets} mutate={mutate}/>
 <Section sectionKey="GENERAL" title="General">
   <label>Name<input value={artboard.name} onChange={e=>{if(e.target.value.trim())mutate(t=>renameArtboard(t,artboard.id,e.target.value));}}/></label>
   <label>Role<select value={artboard.role} onChange={e=>mutate(t=>setArtboardRole(t,artboard.id,e.target.value as ArtboardRole))}>
@@ -2672,12 +2864,12 @@ return <div className="card-property-sections">
     </div>
   )}
 </Section>
-<Section sectionKey="GENERAL" title="Dimensions"><label>Preset<select value={preset?.id??'custom'} onChange={e=>{const p=ARTBOARD_PRESETS.find(x=>x.id===e.target.value);if(p)mutate(t=>resizeArtboard(t,artboard.id,p.widthMm,p.heightMm));}}><option value="custom">Custom</option>{ARTBOARD_PRESETS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label><div className="card-property-grid"><label>Width ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={w} onChange={e=>dimensions(Number(e.target.value),h)}/></label><label>Height ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={h} onChange={e=>dimensions(w,Number(e.target.value))}/></label></div><label>Display unit<select value={unit} onChange={e=>mutate(t=>setArtboardDisplayUnit(t,artboard.id,e.target.value as DesignUnit))}><option value="MM">Millimetres (mm)</option><option value="IN">Inches (in)</option></select></label><label>Orientation<div className="card-segmented-control"><button className={artboard.widthMm>=artboard.heightMm?'active':''} onClick={()=>{if(artboard.widthMm<artboard.heightMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Landscape</button><button className={artboard.heightMm>artboard.widthMm?'active':''} onClick={()=>{if(artboard.heightMm<=artboard.widthMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Portrait</button></div></label></Section><Section sectionKey="GENERAL" title="Background"><label>Background<div className="card-color-row"><input type="color" value={color(artboard)} onChange={e=>mutate(t=>setArtboardBackground(t,artboard.id,{type:'SOLID',color:e.target.value,opacity:1}))}/><input value={color(artboard)} readOnly/></div></label></Section><Section sectionKey="GENERAL" title={`Guides (${artboard.guides.length})`}>{artboard.guides.length?<div className="card-guide-list">{artboard.guides.map(guide=><div key={guide.id} className="card-guide-row"><span>{guide.orientation==='VERTICAL'?'V':'H'}</span><input type="number" step="0.1" value={normalizeDisplayValue(mmToUnit(guide.positionMm,unit))} disabled={guide.locked} onChange={e=>mutate(t=>moveGuide(t,artboard.id,guide.id,unitToMm(Number(e.target.value),unit)))}/><small>{unit==='MM'?'mm':'in'}</small><button title={guide.locked?'Unlock guide':'Lock guide'} onClick={()=>mutate(t=>setGuideLocked(t,artboard.id,guide.id,!guide.locked))}>{guide.locked?'🔒':'🔓'}</button><button title="Delete guide" disabled={guide.locked} onClick={()=>mutate(t=>deleteGuide(t,artboard.id,guide.id))}>×</button></div>)}</div>:<div className="card-property-note"><span>Drag from the top or left ruler to create a guide.</span></div>}</Section><Section sectionKey="GENERAL" title="Notice"><div className="card-property-note"><strong>Phase 6.1.3</strong><span>Rulers, configurable editor grid and persistent artboard guides are active. Guides remain editor-only and feed the shared smart-snapping engine.</span></div></Section></div>}
+<Section sectionKey="GENERAL" title="Dimensions"><label>Preset<select value={preset?.id??'custom'} onChange={e=>{const p=ARTBOARD_PRESETS.find(x=>x.id===e.target.value);if(p)mutate(t=>resizeArtboard(t,artboard.id,p.widthMm,p.heightMm));}}><option value="custom">Custom</option>{ARTBOARD_PRESETS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label><div className="card-property-grid"><label>Width ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={w} onChange={e=>dimensions(Number(e.target.value),h)}/></label><label>Height ({unit==='MM'?'mm':'in'})<input type="number" min="0.001" step="0.1" value={h} onChange={e=>dimensions(w,Number(e.target.value))}/></label></div><label>Display unit<select value={unit} onChange={e=>mutate(t=>setArtboardDisplayUnit(t,artboard.id,e.target.value as DesignUnit))}><option value="MM">Millimetres (mm)</option><option value="IN">Inches (in)</option></select></label><label>Orientation<div className="card-segmented-control"><button className={artboard.widthMm>=artboard.heightMm?'active':''} onClick={()=>{if(artboard.widthMm<artboard.heightMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Landscape</button><button className={artboard.heightMm>artboard.widthMm?'active':''} onClick={()=>{if(artboard.heightMm<=artboard.widthMm)mutate(t=>resizeArtboard(t,artboard.id,artboard.heightMm,artboard.widthMm));}}>Portrait</button></div></label></Section><Section sectionKey="GENERAL" title="Background"><ArtboardBackgroundControls artboard={artboard} template={template} mutate={mutate} availableFields={availableFields} datasourceStatus={datasourceStatus}/></Section><Section sectionKey="GENERAL" title={`Guides (${artboard.guides.length})`}>{artboard.guides.length?<div className="card-guide-list">{artboard.guides.map(guide=><div key={guide.id} className="card-guide-row"><span>{guide.orientation==='VERTICAL'?'V':'H'}</span><input type="number" step="0.1" value={normalizeDisplayValue(mmToUnit(guide.positionMm,unit))} disabled={guide.locked} onChange={e=>mutate(t=>moveGuide(t,artboard.id,guide.id,unitToMm(Number(e.target.value),unit)))}/><small>{unit==='MM'?'mm':'in'}</small><button title={guide.locked?'Unlock guide':'Lock guide'} onClick={()=>mutate(t=>setGuideLocked(t,artboard.id,guide.id,!guide.locked))}>{guide.locked?'🔒':'🔓'}</button><button title="Delete guide" disabled={guide.locked} onClick={()=>mutate(t=>deleteGuide(t,artboard.id,guide.id))}>×</button></div>)}</div>:<div className="card-property-note"><span>Drag from the top or left ruler to create a guide.</span></div>}</Section><Section sectionKey="GENERAL" title="Notice"><div className="card-property-note"><strong>Phase 6.1.3</strong><span>Rulers, configurable editor grid and persistent artboard guides are active. Guides remain editor-only and feed the shared smart-snapping engine.</span></div></Section></div>}
 
 function PrintProperties({artboard,assets,mutate}:{artboard:Artboard;assets:AssetReference[];mutate:(f:(t:DesignTemplate)=>DesignTemplate)=>void}){const settings=resolvePrintSettings(artboard.print),preflight=useMemo(()=>validateArtboardPrint(artboard,assets),[artboard,assets]),patch=(value:Partial<Artboard['print']>)=>mutate(template=>updateArtboardPrintSettings(template,artboard.id,value)),insets=(key:'bleed'|'safeArea',label:string)=>{const current=settings[key],change=(side:keyof typeof current,value:number)=>patch({[key]:{...current,[side]:Math.max(0,value)}});return <Section sectionKey="GENERAL" title={label}><div className="card-property-grid"><label>Top (mm)<input type="number" min="0" step=".5" value={current.topMm} onChange={e=>change('topMm',Number(e.target.value)||0)}/></label><label>Right (mm)<input type="number" min="0" step=".5" value={current.rightMm} onChange={e=>change('rightMm',Number(e.target.value)||0)}/></label><label>Bottom (mm)<input type="number" min="0" step=".5" value={current.bottomMm} onChange={e=>change('bottomMm',Number(e.target.value)||0)}/></label><label>Left (mm)<input type="number" min="0" step=".5" value={current.leftMm} onChange={e=>change('leftMm',Number(e.target.value)||0)}/></label></div></Section>};return <div className="card-property-sections"><Section sectionKey="GENERAL" title="Print Settings"><label className="card-check-row"><input type="checkbox" checked={settings.showBleedInEditor} onChange={e=>patch({showBleedInEditor:e.target.checked})}/>Show Bleed</label><label className="card-check-row"><input type="checkbox" checked={settings.showSafeAreaInEditor} onChange={e=>patch({showSafeAreaInEditor:e.target.checked})}/>Show Safe Area</label><label className="card-check-row"><input type="checkbox" checked={settings.showCropMarksInEditor} onChange={e=>patch({showCropMarksInEditor:e.target.checked})}/>Show Crop Marks</label><label className="card-check-row"><input type="checkbox" checked={settings.cropMarksEnabledForExport} onChange={e=>patch({cropMarksEnabledForExport:e.target.checked})}/>Export Crop Marks</label><div className="card-property-grid"><label>Minimum DPI<input type="number" min="1" value={settings.minimumRasterDpi} onChange={e=>patch({minimumRasterDpi:Math.max(1,Number(e.target.value)||150)})}/></label><label>Preferred DPI<input type="number" min="1" value={settings.preferredRasterDpi} onChange={e=>patch({preferredRasterDpi:Math.max(1,Number(e.target.value)||300)})}/></label></div><div className="card-property-note"><span>{artboard.widthMm} × {artboard.heightMm} mm @ {settings.preferredRasterDpi} DPI</span><strong>{requiredPixels(artboard.widthMm,settings.preferredRasterDpi)} × {requiredPixels(artboard.heightMm,settings.preferredRasterDpi)} px recommended</strong></div></Section>{insets('bleed','Bleed — outside trim')}{insets('safeArea','Safe Area — inside trim')}<Section sectionKey="GENERAL" title="Print Preflight"><div className="card-preflight-summary"><span className={preflight.errors?'error':'good'}>{preflight.errors} errors</span><span className={preflight.warnings?'warning':'good'}>{preflight.warnings} warnings</span></div>{preflight.issues.slice(0,6).map(issue=><div key={issue.id} className={`card-preflight-issue ${issue.severity.toLowerCase()}`}>{issue.message}</div>)}{!preflight.issues.length&&<div className="card-print-quality good"><strong>Print Ready</strong><span>Trim size and placed assets passed preflight.</span></div>}</Section></div>}
 
 type RulerTick={key:string;positionMm:number;major:boolean;label:string};
-function rulerTicks(artboard:Artboard,zoom:number):{x:RulerTick[];y:RulerTick[]}{const unit=artboard.displayUnit,origin=artboard.editor?.rulerOrigin??{xMm:0,yMm:0};const pxPerMm=MM_TO_CSS_PX*zoom/100;const majorMm=unit==='MM'?(pxPerMm*10>=34?10:20):25.4;const minorMm=unit==='MM'?(pxPerMm*5>=12?5:10):6.35;const axis=(lengthMm:number,prefix:string,originMm:number)=>{const result:RulerTick[]=[];for(let positionMm=0;positionMm<=lengthMm+1e-6;positionMm+=minorMm){const major=Math.abs(positionMm/majorMm-Math.round(positionMm/majorMm))<1e-6;result.push({key:`${prefix}-${positionMm.toFixed(3)}`,positionMm,major,label:major?String(normalizeDisplayValue(mmToUnit(positionMm-originMm,unit))):''});}return result;};return{x:axis(artboard.widthMm,'x',origin.xMm),y:axis(artboard.heightMm,'y',origin.yMm)};}
+function rulerTicks(artboard:Artboard,zoom:number):{x:RulerTick[];y:RulerTick[]}{const unit=artboard.displayUnit;const pxPerMm=MM_TO_CSS_PX*zoom/100;const majorMm=unit==='MM'?(pxPerMm*10>=34?10:20):25.4;const minorMm=unit==='MM'?(pxPerMm*5>=12?5:10):6.35;const axis=(lengthMm:number,prefix:string)=>{const result:RulerTick[]=[];for(let positionMm=0;positionMm<=lengthMm+1e-6;positionMm+=minorMm){const major=Math.abs(positionMm/majorMm-Math.round(positionMm/majorMm))<1e-6;result.push({key:`${prefix}-${positionMm.toFixed(3)}`,positionMm,major,label:major?String(normalizeDisplayValue(mmToUnit(positionMm,unit))):''});}return result;};return{x:axis(artboard.widthMm,'x'),y:axis(artboard.heightMm,'y')};}
 
 function moveItem<T>(items:T[],from:number,to:number):T[]{const next=[...items],item=next.splice(from,1)[0];if(item!==undefined)next.splice(to,0,item);return next}
 function colorWithOpacity(colorValue:string,opacity:number):string{const value=colorValue.replace('#','');if(/^[0-9a-f]{6}$/i.test(value)){const n=parseInt(value,16);return `rgba(${n>>16},${n>>8&255},${n&255},${clamp(opacity,0,1)})`}return colorValue}
@@ -2709,7 +2901,7 @@ function decorativeFolderLabel(asset:(typeof DECORATIVE_ASSETS)[number]):string{
  }
 }
 
-const color=(a:Artboard)=>a.background.type==='SOLID'?a.background.color:'#ffffff';const near=(a:number,b:number)=>Math.abs(a-b)<.001;const clamp=(v:number,min:number,max:number)=>Math.min(max,Math.max(min,v));const sizeText=(a:Artboard)=>a.displayUnit==='IN'?`${normalizeDisplayValue(mmToUnit(a.widthMm,'IN'))} × ${normalizeDisplayValue(mmToUnit(a.heightMm,'IN'))} in`:`${normalizeDisplayValue(a.widthMm)} × ${normalizeDisplayValue(a.heightMm)} mm`;const isForm=(t:EventTarget|null)=>t instanceof HTMLInputElement||t instanceof HTMLTextAreaElement||t instanceof HTMLSelectElement||t instanceof HTMLButtonElement;const shapeLabel=(s:DesignShapeKind)=>s.toLowerCase().split('_').map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');const strokeStyle=(s:'SOLID'|'DASHED'|'DOTTED'|'NONE')=>s==='DASHED'?'dashed':s==='DOTTED'?'dotted':'solid';
+const near=(a:number,b:number)=>Math.abs(a-b)<.001;const clamp=(v:number,min:number,max:number)=>Math.min(max,Math.max(min,v));const sizeText=(a:Artboard)=>a.displayUnit==='IN'?`${normalizeDisplayValue(mmToUnit(a.widthMm,'IN'))} × ${normalizeDisplayValue(mmToUnit(a.heightMm,'IN'))} in`:`${normalizeDisplayValue(a.widthMm)} × ${normalizeDisplayValue(a.heightMm)} mm`;const isForm=(t:EventTarget|null)=>t instanceof HTMLInputElement||t instanceof HTMLTextAreaElement||t instanceof HTMLSelectElement||t instanceof HTMLButtonElement;const shapeLabel=(s:DesignShapeKind)=>s.toLowerCase().split('_').map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');const strokeStyle=(s:DesignStroke['style'])=>s==='DASHED'||s==='CUSTOM'?'dashed':s==='DOTTED'?'dotted':'solid';
 function readAsDataUrl(file:File):Promise<string>{return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>typeof r.result==='string'?resolve(r.result):reject(new Error('Unable to read image.'));r.onerror=()=>reject(r.error??new Error('Unable to read image.'));r.readAsDataURL(file);});}
 function readImageDimensions(src:string):Promise<{widthPx:number;heightPx:number}>{return new Promise(resolve=>{const image=new Image();image.onload=()=>resolve({widthPx:image.naturalWidth,heightPx:image.naturalHeight});image.onerror=()=>resolve({widthPx:0,heightPx:0});image.src=src;});}
 

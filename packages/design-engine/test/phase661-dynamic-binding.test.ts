@@ -69,7 +69,7 @@ describe('Phase 6.6.1 dynamic binding architecture', () => {
   });
 
   describe('resolveElementBindings properties', () => {
-    const ctx: DesignDataContext = { record: { IsActive: true, IsHidden: false, Avatar: 'http://img.com', SvgTint: '#ff0000', Name: 'Akash', WebLink: 'https://example.com/hello' } };
+    const ctx: DesignDataContext = { record: { IsActive: true, IsHidden: false, Avatar: 'http://img.com', SvgTint: '#ff0000', Name: 'Akash' } };
     
     it('maps text and visibility', () => {
       const el: TextDesignElement = {
@@ -97,16 +97,6 @@ describe('Phase 6.6.1 dynamic binding architecture', () => {
       };
       const res = resolveElementBindings(el, ctx) as any;
       expect(res.source).toBe('http://img.com');
-    });
-
-    it('maps IMAGE hyperlink', () => {
-      const el: ImageDesignElement = {
-        id: '1', type: 'IMAGE', name: 'img', assetId: 'orig', visible: true, fit: 'FIT',
-        position: {xMm:0,yMm:0}, size: {widthMm:10,heightMm:10}, rotationDeg:0, opacity:1, locked:false, zIndex:0,
-        bindings: [{ id: 'b2', targetProperty: 'hyperlink', sourceType: 'FIELD', fieldPath: 'WebLink' }]
-      };
-      const res = resolveElementBindings(el, ctx) as any;
-      expect(res.hyperlink).toBe('https://example.com/hello');
     });
 
     it('invalid visible non-boolean does not throw, just ignores', () => {

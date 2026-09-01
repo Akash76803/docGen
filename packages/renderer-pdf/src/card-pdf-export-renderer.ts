@@ -49,31 +49,8 @@ export class CardPdfExportRenderer implements DocumentRenderer {
     
     const ops: string[] = [];
     ops.push(`q ${f(pageW)} 0 0 ${f(pageH)} 0 0 cm /${imgName} Do Q`);
-
-    const annots: { rect: [number, number, number, number]; uri: string }[] = [];
-    if (Array.isArray(docModel.elements)) {
-      for (const e of docModel.elements) {
-        const hyperlink = e.type === 'IMAGE' ? (e.content?.hyperlink || e.hyperlink) : undefined;
-        if (hyperlink && typeof hyperlink === 'string') {
-          const x = e.position.xMm;
-          const y = e.position.yMm;
-          const w = e.size.widthMm;
-          const h = e.size.heightMm;
-
-          const llx = mm(x + bleed);
-          const lly = mm(heightMm - (y + bleed + h));
-          const urx = mm(x + bleed + w);
-          const ury = mm(heightMm - (y + bleed));
-
-          annots.push({
-            rect: [llx, lly, urx, ury],
-            uri: hyperlink
-          });
-        }
-      }
-    }
     
-    pages.push({ width: pageW, height: pageH, ops, annots: annots.length ? annots : undefined });
+    pages.push({ width: pageW, height: pageH, ops });
 
     const bytes = buildPdf(pages, images);
     

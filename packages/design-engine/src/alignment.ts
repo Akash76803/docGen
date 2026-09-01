@@ -1,8 +1,8 @@
 import type { Artboard, DesignElement, DesignTemplate } from '@document-tool/contracts';
-import { getSelectionBounds } from './transform.js';
+import { getSelectionBounds, resizeElement, resizeElementsFromSnapshots } from './transform.js';
 
 export type DesignAlignment = 'LEFT'|'HCENTER'|'RIGHT'|'TOP'|'VCENTER'|'BOTTOM';
-export type DesignAlignmentReference = 'SELECTION'|'ARTBOARD';
+export type DesignAlignmentReference = 'SELECTION'|'PRIMARY'|'ARTBOARD';
 export type DesignDistributionAxis = 'HORIZONTAL'|'VERTICAL';
 
 interface AlignmentUnit {
@@ -51,11 +51,13 @@ function applyDeltas(template:DesignTemplate,artboardId:string,deltas:Map<string
   })}));
 }
 
-export function alignElements(template:DesignTemplate,artboardId:string,elementIds:readonly string[],alignment:DesignAlignment,reference:DesignAlignmentReference='SELECTION'):DesignTemplate{
+export function alignElements(template:DesignTemplate,artboardId:string,elementIds:readonly string[],alignment:DesignAlignment,reference:DesignAlignmentReference='SELECTION',primaryElementId?:string):DesignTemplate{
   const artboard=template.artboards.find(a=>a.id===artboardId);if(!artboard)return template;
   const units=alignmentUnits(artboard,elementIds);if(!units.length)return template;
   const selectionBounds=getSelectionBounds(units.flatMap(u=>u.elements));if(!selectionBounds)return template;
-  const target=reference==='ARTBOARD'?{xMm:0,yMm:0,widthMm:artboard.widthMm,heightMm:artboard.heightMm}:selectionBounds;
+  const primaryUnit=reference==='PRIMARY'&&primaryElementId?units.find(unit=>unit.elementIds.includes(primaryElementId)):undefined;
+  if(reference==='PRIMARY'&&!primaryUnit)return template;
+  const target=reference==='ARTBOARD'?{xMm:0,yMm:0,widthMm:artboard.widthMm,heightMm:artboard.heightMm}:reference==='PRIMARY'?primaryUnit!.bounds:selectionBounds;
   const deltas=new Map<string,{xMm:number;yMm:number}>();
   for(const unit of units){
     let dx=0,dy=0;
@@ -95,5 +97,31 @@ export function centerElementsOnArtboard(template:DesignTemplate,artboardId:stri
   let next=template;
   if(axis==='HORIZONTAL'||axis==='BOTH')next=alignElements(next,artboardId,elementIds,'HCENTER','ARTBOARD');
   if(axis==='VERTICAL'||axis==='BOTH')next=alignElements(next,artboardId,elementIds,'VCENTER','ARTBOARD');
+  return next;
+}
+
+export type AlignmentMatchSizeMode = 'WIDTH'|'HEIGHT'|'BOTH';
+
+/** Match alignment units (single elements or flat groups) to the primary unit dimensions.
+ * Groups scale atomically around their own top-left bound; PATH geometry is scaled with the group. */
+export function matchAlignmentUnitsSize(template:DesignTemplate,artboardId:string,elementIds:readonly string[],primaryElementId:string,mode:AlignmentMatchSizeMode):DesignTemplate{
+  const artboard=template.artboards.find(a=>a.id===artboardId);if(!artboard)return template;
+  const units=alignmentUnits(artboard,elementIds);
+  const primaryUnit=units.find(unit=>unit.elementIds.includes(primaryElementId));if(!primaryUnit)return template;
+  let next=template;
+  for(const unit of units){
+    if(unit===primaryUnit)continue;
+    const target={
+      xMm:unit.bounds.xMm,yMm:unit.bounds.yMm,
+      widthMm:mode==='HEIGHT'?unit.bounds.widthMm:primaryUnit.bounds.widthMm,
+      heightMm:mode==='WIDTH'?unit.bounds.heightMm:primaryUnit.bounds.heightMm,
+    };
+    if(unit.elementIds.length>1){
+      next=resizeElementsFromSnapshots(next,artboardId,unit.elements,unit.bounds,target);
+    }else{
+      const element=unit.elements[0]!;
+      next=resizeElement(next,artboardId,element.id,{widthMm:target.widthMm,heightMm:target.heightMm},{anchor:'SE'});
+    }
+  }
   return next;
 }

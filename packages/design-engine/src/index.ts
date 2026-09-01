@@ -7,10 +7,14 @@ export * from './bindings/index.js';
 export * from './artboards.js';
 export * from './transform.js';
 export * from './selection.js';
+export * from './capabilities.js';
+export * from './mixedValues.js';
+export * from './normalization.js';
 
 export * from './elements.js';
 
 export * from './layers-groups.js';
+export * from './group-integrity.js';
 export * from './faceSplit.js';
 
 export * from './history.js';

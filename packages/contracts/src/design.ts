@@ -7,7 +7,7 @@ export type DesignHorizontalAlignment = 'LEFT' | 'CENTER' | 'RIGHT';
 export type DesignVerticalAlignment = 'TOP' | 'CENTER' | 'BOTTOM';
 export type GuideOrientation = 'HORIZONTAL' | 'VERTICAL';
 export type DesignElementKind = 'TEXT' | 'SHAPE' | 'IMAGE' | 'SVG' | 'QR' | 'BARCODE' | 'PATH' | 'CUSTOM';
-export type DesignShapeKind = 'RECTANGLE' | 'SQUARE' | 'ROUNDED_RECTANGLE' | 'CAPSULE' | 'CIRCLE' | 'ELLIPSE' | 'LINE' | 'TRIANGLE' | 'RIGHT_TRIANGLE' | 'DIAMOND' | 'PENTAGON' | 'HEXAGON' | 'OCTAGON' | 'TRAPEZOID' | 'PARALLELOGRAM' | 'ARROW' | 'DOUBLE_ARROW' | 'CURVED_ARROW' | 'CHEVRON' | 'DOUBLE_CHEVRON' | 'STAR' | 'POLYGON' | 'HEART' | 'CLOUD' | 'WAVE' | 'SPEECH_BUBBLE' | 'CALLOUT' | 'DOCUMENT' | 'CYLINDER' | 'CROSS' | 'PLUS' | 'BANNER' | 'SHIELD' | 'RIBBON' | 'BADGE' | 'HALF_CIRCLE' | 'ARC' | 'BRACKET' | 'LABEL_TAG' | 'FLEXIBLE_LINE';
+export type DesignShapeKind = 'RECTANGLE' | 'SQUARE' | 'ROUNDED_RECTANGLE' | 'CAPSULE' | 'CIRCLE' | 'ELLIPSE' | 'LINE' | 'TRIANGLE' | 'RIGHT_TRIANGLE' | 'DIAMOND' | 'PENTAGON' | 'HEXAGON' | 'OCTAGON' | 'TRAPEZOID' | 'PARALLELOGRAM' | 'ARROW' | 'DOUBLE_ARROW' | 'CURVED_ARROW' | 'CHEVRON' | 'DOUBLE_CHEVRON' | 'STAR' | 'POLYGON' | 'HEART' | 'CLOUD' | 'SPEECH_BUBBLE' | 'CALLOUT' | 'DOCUMENT' | 'CYLINDER' | 'CROSS' | 'PLUS' | 'BANNER' | 'SHIELD' | 'RIBBON' | 'BADGE' | 'HALF_CIRCLE' | 'ARC' | 'BRACKET' | 'LABEL_TAG' | 'FLEXIBLE_LINE';
 export type DesignBindingSource = 'FIELD' | 'CALCULATED' | 'STATIC';
 
 export type ArtboardRole = 'FRONT' | 'BACK' | 'INSIDE' | 'OUTSIDE' | 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM' | 'GENERIC';
@@ -16,18 +16,35 @@ export type ArtboardTargetMode = 'CURRENT' | 'SELECTED' | 'ALL';
 export interface DesignPoint { xMm:number; yMm:number; }
 export interface DesignSize { widthMm:number; heightMm:number; }
 export interface DesignInsets { topMm:number; rightMm:number; bottomMm:number; leftMm:number; }
-export interface DesignStroke { color:string; widthMm:number; style:'SOLID'|'DASHED'|'DOTTED'|'NONE'; opacity?:number; }
+export type DesignStrokeStyle='SOLID'|'DASHED'|'DOTTED'|'CUSTOM'|'NONE';
+export type DesignStrokeLineCap='BUTT'|'ROUND'|'SQUARE';
+export type DesignStrokeLineJoin='MITER'|'ROUND'|'BEVEL';
+export interface DesignStroke {
+  color:string;
+  widthMm:number;
+  style:DesignStrokeStyle;
+  opacity?:number;
+  lineCap?:DesignStrokeLineCap;
+  lineJoin?:DesignStrokeLineJoin;
+  miterLimit?:number;
+  dashArray?:number[];
+  dashOffset?:number;
+}
 export interface DesignShadow { enabled:boolean; offsetXmm:number; offsetYmm:number; blurMm:number; color:string; opacity:number; }
 export interface DesignGradientStop { offset:number; color:string; opacity?:number; }
 export interface DesignLinearGradient { type:'LINEAR'; angleDeg:number; stops:DesignGradientStop[]; }
-export interface DesignRadialGradient { type:'RADIAL'; centerXPercent:number; centerYPercent:number; stops:DesignGradientStop[]; }
+export interface DesignRadialGradient { type:'RADIAL'; centerX:number; centerY:number; radius:number; focalX?:number; focalY?:number; stops:DesignGradientStop[]; }
+export type DesignPatternKind='HATCH'|'DOT'|'CHECKER';
+export interface DesignPatternFill { kind:DesignPatternKind; foreground:string; background:string; scale:number; rotationDeg:number; opacity?:number; }
+/** Image fill crop transform. offsetX/offsetY are percentages of the mask bounds; scale 1 = default fit. */
+export interface DesignImageTransform { scale:number; offsetX:number; offsetY:number; rotationDeg:number; }
 export type DesignFill =
   | { type:'NONE' }
   | { type:'SOLID'; color:string; opacity?:number }
   | { type:'LINEAR_GRADIENT'; gradient:DesignLinearGradient }
   | { type:'RADIAL_GRADIENT'; gradient:DesignRadialGradient }
-  | { type:'IMAGE'; assetId:string; fit:'FIT'|'FILL'|'STRETCH'|'TILE'; opacity?:number; tileSizeMm?:number; positionXPercent?:number; positionYPercent?:number }
-  | { type:'PATTERN'; pattern:'DOTS'|'GRID'|'DIAGONAL'; foreground:string; background:string; scaleMm?:number; opacity?:number };
+  | { type:'PATTERN'; pattern:DesignPatternFill }
+  | { type:'IMAGE'; assetId:string; fit:'FIT'|'FILL'|'STRETCH'; opacity?:number; transform?:DesignImageTransform };
 
 export interface DesignBindingFormat {
   type?: 'TEXT' | 'NUMBER' | 'DATE' | 'DATETIME' | 'CURRENCY' | 'PERCENT';
@@ -106,14 +123,7 @@ export interface Guide {
   orientation:GuideOrientation;
   positionMm:number;
   locked?:boolean;
-  color?:string;
-  style?:'SOLID'|'DASHED'|'DOTTED';
 }
-
-export interface ArtboardBorder { enabled:boolean; color:string; widthMm:number; style:'SOLID'|'DASHED'|'DOTTED'; offsetMm:number; radiusMm:number; }
-export interface ArtboardEditorSettings { showGrid:boolean; gridSizeMm:number; gridColor?:string; gridSnapEnabled:boolean; showRulers:boolean; guideSnapEnabled:boolean; rulerOrigin:DesignPoint; }
-export interface ArtboardWatermark { enabled:boolean; type:'TEXT'|'IMAGE'; text?:string; assetId?:string; color?:string; opacity:number; rotationDeg:number; fontSizePt?:number; scalePercent?:number; tiled?:boolean; spacingMm?:number; zOrder:'BEHIND'|'ABOVE'; }
-export interface ArtboardColorSettings { previewMode:'RGB'|'CMYK'; warnOnRgbExport?:boolean; }
 
 export type VisibilityOperator = 
   | 'EQUALS' | 'NOT_EQUALS'
@@ -248,7 +258,6 @@ export interface ImageDesignElement extends BaseDesignElement {
   cornerRadiusMm?:number;
   stroke?:DesignStroke;
   shadow?:DesignShadow;
-  hyperlink?:string;
 }
 
 export interface SvgDesignElement extends BaseDesignElement {
@@ -315,10 +324,7 @@ export interface Artboard {
   heightMm:number;
   displayUnit:DesignUnit;
   background:DesignFill;
-  border?:ArtboardBorder;
-  editor?:ArtboardEditorSettings;
-  watermark?:ArtboardWatermark;
-  colorSettings?:ArtboardColorSettings;
+  backgroundBindings?:DesignBinding[];
   print:ArtboardPrintSettings;
   guides:Guide[];
   groups:DesignGroup[];
@@ -361,6 +367,7 @@ export interface ResolvedArtboard {
   widthMm:number;
   heightMm:number;
   background:DesignFill;
+  backgroundBindings?:DesignBinding[];
   print:ArtboardPrintSettings;
   elements:ResolvedDesignElement[];
   role?:ArtboardRole;

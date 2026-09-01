@@ -1,4 +1,4 @@
-import type { DesignBinding, DesignElement, TextDesignElement, ImageDesignElement, SvgDesignElement, QrDesignElement, BarcodeDesignElement, ShapeDesignElement, PathDesignElement, DesignDataContext } from '@document-tool/contracts';
+import type { Artboard, DesignBinding, DesignElement, TextDesignElement, ImageDesignElement, SvgDesignElement, QrDesignElement, BarcodeDesignElement, ShapeDesignElement, PathDesignElement, DesignDataContext } from '@document-tool/contracts';
 
 export function getTextBinding(element: DesignElement): DesignBinding | undefined {
   return element.bindings?.find(b => b.targetProperty === 'text');
@@ -123,31 +123,24 @@ export function removeValueBinding<T extends QrDesignElement | BarcodeDesignElem
   } as T;
 }
 
-export function getHyperlinkBinding(element: DesignElement): DesignBinding | undefined {
-  return element.bindings?.find(b => b.targetProperty === 'hyperlink');
+
+export function getArtboardBackgroundImageSourceBinding(artboard: Artboard): DesignBinding | undefined {
+  return artboard.backgroundBindings?.find(binding => binding.targetProperty === 'backgroundImageSource');
 }
 
-export function setHyperlinkFieldBinding<T extends ImageDesignElement>(element: T, fieldPath: string, fallbackHyperlink?: string): T {
-  const currentBinding = getHyperlinkBinding(element);
-  const newBinding: DesignBinding = currentBinding
-    ? { ...currentBinding, sourceType: 'FIELD', fieldPath }
-    : {
-        id: `${element.id}-hyperlink-binding`,
-        targetProperty: 'hyperlink',
-        sourceType: 'FIELD',
-        fieldPath,
-        fallbackValue: fallbackHyperlink,
-      };
-
-  const bindings = [...(element.bindings || []).filter(b => b.targetProperty !== 'hyperlink'), newBinding];
-  return { ...element, bindings } as T;
-}
-
-export function removeHyperlinkBinding<T extends ImageDesignElement>(element: T): T {
-  if (!element.bindings) return element;
-  const newBindings = element.bindings.filter(b => b.targetProperty !== 'hyperlink');
+export function setArtboardBackgroundImageSourceFieldBinding(artboard: Artboard, fieldPath: string): Artboard {
+  const current = getArtboardBackgroundImageSourceBinding(artboard);
+  const binding: DesignBinding = current
+    ? { ...current, sourceType: 'FIELD', fieldPath, fallbackValue: undefined }
+    : { id: `${artboard.id}-background-image-source-binding`, targetProperty: 'backgroundImageSource', sourceType: 'FIELD', fieldPath };
   return {
-    ...element,
-    bindings: newBindings.length ? newBindings : undefined
-  } as T;
+    ...artboard,
+    backgroundBindings: [...(artboard.backgroundBindings ?? []).filter(item => item.targetProperty !== 'backgroundImageSource'), binding],
+  };
+}
+
+export function removeArtboardBackgroundImageSourceBinding(artboard: Artboard): Artboard {
+  if (!artboard.backgroundBindings) return artboard;
+  const next = artboard.backgroundBindings.filter(item => item.targetProperty !== 'backgroundImageSource');
+  return { ...artboard, backgroundBindings: next.length ? next : undefined };
 }

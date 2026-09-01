@@ -11,7 +11,10 @@ import {
   getPathEndpoints,
   performElementBooleanOperation,
   replaceElementsAtLayer,
-  lineToCurve, lineToArc, flipArc, mirrorElementsAcrossArtboard
+  lineToCurve, lineToArc, flipArc, convertPathSegmentToLine, setPathPointMode, deletePathPointsSafely, mirrorElementsAcrossArtboard, flipElementsInPlace, flipElementsAsGroup,
+  getElementCapabilities,
+  matchAlignmentUnitsSize,
+  getAlignmentUnitCount
 } from '@document-tool/design-engine';
 import { DesignerToolbarMode } from './designerToolbarConfig.js';
 import { AlignLeft, AlignCenter, AlignRight, AlignHorizontalSpaceAround, AlignVerticalSpaceAround } from 'lucide-react';
@@ -20,24 +23,28 @@ export type DesignerContextToolbarProps = {
   mode: DesignerToolbarMode;
   sourceArtboard: Artboard;
   sourceElements: DesignElement[];
+  primaryElementId?: string;
   mutate: (fn: (t: DesignTemplate) => DesignTemplate) => void;
   onGroupSelected?: () => void;
   onUngroupSelected?: () => void;
   pathEditMode?: { active: boolean; selectedNodeIds: string[] };
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT';
-  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'SPLIT') => void;
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE';
+  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE') => void;
   pathSelectedSegmentIds?: string[];
   setPathSelectedSegmentIds?: (m: string[]) => void;
+  setPathSelectedNodeIds?: (m: string[]) => void;
   onMirrorInvoked?: (axis: 'HORIZONTAL'|'VERTICAL') => void;
+  pathSymmetryMode?: 'OFF'|'H'|'V';
+  setPathSymmetryMode?: (mode:'OFF'|'H'|'V')=>void;
 };
 
 export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
-  mode, sourceArtboard, sourceElements, mutate, onGroupSelected, onUngroupSelected, pathEditMode, interactionMode, setInteractionMode, pathSelectedSegmentIds, setPathSelectedSegmentIds, onMirrorInvoked
+  mode, sourceArtboard, sourceElements, primaryElementId, mutate, onGroupSelected, onUngroupSelected, pathEditMode, interactionMode, setInteractionMode, pathSelectedSegmentIds, setPathSelectedSegmentIds, setPathSelectedNodeIds, onMirrorInvoked, pathSymmetryMode='OFF', setPathSymmetryMode
 }) => {
   if (mode === 'NONE') return null;
 
   const artboardId = sourceArtboard.id;
-  const primary = sourceElements[0];
+  const primary = sourceElements.find(element => element.id === primaryElementId) ?? sourceElements[0];
 
   const update = (fn: (e: DesignElement) => DesignElement) => {
     if (primary) mutate(t => updateDesignElement(t, artboardId, primary.id, fn));
@@ -162,12 +169,14 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
 
   const renderMultiToolbar = () => {
     const ids = sourceElements.map(e => e.id);
-    const unitCount = sourceElements.length;
+    const unitCount = getAlignmentUnitCount(sourceArtboard,ids);
+    const groupIds=[...new Set(sourceElements.map(e=>e.groupId).filter(Boolean) as string[])];
+    const singleGroup=groupIds.length===1&&sourceElements.every(e=>e.groupId===groupIds[0]);
     
     // Check if exactly 2 PATHs are selected and open
     const paths = sourceElements.filter(e => e.type === 'PATH') as import('@document-tool/contracts').PathDesignElement[];
     const canJoinPaths = paths.length === 2 && !paths[0]!.geometry.closed && !paths[1]!.geometry.closed;
-    const canBooleanPaths = paths.length === 2;
+    const canBooleanPaths = paths.length === 2 && paths.every(path => getElementCapabilities(path).boolean && path.visible && !path.locked);
     
     const doBooleanOperation = (op: 'UNION' | 'SUBTRACT' | 'INTERSECT' | 'EXCLUDE') => {
        if (!canBooleanPaths) return;
@@ -204,8 +213,21 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
         </div>
         <div className="dg-designer-context-toolbar__separator" />
         <div className="dg-designer-context-toolbar__group">
+          <button className="dg-toolbar-button" title="Align Left to Primary" disabled={!primaryElementId} onClick={() => mutate(t => alignElements(t, artboardId, ids, 'LEFT', 'PRIMARY', primaryElementId))}>Primary L</button>
+          <button className="dg-toolbar-button" title="Align horizontal center to Primary" disabled={!primaryElementId} onClick={() => mutate(t => alignElements(t, artboardId, ids, 'HCENTER', 'PRIMARY', primaryElementId))}>Primary C</button>
+          <button className="dg-toolbar-button" title="Same Width as Primary" disabled={!primaryElementId} onClick={() => primaryElementId&&mutate(t => matchAlignmentUnitsSize(t,artboardId,ids,primaryElementId,'WIDTH'))}>Same W</button>
+          <button className="dg-toolbar-button" title="Same Height as Primary" disabled={!primaryElementId} onClick={() => primaryElementId&&mutate(t => matchAlignmentUnitsSize(t,artboardId,ids,primaryElementId,'HEIGHT'))}>Same H</button>
+          <button className="dg-toolbar-button" title="Same Size as Primary" disabled={!primaryElementId} onClick={() => primaryElementId&&mutate(t => matchAlignmentUnitsSize(t,artboardId,ids,primaryElementId,'BOTH'))}>Same Size</button>
+        </div>
+        <div className="dg-designer-context-toolbar__separator" />
+        <div className="dg-designer-context-toolbar__group">
           <button className="dg-toolbar-button" title="Distribute Horizontal" disabled={unitCount < 3} onClick={() => mutate(t => distributeElements(t, artboardId, ids, 'HORIZONTAL'))}><AlignHorizontalSpaceAround size={16}/></button>
           <button className="dg-toolbar-button" title="Distribute Vertical" disabled={unitCount < 3} onClick={() => mutate(t => distributeElements(t, artboardId, ids, 'VERTICAL'))}><AlignVerticalSpaceAround size={16}/></button>
+        </div>
+        <div className="dg-designer-context-toolbar__separator" />
+        <div className="dg-designer-context-toolbar__group">
+          <button className="dg-toolbar-button" title="Flip selected vector/image elements horizontally in place" onClick={() => mutate(t => singleGroup?flipElementsAsGroup(t,artboardId,ids,'VERTICAL'):flipElementsInPlace(t, artboardId, ids, 'VERTICAL'))}>Flip H</button>
+          <button className="dg-toolbar-button" title="Flip selected vector/image elements vertically in place" onClick={() => mutate(t => singleGroup?flipElementsAsGroup(t,artboardId,ids,'HORIZONTAL'):flipElementsInPlace(t, artboardId, ids, 'HORIZONTAL'))}>Flip V</button>
         </div>
         <div className="dg-designer-context-toolbar__separator" />
         <div className="dg-designer-context-toolbar__group">
@@ -216,10 +238,10 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
           <>
             <div className="dg-designer-context-toolbar__separator" />
             <div className="dg-designer-context-toolbar__group">
-              <button className="dg-toolbar-button" title="Union — combine two closed paths into one shape" onClick={() => doBooleanOperation('UNION')}>Union</button>
-              <button className="dg-toolbar-button" title="Subtract — remove the top/cutter path area from the bottom/base path" onClick={() => doBooleanOperation('SUBTRACT')}>Subtract</button>
-              <button className="dg-toolbar-button" title="Intersect — keep only the overlapping area of two paths" onClick={() => doBooleanOperation('INTERSECT')}>Intersect</button>
-              <button className="dg-toolbar-button" title="Exclude — remove the overlapping area while keeping non-overlapping parts" onClick={() => doBooleanOperation('EXCLUDE')}>Exclude</button>
+              <button className="dg-toolbar-button" title="Union — combine two selected paths into one resulting shape." onClick={() => doBooleanOperation('UNION')}>Union</button>
+              <button className="dg-toolbar-button" title="Subtract — remove the second/top selected path from the first/bottom selected path." onClick={() => doBooleanOperation('SUBTRACT')}>Subtract</button>
+              <button className="dg-toolbar-button" title="Intersect — keep only the area shared by both selected paths." onClick={() => doBooleanOperation('INTERSECT')}>Intersect</button>
+              <button className="dg-toolbar-button" title="Exclude — keep non-overlapping areas and remove the shared overlap." onClick={() => doBooleanOperation('EXCLUDE')}>Exclude</button>
             </div>
           </>
         )}
@@ -250,66 +272,38 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
     const selectedNodes = isEditing && pathEditMode?.selectedNodeIds.length ? pathEditMode.selectedNodeIds : [];
     
     const setNodeMode = (nodeMode: 'CORNER'|'SMOOTH'|'SYMMETRIC') => {
-      mutate(t => {
-        return {
-          ...t, artboards: t.artboards.map(a => a.id === sourceArtboard.id ? {
-            ...a, elements: a.elements.map(e => {
-              if (e.id !== el.id) return e;
-              const pEl = e as PathDesignElement;
-              return { ...pEl, geometry: { ...pEl.geometry, points: pEl.geometry.points.map(pt => {
-                if (selectedNodes.includes(pt.id)) {
-                  let inH = pt.inHandle;
-                  let outH = pt.outHandle;
-                  if (nodeMode === 'CORNER') {
-                    // Keep handles but decouple
-                  } else if (nodeMode === 'SMOOTH' || nodeMode === 'SYMMETRIC') {
-                    // If no handles, generate them
-                    if (!inH && !outH) {
-                      inH = { x: pt.x - 5, y: pt.y };
-                      outH = { x: pt.x + 5, y: pt.y };
-                    } else if (inH && !outH) {
-                      outH = { x: pt.x + (pt.x - inH.x), y: pt.y + (pt.y - inH.y) };
-                    } else if (outH && !inH) {
-                      inH = { x: pt.x + (pt.x - outH.x), y: pt.y + (pt.y - outH.y) };
-                    } else if (inH && outH) {
-                       // align them
-                       if (nodeMode === 'SYMMETRIC') {
-                          outH = { x: pt.x + (pt.x - inH.x), y: pt.y + (pt.y - inH.y) };
-                       } else {
-                          const distOut = Math.hypot(outH.x - pt.x, outH.y - pt.y);
-                          const dx = pt.x - inH.x; const dy = pt.y - inH.y;
-                          const distIn = Math.hypot(dx, dy) || 1;
-                          outH = { x: pt.x + (dx/distIn)*distOut, y: pt.y + (dy/distIn)*distOut };
-                       }
-                    }
-                  }
-                  return { ...pt, mode: nodeMode, inHandle: inH, outHandle: outH };
-                }
-                return pt;
-              })}};
-            })
-          } : a)
-        };
-      });
+      if (!selectedNodes.length) return;
+      mutate(t => ({
+        ...t, artboards: t.artboards.map(a => a.id === sourceArtboard.id ? {
+          ...a, elements: a.elements.map(e => e.id === el.id
+            ? { ...(e as PathDesignElement), geometry: setPathPointMode((e as PathDesignElement).geometry, selectedNodes, nodeMode) }
+            : e)
+        } : a)
+      }));
     };
 
-    const convertSegment = (toType: 'LINE' | 'CUBIC_BEZIER') => {
-      mutate(t => {
-        return {
-          ...t, artboards: t.artboards.map(a => a.id === sourceArtboard.id ? {
-            ...a, elements: a.elements.map(e => {
-              if (e.id !== el.id) return e;
-              const pEl = e as PathDesignElement;
-              return { ...pEl, geometry: { ...pEl.geometry, segments: pEl.geometry.segments.map(seg => {
-                if (pathSelectedSegmentIds?.includes(seg.id as string)) {
-                   return { ...seg, type: toType };
-                }
-                return seg;
-              })}};
-            })
-          } : a)
-        };
-      });
+    const deleteSelectedNodes = () => {
+      if (!selectedNodes.length) return;
+      mutate(t => ({
+        ...t, artboards: t.artboards.map(a => a.id === sourceArtboard.id ? {
+          ...a, elements: a.elements.map(e => e.id === el.id
+            ? { ...(e as PathDesignElement), geometry: deletePathPointsSafely((e as PathDesignElement).geometry, selectedNodes) }
+            : e)
+        } : a)
+      }));
+      setPathSelectedNodeIds?.([]);
+    };
+
+    const convertSegmentToLine = () => {
+      const segmentId = pathSelectedSegmentIds?.[0];
+      if (!segmentId) return;
+      mutate(t => ({
+        ...t, artboards: t.artboards.map(a => a.id === sourceArtboard.id ? {
+          ...a, elements: a.elements.map(e => e.id === el.id
+            ? { ...(e as PathDesignElement), geometry: convertPathSegmentToLine((e as PathDesignElement).geometry, segmentId) }
+            : e)
+        } : a)
+      }));
     };
 
     const trimSegment = () => {
@@ -360,52 +354,81 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
     };
 
     return (
-      <>
-        {isEditing && selectedNodes.length > 0 && (
-          <div className="dg-designer-context-toolbar__group">
-            <button className="dg-toolbar-button" onClick={() => setNodeMode('CORNER')}>Corner</button>
-            <button className="dg-toolbar-button" onClick={() => setNodeMode('SMOOTH')}>Smooth</button>
-            <button className="dg-toolbar-button" onClick={() => setNodeMode('SYMMETRIC')}>Symmetric</button>
+      <div className={`dg-path-toolbar ${isEditing ? 'dg-path-toolbar--editing' : ''}`} data-path-toolbar>
+        {isEditing ? (
+          <>
+            <div className="dg-path-toolbar__section" data-path-node-selection>
+              <span className="dg-path-toolbar__section-label">Nodes</span>
+              <button className="dg-toolbar-button dg-toolbar-button--compact" title="Select all path nodes" onClick={() => setPathSelectedNodeIds?.(el.geometry.points.map(point => point.id))}>Select All</button>
+              {!!selectedNodes.length && <button className="dg-toolbar-button dg-toolbar-button--compact" title="Clear node selection" onClick={() => setPathSelectedNodeIds?.([])}>Clear</button>}
+              <span className="dg-path-toolbar__count" aria-label={`${selectedNodes.length} selected nodes`}>{selectedNodes.length}</span>
+            </div>
+
+            <div className="dg-path-toolbar__divider" />
+
+            <div className="dg-path-toolbar__section" data-path-symmetry-controls>
+              <span className="dg-path-toolbar__section-label">Symmetry</span>
+              <div className="dg-path-toolbar__segmented" role="group" aria-label="Node movement symmetry">
+                <button className={pathSymmetryMode==='OFF'?'active':''} title="Independent node movement" onClick={()=>setPathSymmetryMode?.('OFF')}>Off</button>
+                <button className={pathSymmetryMode==='H'?'active':''} title="Mirror movement across the shape vertical centerline" onClick={()=>setPathSymmetryMode?.('H')}>H</button>
+                <button className={pathSymmetryMode==='V'?'active':''} title="Mirror movement across the shape horizontal centerline" onClick={()=>setPathSymmetryMode?.('V')}>V</button>
+              </div>
+            </div>
+
+            {selectedNodes.length > 0 && (
+              <>
+                <div className="dg-path-toolbar__divider" />
+                <div className="dg-path-toolbar__section" data-path-node-type-controls>
+                  <span className="dg-path-toolbar__section-label">Node Type</span>
+                  <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={() => setNodeMode('CORNER')}>Corner</button>
+                  <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={() => setNodeMode('SMOOTH')}>Smooth</button>
+                  <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={() => setNodeMode('SYMMETRIC')}>Symmetric</button>
+                  <button className="dg-toolbar-button dg-toolbar-button--compact dg-toolbar-button--danger" onClick={deleteSelectedNodes}>Delete</button>
+                </div>
+              </>
+            )}
+
+            {pathSelectedSegmentIds?.length === 1 && (() => {
+              const selectedSegment = el.geometry.segments.find(segment => segment.id === pathSelectedSegmentIds[0]);
+              if (!selectedSegment) return null;
+              const isLine = selectedSegment.type === 'LINE';
+              const isCurve = selectedSegment.type === 'CUBIC_BEZIER';
+              return (
+                <>
+                  <div className="dg-path-toolbar__divider" />
+                  <div className="dg-path-toolbar__section" data-path-segment-controls>
+                    <span className="dg-path-toolbar__section-label">Segment</span>
+                    {isCurve && <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={convertSegmentToLine}>Line</button>}
+                    {isLine && <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={() => applyToSelectedSegment(lineToCurve)}>Curve</button>}
+                    {isLine && <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={() => applyToSelectedSegment(lineToArc)}>Arc</button>}
+                    {isCurve && <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={() => applyToSelectedSegment(flipArc)}>Flip Arc</button>}
+                    <button className="dg-toolbar-button dg-toolbar-button--compact dg-toolbar-button--danger" onClick={trimSegment}>Trim</button>
+                  </div>
+                </>
+              );
+            })()}
+
+            <div className="dg-path-toolbar__divider" />
+            <div className="dg-path-toolbar__section dg-path-toolbar__section--tools" data-path-edit-tools>
+              <span className="dg-path-toolbar__section-label">Tools</span>
+              {interactionMode === 'SCISSORS' ? (
+                <button className="dg-toolbar-button dg-toolbar-button--compact active" onClick={() => setInteractionMode?.('EDIT_PATH')}>Exit Scissors</button>
+              ) : (
+                <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={() => setInteractionMode?.('SCISSORS')}>Scissors</button>
+              )}
+              {!el.geometry.closed && getPathEndpoints(el.geometry).length === 2 && (
+                <button className="dg-toolbar-button dg-toolbar-button--compact" onClick={closePath}>Close Path</button>
+              )}
+              <button className="dg-toolbar-button dg-toolbar-button--compact dg-toolbar-button--primary-soft" onClick={() => { setPathSelectedNodeIds?.([]); setPathSelectedSegmentIds?.([]); setInteractionMode?.('SELECT'); }}>Done</button>
+            </div>
+          </>
+        ) : (
+          <div className="dg-path-toolbar__section">
+            <button className="dg-toolbar-button dg-toolbar-button--compact dg-toolbar-button--primary-soft" onClick={() => setInteractionMode?.('EDIT_PATH')}>Edit Path</button>
+            <span className="dg-designer-context-toolbar__label">Double-click also works</span>
           </div>
         )}
-        
-        {isEditing && pathSelectedSegmentIds?.length === 1 && (() => {
-          const selectedSegment = el.geometry.segments.find(segment => segment.id === pathSelectedSegmentIds[0]);
-          if (!selectedSegment) return null;
-          const isLine = selectedSegment.type === 'LINE';
-          const isCurve = selectedSegment.type === 'CUBIC_BEZIER';
-          return (
-          <div className="dg-designer-context-toolbar__group">
-            {isCurve && <button className="dg-toolbar-button" onClick={() => convertSegment('LINE')}>To Line</button>}
-            {isLine && <button className="dg-toolbar-button" onClick={() => applyToSelectedSegment(lineToCurve)}>To Curve</button>}
-            {isLine && <button className="dg-toolbar-button" onClick={() => applyToSelectedSegment(lineToArc)}>To Arc</button>}
-            {isCurve && <button className="dg-toolbar-button" onClick={() => applyToSelectedSegment(flipArc)}>Flip Arc</button>}
-            <div className="dg-designer-context-toolbar__separator" />
-            <button className="dg-toolbar-button" style={{color:'red'}} onClick={trimSegment}>Trim Segment</button>
-          </div>
-          );
-        })()}
-        
-        <div className="dg-designer-context-toolbar__group">
-          {interactionMode === 'SCISSORS' ? (
-             <button className="dg-toolbar-button active" title="Scissors — insert a node by cutting one path segment at the clicked point" onClick={() => setInteractionMode?.('SELECT')}>Exit Scissors</button>
-          ) : (
-             <button className="dg-toolbar-button" title="Scissors — insert a node by cutting one path segment at the clicked point" onClick={() => setInteractionMode?.('SCISSORS')}>Scissors</button>
-          )}
-        </div>
-        
-        {!el.geometry.closed && getPathEndpoints(el.geometry).length === 2 && (
-          <div className="dg-designer-context-toolbar__group">
-            <button className="dg-toolbar-button" onClick={closePath}>Close Path</button>
-          </div>
-        )}
-        
-        {!isEditing && interactionMode !== 'SCISSORS' && (
-          <div className="dg-designer-context-toolbar__group">
-            <span className="dg-designer-context-toolbar__label">Double-click to edit path</span>
-          </div>
-        )}
-      </>
+      </div>
     );
   };
 
@@ -416,7 +439,7 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
 
   return (
     <div className="dg-designer-context-toolbar" role="toolbar">
-      {sourceElements.length>0&&<><div className="dg-designer-context-toolbar__group" data-page-center-mirror-tools><button className="dg-toolbar-button" title="Mirror Across Page Horizontal Center" onClick={()=>mirror('HORIZONTAL')}>↕ Mirror H</button><button className="dg-toolbar-button" title="Mirror Across Page Vertical Center" onClick={()=>mirror('VERTICAL')}>↔ Mirror V</button></div><div className="dg-designer-context-toolbar__separator" /></>}
+      {sourceElements.length>0 && !(mode === 'PATH' && pathEditMode?.active) && <><div className="dg-designer-context-toolbar__group" data-page-center-mirror-tools><button className="dg-toolbar-button" title="Mirror Across Page Horizontal Center" onClick={()=>mirror('HORIZONTAL')}>↕ Mirror H</button><button className="dg-toolbar-button" title="Mirror Across Page Vertical Center" onClick={()=>mirror('VERTICAL')}>↔ Mirror V</button></div><div className="dg-designer-context-toolbar__separator" /></>}
       {mode === 'TEXT' && renderTextToolbar()}
       {mode === 'IMAGE' && renderImageToolbar()}
       {mode === 'SVG' && renderSvgToolbar()}

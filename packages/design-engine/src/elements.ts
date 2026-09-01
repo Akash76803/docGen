@@ -1,3 +1,4 @@
+import { repairArtboardGroupIntegrity } from './group-integrity.js';
 import type {
   AssetReference,
   DesignElement,
@@ -67,7 +68,6 @@ export function createImageElement(assetId:string, options:ElementFactoryOptions
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
     assetId,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,
     stroke:{color:'#000000',widthMm:0,style:'NONE',opacity:1},shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
-    hyperlink: undefined,
   };
 }
 
@@ -123,8 +123,13 @@ export function updateDesignElement(template:DesignTemplate,artboardId:string,el
 }
 
 export function deleteDesignElements(template:DesignTemplate,artboardId:string,elementIds:readonly string[]):DesignTemplate {
-  const ids=new Set(elementIds);
-  return {...template,artboards:template.artboards.map(a=>a.id===artboardId?{...a,elements:a.elements.filter(e=>!ids.has(e.id)||e.locked),groups:a.groups.map(g=>({...g,elementIds:g.elementIds.filter(id=>!ids.has(id))})).filter(g=>g.elementIds.length>0)}:a)};
+  const requested=new Set(elementIds);
+  return {...template,artboards:template.artboards.map(a=>{
+    if(a.id!==artboardId)return a;
+    const deleted=new Set(a.elements.filter(e=>requested.has(e.id)&&!e.locked).map(e=>e.id));
+    if(!deleted.size)return a;
+    return repairArtboardGroupIntegrity({...a,elements:a.elements.filter(e=>!deleted.has(e.id)),groups:a.groups.map(g=>({...g,elementIds:g.elementIds.filter(id=>!deleted.has(id))}))});
+  })};
 }
 
 export function addAssetReference(template:DesignTemplate,asset:AssetReference):DesignTemplate {

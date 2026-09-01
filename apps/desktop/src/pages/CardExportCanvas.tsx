@@ -1,8 +1,8 @@
 import React from 'react';
 
-import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignLinearGradient, DesignGradientStop, DesignFill, QrDesignElement, PathDesignElement, ImageDesignElement } from '@document-tool/contracts';
+import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignFill, DesignStroke, QrDesignElement, PathDesignElement } from '@document-tool/contracts';
 import QRCode from 'react-qr-code';
-import { geometryToSvgPath, shapeToPathGeometry, resolveRasterImageElementSource, resolveRasterImageFillSource } from '@document-tool/design-engine';
+import { geometryToSvgPath, shapeToPathGeometry, resolveRasterImageElementSource, resolveRasterImageFillSource, normalizeImageFillTransform, normalizeStrokeDashArray } from '@document-tool/design-engine';
 
 export function normalizeExportColor(value: string | undefined | null): string {
   if (!value) return 'transparent';
@@ -30,41 +30,23 @@ function normalizeShadow(shadow?: DesignShadow): string {
   return `${shadow.offsetXmm}px ${shadow.offsetYmm}px ${shadow.blurMm}px ${color}`;
 }
 
-function normalizeGradient(gradient?: DesignLinearGradient): string {
-  if (!gradient || gradient.stops.length === 0) return 'none';
-  const stops = gradient.stops.map((s: DesignGradientStop) => `${normalizeExportColor(s.color)} ${s.offset}%`).join(', ');
-  return `linear-gradient(${gradient.angleDeg ?? 90}deg, ${stops})`;
-}
 
-export function artboardFillStyle(fill: DesignFill, assets: DesignTemplate['sharedAssets']): React.CSSProperties {
-  if (fill.type === 'NONE') return { backgroundColor: 'transparent' };
-  if (fill.type === 'SOLID') return { backgroundColor: normalizeExportColor(fill.color) };
-  if (fill.type === 'LINEAR_GRADIENT') return { backgroundImage: normalizeGradient(fill.gradient) };
-  if (fill.type === 'RADIAL_GRADIENT') {
-    const stops=fill.gradient.stops.map(s=>`${normalizeExportColor(s.color)} ${s.offset}%`).join(', ');
-    return {backgroundImage:`radial-gradient(circle at ${fill.gradient.centerXPercent}% ${fill.gradient.centerYPercent}%, ${stops})`};
-  }
-  if (fill.type === 'PATTERN') {
-    const size=Math.max(1,fill.scaleMm??4)*96/25.4,fg=normalizeExportColor(fill.foreground),base=normalizeExportColor(fill.background);
-    const image=fill.pattern==='DOTS'?`radial-gradient(${fg} 1px, transparent 1px)`:fill.pattern==='DIAGONAL'?`repeating-linear-gradient(45deg, transparent 0 5px, ${fg} 5px 6px)`:`linear-gradient(${fg} 1px, transparent 1px),linear-gradient(90deg,${fg} 1px,transparent 1px)`;
-    return {backgroundColor:base,backgroundImage:image,backgroundSize:`${size}px ${size}px`};
-  }
-  const source=resolveRasterImageFillSource(fill,assets),alpha=Math.max(0,Math.min(1,fill.opacity??1));
-  return source?{backgroundColor:'#ffffff',backgroundImage:`linear-gradient(rgba(255,255,255,${1-alpha}),rgba(255,255,255,${1-alpha})),url("${source}")`,backgroundRepeat:fill.fit==='TILE'?'repeat':'no-repeat',backgroundSize:fill.fit==='FIT'?'100% 100%,contain':fill.fit==='STRETCH'?'100% 100%,100% 100%':fill.fit==='TILE'?`100% 100%,${Math.max(1,fill.tileSizeMm??20)*96/25.4}px`:'100% 100%,cover',backgroundPosition:`center,${fill.positionXPercent??50}% ${fill.positionYPercent??50}%`}:{};
-}
-
-function normalizeStroke(stroke: any | undefined, mmToPx: number): string {
+function normalizeStroke(stroke: DesignStroke | undefined, mmToPx: number): string {
   if (!stroke || !stroke.widthMm || stroke.style === 'NONE') return 'none';
-  return `${stroke.widthMm * mmToPx}px solid ${normalizeExportColor(stroke.color)}`;
+  const style=stroke.style==='DOTTED'?'dotted':stroke.style==='DASHED'||stroke.style==='CUSTOM'?'dashed':'solid';
+  return `${stroke.widthMm * mmToPx}px ${style} ${normalizeExportColor(stroke.color)}`;
 }
 
 export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artboard, assets: DesignTemplate['sharedAssets'] }) {
   const MM_TO_CSS_PX = 96 / 25.4;
-  
+  const clean=artboard.id.replace(/[^a-zA-Z0-9_-]/g,'');
+  const ids={linear:`export-artboard-gradient-${clean}`,radial:`export-artboard-radial-${clean}`,pattern:`export-artboard-pattern-${clean}`,image:`export-artboard-image-${clean}`};
+  const backgroundPaint=exportVectorFillPaint(artboard.background,ids);
+  const backgroundOpacity=exportVectorFillOpacity(artboard.background);
+
   const canvasStyle: React.CSSProperties = {
     width: `${artboard.widthMm * MM_TO_CSS_PX}px`,
     height: `${artboard.heightMm * MM_TO_CSS_PX}px`,
-    ...artboardFillStyle(artboard.background,assets),
     position: 'relative',
     overflow: 'hidden',
     boxSizing: 'border-box'
@@ -72,16 +54,16 @@ export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artbo
 
   return (
     <div data-artboard-id={artboard.id} style={canvasStyle}>
-      {artboard.border?.enabled&&<div style={{position:'absolute',inset:`${artboard.border.offsetMm*MM_TO_CSS_PX}px`,border:`${artboard.border.widthMm*MM_TO_CSS_PX}px ${artboard.border.style.toLowerCase()} ${artboard.border.color}`,borderRadius:`${artboard.border.radiusMm*MM_TO_CSS_PX}px`,boxSizing:'border-box',zIndex:artboard.watermark?.zOrder==='BEHIND'?1:999999,pointerEvents:'none'}}/>}
-      {artboard.watermark?.enabled&&<ArtboardWatermark artboard={artboard} assets={assets}/>}
+      <svg data-export-artboard-background width="100%" height="100%" viewBox={`0 0 ${artboard.widthMm} ${artboard.heightMm}`} preserveAspectRatio="none" style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none'}}>
+        <ExportVectorFillDefs fill={artboard.background} ids={ids} assets={assets} width={artboard.widthMm} height={artboard.heightMm}/>
+        <rect x="0" y="0" width={artboard.widthMm} height={artboard.heightMm} fill={backgroundPaint} fillOpacity={backgroundOpacity}/>
+      </svg>
       {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => e.visible && !e.runtimeHidden).map(e => (
         <IsolatedExportElement key={e.id} element={e} assets={assets} mmToPx={MM_TO_CSS_PX} />
       ))}
     </div>
   );
 }
-
-function ArtboardWatermark({artboard,assets}:{artboard:Artboard;assets:DesignTemplate['sharedAssets']}){const w=artboard.watermark!;const asset=assets.find(a=>a.id===w.assetId);const content=w.type==='IMAGE'&&asset?<img src={asset.source} style={{width:`${w.scalePercent??35}%`,maxHeight:'80%',objectFit:'contain'}}/>:<span style={{fontSize:`${w.fontSizePt??28}pt`,color:w.color??'#64748b',fontWeight:600}}>{w.text??'DRAFT'}</span>;return <div style={{position:'absolute',inset:0,zIndex:w.zOrder==='BEHIND'?0:999998,pointerEvents:'none',opacity:w.opacity,display:'flex',alignItems:'center',justifyContent:'center',transform:`rotate(${w.rotationDeg}deg)`,overflow:'hidden'}}>{content}</div>}
 
 export function resolveDesignElementGeometry(e: DesignElement) {
   return {
@@ -124,7 +106,7 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
     height: `${geom.heightMm * mmToPx}px`,
     transform: `rotate(${geom.rotation}deg)`,
     opacity: e.opacity,
-    zIndex: e.zIndex,
+    zIndex: e.zIndex + 1,
     boxSizing: 'border-box',
     display: 'flex',
     alignItems: 'center',
@@ -155,116 +137,24 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
       </div>
     );
   } else if (e.type === 'SHAPE') {
-    const imagePatternId = `${e.id}-image-fill`;
-    const bg = e.fill.type === 'SOLID' 
-      ? normalizeExportColor(e.fill.color) 
-      : e.fill.type === 'LINEAR_GRADIENT' 
-        ? `url(#${e.id}-grad)`
-        : e.fill.type === 'IMAGE'
-          ? `url(#${imagePatternId})`
-        : 'transparent';
-    
-    const fillOpacity = e.fill.type === 'SOLID' || e.fill.type === 'IMAGE' ? (e.fill.opacity ?? 1) : 1;
-    const stroke = e.stroke.style === 'NONE' ? 'none' : normalizeExportColor(e.stroke.color);
-    const sw = e.stroke.style === 'NONE' ? 0 : e.stroke.widthMm * mmToPx;
-    const dash = e.stroke.style === 'DASHED' ? '6 4' : e.stroke.style === 'DOTTED' ? '2 3' : undefined;
-    const shadow = 'shadow' in e ? normalizeShadow((e as any).shadow) : 'none';
-
-    const common = {
-      fill: bg,
-      fillOpacity,
-      stroke,
-      strokeWidth: sw,
-      strokeDasharray: dash,
-      vectorEffect: 'non-scaling-stroke' as const
-    };
-    let shapeNode: React.ReactNode;
-    if (e.shape === 'ROUNDED_RECTANGLE') {
-      shapeNode = <rect x="1" y="1" width="98" height="98" rx={Math.min(48, (e.cornerRadiusMm ?? 3) * 4)} ry={Math.min(48, (e.cornerRadiusMm ?? 3) * 4)} {...common} />;
-    } else if (e.shape === 'LINE') {
-      shapeNode = <line x1="2" y1="50" x2="98" y2="50" {...common} fill="none" />;
-    } else {
-      const geometry = shapeToPathGeometry(e.shape, { widthMm: 100, heightMm: 100 });
-      shapeNode = <path d={geometryToSvgPath(geometry)} {...common} fill={geometry.closed ? bg : 'none'} />;
-    }
-
-    const shapeLabel = e.label?.enabled ? e.label : undefined;
-    content = (
-      <div style={{ position:'relative', width:'100%', height:'100%' }}>
-        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position:'absolute', inset:0, filter: shadow !== 'none' ? `drop-shadow(${shadow})` : undefined, overflow: 'visible', transform:`scale(${e.flipX?-1:1},${e.flipY?-1:1})` }}>
-          {e.fill.type === 'LINEAR_GRADIENT' && (
-            <defs>
-              <linearGradient id={`${e.id}-grad`} gradientTransform={`rotate(${e.fill.gradient.angleDeg ?? 90} .5 .5)`}>
-                {e.fill.gradient.stops.map((stop: DesignGradientStop, i: number) => (
-                  <stop key={i} offset={`${stop.offset}%`} stopColor={normalizeExportColor(stop.color)} stopOpacity={stop.opacity ?? 1} />
-                ))}
-              </linearGradient>
-            </defs>
-          )}
-          {e.fill.type === 'IMAGE' && <ExportImageFillPattern id={imagePatternId} fill={e.fill} assets={assets} width={100} height={100}/>} 
-          {shapeNode}
-        </svg>
-        {shapeLabel && <div style={{position:'absolute',inset:`${shapeLabel.paddingMm*mmToPx}px`,display:'flex',alignItems:shapeLabel.verticalAlignment==='TOP'?'flex-start':shapeLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:shapeLabel.alignment==='LEFT'?'flex-start':shapeLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:shapeLabel.fontFamily,fontSize:`${shapeLabel.fontSizePt}pt`,fontWeight:shapeLabel.fontWeight,fontStyle:shapeLabel.italic?'italic':'normal',textDecoration:shapeLabel.underline?'underline':'none',color:normalizeExportColor(shapeLabel.color),lineHeight:shapeLabel.lineHeight,textAlign:shapeLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{shapeLabel.text}</div>}
-      </div>
-    );
+    const clean=e.id.replace(/[^a-zA-Z0-9_-]/g,'');
+    const ids={linear:`export-linear-${clean}`,radial:`export-radial-${clean}`,pattern:`export-pattern-${clean}`,image:`export-image-${clean}`};
+    const fill=exportVectorFillPaint(e.fill,ids),fillOpacity=exportVectorFillOpacity(e.fill),strokeProps=exportVectorStrokeProps(e.stroke,mmToPx);
+    const sw=e.stroke.style==='NONE'?0:e.stroke.widthMm*mmToPx;
+    const shadow='shadow' in e?normalizeShadow((e as any).shadow):'none';
+    const common={fill,fillOpacity,strokeWidth:sw,...strokeProps,vectorEffect:'non-scaling-stroke' as const};
+    let shapeNode:React.ReactNode;
+    if(e.shape==='ROUNDED_RECTANGLE')shapeNode=<rect x="1" y="1" width="98" height="98" rx={Math.min(48,(e.cornerRadiusMm??3)*4)} ry={Math.min(48,(e.cornerRadiusMm??3)*4)} {...common}/>;
+    else if(e.shape==='LINE')shapeNode=<line x1="2" y1="50" x2="98" y2="50" {...common} fill="none"/>;
+    else {const geometry=shapeToPathGeometry(e.shape,{widthMm:100,heightMm:100});shapeNode=<path d={geometryToSvgPath(geometry)} {...common} fill={geometry.closed?fill:'none'}/>;}
+    const shapeLabel=e.label?.enabled?e.label:undefined;
+    content=(<div style={{position:'relative',width:'100%',height:'100%'}}><svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'absolute',inset:0,filter:shadow!=='none'?`drop-shadow(${shadow})`:undefined,overflow:'visible',transform:`scale(${e.flipX?-1:1},${e.flipY?-1:1})`}}><ExportVectorFillDefs fill={e.fill} ids={ids} assets={assets} width={100} height={100}/>{shapeNode}</svg>{shapeLabel&&<div style={{position:'absolute',inset:`${shapeLabel.paddingMm*mmToPx}px`,display:'flex',alignItems:shapeLabel.verticalAlignment==='TOP'?'flex-start':shapeLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:shapeLabel.alignment==='LEFT'?'flex-start':shapeLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:shapeLabel.fontFamily,fontSize:`${shapeLabel.fontSizePt}pt`,fontWeight:shapeLabel.fontWeight,fontStyle:shapeLabel.italic?'italic':'normal',textDecoration:shapeLabel.underline?'underline':'none',color:normalizeExportColor(shapeLabel.color),lineHeight:shapeLabel.lineHeight,textAlign:shapeLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{shapeLabel.text}</div>}</div>);
   } else if (e.type === 'PATH') {
-    const pathElement = e as PathDesignElement;
-    const gradientId = `export-gradient-${pathElement.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
-    const imagePatternId = `export-image-${pathElement.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
-    const fill = pathElement.fill.type === 'SOLID'
-      ? normalizeExportColor(pathElement.fill.color)
-      : pathElement.fill.type === 'LINEAR_GRADIENT'
-        ? `url(#${gradientId})`
-        : pathElement.fill.type === 'IMAGE'
-          ? `url(#${imagePatternId})`
-        : 'transparent';
-    const fillOpacity = pathElement.fill.type === 'SOLID' || pathElement.fill.type === 'IMAGE' ? (pathElement.fill.opacity ?? 1) : 1;
-    const stroke = pathElement.stroke.style === 'NONE' ? 'none' : normalizeExportColor(pathElement.stroke.color);
-    const strokeWidth = pathElement.stroke.style === 'NONE' ? 0 : pathElement.stroke.widthMm;
-    const strokeDasharray = pathElement.stroke.style === 'DASHED'
-      ? `${2 / Math.max(mmToPx, 0.001)} ${1.2 / Math.max(mmToPx, 0.001)}`
-      : pathElement.stroke.style === 'DOTTED'
-        ? `${0.7 / Math.max(mmToPx, 0.001)} ${1 / Math.max(mmToPx, 0.001)}`
-        : undefined;
-    const d = geometryToSvgPath(pathElement.geometry);
-    const widthMm = Math.max(pathElement.size.widthMm, 0.1);
-    const heightMm = Math.max(pathElement.size.heightMm, 0.1);
-    const shadow = normalizeShadow(pathElement.shadow);
-    const pathLabel=pathElement.label?.enabled?pathElement.label:undefined;
-    content = (
-      <div style={{position:'relative',width:'100%',height:'100%'}}>
-        <svg
-          data-export-path-id={pathElement.id}
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${widthMm} ${heightMm}`}
-          preserveAspectRatio="none"
-          style={{ position:'absolute', inset:0, overflow: 'visible', filter: shadow !== 'none' ? `drop-shadow(${shadow})` : undefined }}
-        >
-          {pathElement.fill.type === 'LINEAR_GRADIENT' && (
-            <defs>
-              <linearGradient id={gradientId} gradientTransform={`rotate(${pathElement.fill.gradient.angleDeg ?? 90} .5 .5)`}>
-                {pathElement.fill.gradient.stops.map((stop: DesignGradientStop, index: number) => (
-                  <stop key={index} offset={`${stop.offset}%`} stopColor={normalizeExportColor(stop.color)} stopOpacity={stop.opacity ?? 1} />
-                ))}
-              </linearGradient>
-            </defs>
-          )}
-          {pathElement.fill.type === 'IMAGE' && <ExportImageFillPattern id={imagePatternId} fill={pathElement.fill} assets={assets} width={widthMm} height={heightMm}/>} 
-          <path
-            d={d}
-            fill={fill}
-            fillOpacity={fillOpacity}
-            stroke={stroke}
-            strokeOpacity={pathElement.stroke.opacity ?? 1}
-            strokeWidth={strokeWidth}
-            strokeDasharray={strokeDasharray}
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-        {pathLabel&&<div style={{position:'absolute',inset:`${pathLabel.paddingMm*mmToPx}px`,display:'flex',alignItems:pathLabel.verticalAlignment==='TOP'?'flex-start':pathLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:pathLabel.alignment==='LEFT'?'flex-start':pathLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:pathLabel.fontFamily,fontSize:`${pathLabel.fontSizePt}pt`,fontWeight:pathLabel.fontWeight,fontStyle:pathLabel.italic?'italic':'normal',textDecoration:pathLabel.underline?'underline':'none',color:normalizeExportColor(pathLabel.color),lineHeight:pathLabel.lineHeight,textAlign:pathLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{pathLabel.text}</div>}
-      </div>
-    );
+    const pathElement=e as PathDesignElement,clean=pathElement.id.replace(/[^a-zA-Z0-9_-]/g,'');
+    const ids={linear:`export-linear-${clean}`,radial:`export-radial-${clean}`,pattern:`export-pattern-${clean}`,image:`export-image-${clean}`};
+    const fill=exportVectorFillPaint(pathElement.fill,ids),fillOpacity=exportVectorFillOpacity(pathElement.fill),strokeProps=exportVectorStrokeProps(pathElement.stroke,1);
+    const widthMm=Math.max(pathElement.size.widthMm,.1),heightMm=Math.max(pathElement.size.heightMm,.1),shadow=normalizeShadow(pathElement.shadow),pathLabel=pathElement.label?.enabled?pathElement.label:undefined;
+    content=(<div style={{position:'relative',width:'100%',height:'100%'}}><svg data-export-path-id={pathElement.id} width="100%" height="100%" viewBox={`0 0 ${widthMm} ${heightMm}`} preserveAspectRatio="none" style={{position:'absolute',inset:0,overflow:'visible',filter:shadow!=='none'?`drop-shadow(${shadow})`:undefined}}><ExportVectorFillDefs fill={pathElement.fill} ids={ids} assets={assets} width={widthMm} height={heightMm}/><path d={geometryToSvgPath(pathElement.geometry)} fill={fill} fillOpacity={fillOpacity} strokeWidth={pathElement.stroke.style==='NONE'?0:pathElement.stroke.widthMm} {...strokeProps} vectorEffect="non-scaling-stroke"/></svg>{pathLabel&&<div style={{position:'absolute',inset:`${pathLabel.paddingMm*mmToPx}px`,display:'flex',alignItems:pathLabel.verticalAlignment==='TOP'?'flex-start':pathLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:pathLabel.alignment==='LEFT'?'flex-start':pathLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:pathLabel.fontFamily,fontSize:`${pathLabel.fontSizePt}pt`,fontWeight:pathLabel.fontWeight,fontStyle:pathLabel.italic?'italic':'normal',textDecoration:pathLabel.underline?'underline':'none',color:normalizeExportColor(pathLabel.color),lineHeight:pathLabel.lineHeight,textAlign:pathLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{pathLabel.text}</div>}</div>);
   } else if (e.type === 'IMAGE') {
     const source = resolveRasterImageElementSource(e, assets);
     if (source) {
@@ -388,24 +278,38 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
       );
     }
 
-  const hyperlink = e.type === 'IMAGE' ? (e as ImageDesignElement).hyperlink : undefined;
-
   return (
-    <div data-element-id={e.id} style={hyperlink ? { ...shellStyle, pointerEvents: 'auto' } : shellStyle}>
-      {hyperlink ? (
-        <a href={hyperlink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%', height: '100%', pointerEvents: 'auto', cursor: 'pointer' }}>
-          {content}
-        </a>
-      ) : (
-        content
-      )}
+    <div data-element-id={e.id} style={shellStyle}>
+      {content}
     </div>
   );
 }
 
-function ExportImageFillPattern({id,fill,assets,width,height}:{id:string;fill:Extract<DesignFill,{type:'IMAGE'}>;assets:DesignTemplate['sharedAssets'];width:number;height:number}){
-  const source=resolveRasterImageFillSource(fill,assets);
-  if(!source)return null;
-  const preserveAspectRatio=fill.fit==='FIT'?'xMidYMid meet':fill.fit==='FILL'?'xMidYMid slice':'none';
-  return <defs><pattern id={id} patternUnits="userSpaceOnUse" width={width} height={height}><image href={source} x="0" y="0" width={width} height={height} preserveAspectRatio={preserveAspectRatio}/></pattern></defs>;
+function exportVectorFillPaint(fill:DesignFill,ids:{linear:string;radial:string;pattern:string;image:string}){
+ if(fill.type==='SOLID')return normalizeExportColor(fill.color);
+ if(fill.type==='LINEAR_GRADIENT')return `url(#${ids.linear})`;
+ if(fill.type==='RADIAL_GRADIENT')return `url(#${ids.radial})`;
+ if(fill.type==='PATTERN')return `url(#${ids.pattern})`;
+ if(fill.type==='IMAGE')return `url(#${ids.image})`;
+ return 'transparent';
 }
+function exportVectorFillOpacity(fill:DesignFill){return fill.type==='SOLID'||fill.type==='IMAGE'?(fill.opacity??1):1;}
+function exportVectorStrokeProps(stroke:DesignStroke,unitScale:number){
+ const dash=normalizeStrokeDashArray(stroke)?.map(value=>value*unitScale).join(' ');
+ return {stroke:stroke.style==='NONE'?'none':normalizeExportColor(stroke.color),strokeOpacity:stroke.opacity??1,strokeDasharray:dash,strokeDashoffset:(stroke.dashOffset??0)*unitScale,strokeLinecap:(stroke.lineCap??'BUTT').toLowerCase() as 'butt'|'round'|'square',strokeLinejoin:(stroke.lineJoin??'MITER').toLowerCase() as 'miter'|'round'|'bevel',strokeMiterlimit:stroke.miterLimit??4};
+}
+function ExportPatternFillDef({id,fill}:{id:string;fill:Extract<DesignFill,{type:'PATTERN'}>}){
+ const p=fill.pattern,size=Math.max(.025,.12*p.scale),opacity=p.opacity??1;
+ return <pattern id={id} patternUnits="objectBoundingBox" width={size} height={size} viewBox="0 0 10 10" preserveAspectRatio="none" patternTransform={`rotate(${p.rotationDeg})`}><rect x="0" y="0" width="10" height="10" fill={normalizeExportColor(p.background)}/>{p.kind==='HATCH'&&<path d="M 0 10 L 10 0" stroke={normalizeExportColor(p.foreground)} strokeOpacity={opacity} strokeWidth="0.8"/>}{p.kind==='DOT'&&<circle cx="5" cy="5" r="1.6" fill={normalizeExportColor(p.foreground)} fillOpacity={opacity}/>} {p.kind==='CHECKER'&&<><rect x="0" y="0" width="5" height="5" fill={normalizeExportColor(p.foreground)} fillOpacity={opacity}/><rect x="5" y="5" width="5" height="5" fill={normalizeExportColor(p.foreground)} fillOpacity={opacity}/></>}</pattern>;
+}
+function ExportVectorFillDefs({fill,ids,assets,width,height}:{fill:DesignFill;ids:{linear:string;radial:string;pattern:string;image:string};assets:DesignTemplate['sharedAssets'];width:number;height:number}){
+ return <defs>{fill.type==='LINEAR_GRADIENT'&&<linearGradient id={ids.linear} gradientTransform={`rotate(${fill.gradient.angleDeg} .5 .5)`}>{fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={normalizeExportColor(stop.color)} stopOpacity={stop.opacity??1}/>)}</linearGradient>}{fill.type==='RADIAL_GRADIENT'&&<radialGradient id={ids.radial} cx={`${fill.gradient.centerX}%`} cy={`${fill.gradient.centerY}%`} r={`${fill.gradient.radius}%`} fx={`${fill.gradient.focalX??fill.gradient.centerX}%`} fy={`${fill.gradient.focalY??fill.gradient.centerY}%`}>{fill.gradient.stops.map((stop,index)=><stop key={index} offset={`${stop.offset}%`} stopColor={normalizeExportColor(stop.color)} stopOpacity={stop.opacity??1}/>)}</radialGradient>}{fill.type==='PATTERN'&&<ExportPatternFillDef id={ids.pattern} fill={fill}/>} {fill.type==='IMAGE'&&<ExportImageFillPattern id={ids.image} fill={fill} assets={assets} width={width} height={height}/>}</defs>;
+}
+function ExportImageFillPattern({id,fill,assets,width,height}:{id:string;fill:Extract<DesignFill,{type:'IMAGE'}>;assets:DesignTemplate['sharedAssets'];width:number;height:number}){
+  const source=resolveRasterImageFillSource(fill,assets);if(!source)return null;
+  const preserveAspectRatio=fill.fit==='FIT'?'xMidYMid meet':fill.fit==='FILL'?'xMidYMid slice':'none';
+  const t=normalizeImageFillTransform(fill.transform),cx=width/2,cy=height/2,dx=t.offsetX/100*width,dy=t.offsetY/100*height;
+  const transform=`translate(${cx+dx} ${cy+dy}) rotate(${t.rotationDeg}) scale(${t.scale}) translate(${-cx} ${-cy})`;
+  return <pattern id={id} patternUnits="userSpaceOnUse" width={width} height={height}><image href={source} x="0" y="0" width={width} height={height} preserveAspectRatio={preserveAspectRatio} transform={transform}/></pattern>;
+}
+

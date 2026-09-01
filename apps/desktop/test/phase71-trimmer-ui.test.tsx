@@ -20,7 +20,7 @@ describe('Phase 7.1 Trimmer UI', () => {
   it('shows Trimmer, Flexible Line, and Half Circle in the existing library sections', () => {
     const shapes: DesignShapeKind[] = ['RECTANGLE', 'HALF_CIRCLE'];
     render(<ElementLibraryPanel onInsertText={vi.fn()} onInsertShape={vi.fn()} onUploadImage={vi.fn()} availableShapes={shapes} canTrim onSetInteractionMode={vi.fn()} />);
-    expect(screen.getByText('Erase Segment')).toBeDefined();
+    expect(screen.getByText('Trimmer')).toBeDefined();
     expect(screen.getByText('Select Tool')).toBeDefined();
     expect(screen.getByText('Flexible Line')).toBeDefined();
     expect(screen.getByText('Half Circle')).toBeDefined();
@@ -36,7 +36,7 @@ describe('Phase 7.1 Trimmer UI', () => {
   it('activates Trimmer without requiring a selected target', () => {
     const setMode = vi.fn();
     render(<ElementLibraryPanel onInsertText={vi.fn()} onInsertShape={vi.fn()} onUploadImage={vi.fn()} availableShapes={['RECTANGLE']} canTrim onSetInteractionMode={setMode} />);
-    const trimmer = screen.getByText('Erase Segment').closest('button') as HTMLButtonElement;
+    const trimmer = screen.getByText('Trimmer').closest('button') as HTMLButtonElement;
     expect(trimmer.disabled).toBe(false);
     fireEvent.click(trimmer);
     expect(setMode).toHaveBeenCalledWith('TRIMMER');
@@ -44,7 +44,7 @@ describe('Phase 7.1 Trimmer UI', () => {
 
   it('provides manual point-to-point controls and prioritizes a chosen start node', () => {
     const source = readFileSync(resolve(process.cwd(), 'apps/desktop/src/pages/CardDesigner.tsx'), 'utf8');
-    expect(source).toContain('ERASE SEGMENT — Select second point');
+    expect(source).toContain('TRIM — Select second point');
     expect(source).toContain('Delete Segment');
     expect(source).toContain('Clear Trim Selection');
     expect(source).toContain('Switch Side');
@@ -65,3 +65,4 @@ describe('Phase 7.1 Trimmer UI', () => {
     expect(screen.getByText('Flip Arc')).toBeDefined();
   });
 });
+

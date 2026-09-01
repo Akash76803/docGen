@@ -1,38 +1,55 @@
-# Regression Matrix
+# Shape Operations Permanent Regression Matrix
 
-This document registers test coverage and quality metrics for all critical system features.
+| Feature | Existing automated coverage | Quality | Manual check | Export risk |
+|---|---|---|---|---|
+| LINE | existing drawing/path tests | PARTIAL/REAL mixed | draw normal line | medium |
+| FLEXIBLE_LINE | existing designer tests | PARTIAL | polyline drawing | medium |
+| SPLIT | `phase711-dedicated-split-tool.test.ts` | REAL source-level coverage | split closed shape | high |
+| Point OSNAP | `phase710-point-osnap.test.ts`, live-wiring test | REAL | endpoint/vertex/boundary snap | high |
+| Face Split | `phase73-face-split.test.ts` | REAL | 2-face then N-face split | high |
+| AUTO_SECTION selection | existing CardDesigner logic/tests | PARTIAL | select/move/delete one face | high |
+| Fill Bucket | existing phase tests/source | PARTIAL | fill closed region | medium |
+| Scissors | existing path tool tests/source | PARTIAL | split path | high |
+| Erase Segment | existing trimmer/eraser tests | REAL/PARTIAL | erase segment | high |
+| Pen/Edit Path | existing path tests | PARTIAL | nodes/handles | high |
+| Boolean | `phase709-boolean-path.test.ts` | PLACEHOLDER | all 4 ops | high |
+| Guides/Grid/Snapping | phase 6.12/6.13 tests | REAL | guide/grid snapping | medium |
+| Move/Resize/Rotate | `phase603-selection-transform.test.ts` | REAL | transformed selections | high |
+| Align/Distribute | `phase611-alignment-distribution.test.ts` | REAL | multi-select | low |
+| Groups/Layers | `phase605-layers-groups.test.ts` + persistence | REAL | group/ungroup/order | high |
+| Undo/Redo | productivity/history tests | PARTIAL | one undo per gesture/op | high |
+| Save/Load | persistence test family | REAL/PARTIAL | round trip template | high |
+| Excel/CSV | fixtures + data tests | REAL | import records | medium |
+| Base64 image | dynamic image tests | REAL | bind row image | high |
+| Shape image fill | Phase 7.8/7.9 tests/docs | REAL/PARTIAL | fit + binding | high |
+| QR/Barcode | dynamic code tests | REAL | binding preview/export | medium |
+| PDF | renderer tests | REAL | export visual parity | high |
+| PNG | renderer-image tests | REAL | export parity | high |
+| JPEG | renderer-image tests | REAL | export parity | high |
 
+Any Phase 8 change touching a row marked high export/regression risk must add targeted coverage before release.
+
+## Phase 8 permanent gates
+- `npm run test:shape-foundation` — targeted Phase 8.0 capability/mixed/normalization/primary wiring coverage.
+- `npm run test:shape-ops-regression` — permanent critical regression aggregate covering transform, groups, alignment, snapping, CAD point OSNAP, Face Split and dedicated Split wiring.
+
+## Phase 8.1 transform additions
 | Feature | Existing Test | Quality | Manual Test | Export Risk | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **LINE** | `phase73-divider-draw.test.ts` | **REAL** | Yes | Low | Core line drawer is fully covered. |
-| **FLEXIBLE_LINE** | `phase71-flexible-line.test.ts` | **REAL** | Yes | Low | Node tracking is fully covered. |
-| **SPLIT** | `phase711-split-tool.test.ts` | **REAL** | Yes | Low | Splitting element geometries. |
-| **OSNAP** | `phase710-point-osnap.test.ts` | **REAL** | Yes | N/A | Locks pointer coordinate to target candidate. |
-| **Face Split** | `phase73-face-split.test.ts` | **REAL** | Yes | N/A | Subdivides artboard faces correctly. |
-| **AUTO_SECTION** | `phase75-multi-section-component.test.tsx` | **REAL** | Yes | Low | Independent face rendering logic. |
-| **Fill Bucket** | `phase712-fill-joined-boundary.test.ts` | **REAL** | Yes | Low | Fills targeted closed path face. |
-| **Scissors** | `phase74-cad-trimmer-addendum.test.ts` | **REAL** | Yes | Low | Splits path coordinates at vertex. |
-| **Erase Segment** | `phase74-cad-trimmer-addendum.test.ts` | **REAL** | Yes | Low | Slice paths between intersections. |
-| **Pen** | `phase714-polyline-session-lifecycle.test.ts`| **REAL** | Yes | Low | Pen tool drawing sessions. |
-| **Edit Path** | `phase714-polyline-session-lifecycle.test.ts`| **REAL** | Yes | Low | Interact with path nodes. |
-| **Boolean** | `phase709-boolean-path.test.ts` | **REAL** | Yes | High | Updated from PLACEHOLDER to REAL. |
-| **Guides** | `phase613-rulers-grid-guides.test.ts` | **REAL** | Yes | N/A | Canvas snapping guides. |
-| **Grid** | `phase613-rulers-grid-guides.test.ts` | **REAL** | Yes | N/A | Canvas grid locks. |
-| **move** | `phase603-selection-transform.test.ts` | **REAL** | Yes | Low | Shift elements. |
-| **resize** | `phase603-selection-transform.test.ts` | **REAL** | Yes | Low | Scale elements. |
-| **rotate** | `phase603-selection-transform.test.ts` | **REAL** | Yes | Low | Rotate elements. |
-| **layers** | `phase73-layer-order-regression.test.ts` | **REAL** | Yes | Low | Z-index sorting. |
-| **groups** | `phase605-layers-groups.test.ts` | **REAL** | Yes | Low | Nested group containers. |
-| **selection** | `phase603-selection-transform.test.ts` | **REAL** | Yes | N/A | Selection set state updates. |
-| **Undo/Redo** | `phase605-layers-groups.test.ts` | **PARTIAL** | Yes | N/A | History stack works via snapshots. |
-| **save/load** | `phase505-workspace-persistence.test.ts` | **REAL** | Yes | N/A | Serializing artboards and templates. |
-| **Excel** | `phase662-data-context-binding.test.ts` | **REAL** | Yes | Low | Excel data column parsing. |
-| **CSV** | `csv-adapter.test.ts` | **REAL** | Yes | Low | CSV comma separation rows parser. |
-| **Base64 image** | `phase79-base64-image-binding.test.ts` | **REAL** | Yes | Medium | Dynamic binary strings parse. |
-| **Shape image fill** | `phase79-fix4-shape-image-fill-serialization.test.ts`| **REAL** | Yes | Medium | Masking images inside vector paths. |
-| **hyperlink** | `phase661-dynamic-binding.test.ts` | **REAL** | Yes | Medium | Image clicking overlays. |
-| **QR** | `phase666-qr-barcode-binding.test.ts` | **REAL** | Yes | Low | Vector QR generator. |
-| **Barcode** | `phase666-qr-barcode-binding.test.ts` | **REAL** | Yes | Low | Vector 1D barcode generator. |
-| **PDF** | `phase650-card-pdf-export.test.ts` | **REAL** | Yes | High | Native PDF link annotations compiler. |
-| **PNG** | `phase650-card-image-export.test.ts` | **REAL** | Yes | Medium | PNG high-DPI export canvas. |
-| **JPEG** | `phase650-card-image-export.test.ts` | **REAL** | Yes | Medium | JPEG compression canvas renderer. |
+|---|---|---|---|---|---|
+| Rotated resize local delta | `phase81-transform-hardening.test.ts` | REAL (added; not executed here) | Required | Medium | opposite visual anchor must remain stable |
+| Center resize | `phase81-transform-hardening.test.ts` | REAL (added; not executed here) | Required | Low | Alt/Option captured at resize start |
+| Shift rotation snap | `phase81-transform-hardening.test.ts` + UI wiring test | REAL (added; not executed here) | Required | Low | 15° increments |
+| In-place Flip H/V | `phase81-transform-hardening.test.ts` + UI wiring test | REAL (added; not executed here) | Required | Medium | PATH IDs preserved; verify PDF/PNG/JPEG visually in later hardening |
+
+## Phase 8.1 Fix1 additions
+- Multi-selection shared resize frame — targeted engine + UI wiring tests added.
+- Alt/Option center resize — targeted engine test added.
+- Shift aspect-constrained multi-resize — targeted engine test added.
+- Alt/Option + Shift combined multi-resize — targeted engine test added.
+- PATH geometry scaling during multi-resize — targeted engine test added.
+
+
+## Phase 8.2 styling additions
+- `npm run test:shape-styling` — legacy Phase 6.1.4 styling + Phase 8.2 contract/normalization/UI/export wiring.
+- Permanent shape-ops regression now includes `phase82-styling-parity.test.ts` and `phase82-styling-ui-wiring.test.ts`.
+- Manual parity gate: Radial, Pattern, Image Crop and Custom Stroke must be compared on canvas vs PDF/PNG/JPEG.

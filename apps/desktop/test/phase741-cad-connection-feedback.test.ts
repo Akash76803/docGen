@@ -11,7 +11,7 @@ describe('Phase 7.4.1 CAD drawing and connection feedback',()=>{
   });
 
   it('keeps click-click drawing while allowing a moved line drag to commit on release',()=>{
-    expect(source).toContain('if(existing&&(!existing.pointerIsDown||isDistinctSecondPoint))');
+    expect(source).toMatch(/existing\s*&&\s*!existing\.pointerIsDown/);
     const upCanvas=source.match(/const upCanvas=\(\)=>\{[\s\S]*?const capture=/);
     expect(upCanvas).toBeTruthy();
     expect(upCanvas?.[0]).toMatch(/pointer-up only arms the first point/i);

@@ -1,55 +1,39 @@
 # Shape Operations Scope
 
-> [!WARNING]
-> **TARGET REQUIREMENTS — THIS FILE DOES NOT REPRESENT CURRENT IMPLEMENTATION STATUS.**
-> This document details the desired target scope for the Document Generator / Card Visual Design Studio's Shape Operations. These represent future target capabilities to be built and should not be assumed as already completed.
+> **TARGET REQUIREMENTS — NOT CURRENT IMPLEMENTATION STATUS.**
 
----
+## Supported operation model
+The long-term designer should provide consistent single-selection, multi-selection, styling, geometry editing, grouping, Boolean operations, persistence and export behavior across supported shapes. Open paths remain stroke/geometry objects and are not Boolean-compatible until closed/converted.
 
-## 1. Single Shape Transforms
-* **Bounding Box**: Drag-and-scale controls with 8 corner/edge resize handles and top rotate handles.
-* **Uniform Resize**: Restricting width/height ratios when holding the `Shift` key.
-* **Rotation**: Angle dragging with `15-degree` snaps when holding the `Shift` key.
-* **Aspect Ratio**: Toggling aspect ratio locks via the properties rail.
-* **Flip/Mirror**: Manual flipping across horizontal and vertical center axes.
+## A. Transform
+Move by mouse/keyboard/exact position; resize with 8 handles and exact dimensions; aspect locking; rotation handle/exact degrees/15° snapping; horizontal/vertical flip; later skew/shear after transform architecture is safe. Group transforms must preserve child relationships.
 
-## 2. Advanced Styling
-* **Fills**: Linear/Radial gradients with custom stops, tileable/stretched patterns, and solid colors.
-* **Strokes**: Dash arrays, thickness (width in mm), and stroke properties (line caps, line joins).
-* **Effects**: Opacity transparency slider, independent corner radii, and drop shadows (blur, color, offsets).
-* **Image Fill/Crop**: Masking/cropping images directly inside shape geometries.
+## B. Styling
+Solid/no fill, linear/radial gradients, patterns, image/texture fills with fit/crop/focal controls, opacity, stroke color/width/opacity/dash/caps/joins, and later shadow/glow/soft-edge effects. Canvas/export/save-load parity is mandatory.
 
-## 3. Geometry Editing
-* **Convert to Freeform**: Decomposing primitive shapes (rectangle, circle) into editable curves/paths.
-* **Node Editing (Edit Path)**: Direct manipulation of anchor points.
-* **Node Modes**: Toggling vertices between Corner (sharp), Smooth (aligned handles), and Symmetric (equal handle length).
-* **Segment Editing**: Inserting vertices by double-clicking segments, deleting nodes via the `Delete` key.
-* **Shape Adjustments**: Smart handle control for primitive shapes (e.g. inner radius for stars).
-* **Change Shape**: Swapping a shape element's primitive type without resetting coordinates or colors.
+## C. Geometry
+Convert built-in shapes to freeform PATH while preserving appearance and bindings; edit/add/delete/break/join/open/close nodes; Corner/Smooth/Symmetric modes; line/Bezier segments; parametric adjustment handles; Change Shape while retaining compatible style/text/bindings.
 
-## 4. Text & Metadata
-* **Shape Text**: Auto-wrapping paragraphs inside shapes, vertical text alignment, and margins/padding.
-* **Dynamic Bindings**: Mapping properties (text, colors, hyperlinks) directly to imported datasets.
+## D. Shape Text
+Inline editing, font/style/alignment/padding, wrapping and fit modes (overflow/clip/wrap/shrink/resize-shape), Excel/CSV bindings, fallback/missing behavior, and autofit after binding resolution.
 
-## 5. Selection & Arrange commands
-* **Marquee Selection**: Multi-selecting items by dragging a selection rectangle over the canvas.
-* **Multi-selection Transforms**: Moving, rotating, and scaling multiple selected elements as a unified boundary.
-* **Align/Distribute**: Aligning elements to canvas boundaries or selection bounds. Spacing elements with equal gaps.
-* **Match Dimensions**: Equalizing widths, heights, or both across selected items.
-* **Grouping / Ungrouping**: Binding elements via `Ctrl+G` and unbinding via `Ctrl+Shift+G`.
-* **Regroup**: Re-grouping previously ungrouped items with a single shortcut command.
+## E. Arrange
+Front/back/forward/back, duplicate/copy/cut/paste/delete/lock/hide/rename, default shape styles, image-filled shape crop/reset/fit/fill.
 
-## 6. Boolean Operations
-* **Union**: Merging overlapping elements into one closed boundary.
-* **Subtract**: Deleting overlapping top boundaries from the bottom shape.
-* **Intersect**: Keeping only overlapping regions.
-* **Exclude (XOR)**: Keeping non-overlapping regions.
-* **Fragment**: Splitting all overlapping regions into separate independent shapes.
-* **Compound Paths**: Managing multiple inner holes/subpaths within a single vector shape.
+## F. Multi-selection
+Shift/Ctrl click, marquee/select-all/layer multiselect, primary object, mixed inspector states, align to selection/primary/artboard, distribution/equal gaps, same width/height/size, group-aware set movement.
 
-## 7. App Integration & Operations
-* **Clipboard**: Support for copying (`Ctrl+C`) and pasting (`Ctrl+V`) elements between templates.
-* **Persistence**: Serializing new shape properties cleanly, with automated legacy migration.
-* **History**: Saving Undo/Redo states on transform release.
-* **Export**: Outputting shapes, texts, and borders to PNG, JPEG, and PDF format.
-* **Testing**: Automated unit tests and browser smoke test coverage.
+## G. Groups
+Group/ungroup/regroup, atomic move/resize/rotate/flip/duplicate/lock/hide, future nested-group isolation and robust world/local transform handling.
+
+## H. Boolean
+Require compatible closed visible/unlocked vector shapes on one artboard. Support Union, Combine/XOR, Fragment (every overlap region becomes an independent PATH), Intersect and Subtract. Preserve holes/compound paths, deterministic target/style policy, sliver cleanup, history atomicity and export parity.
+
+## I. UX
+Context-aware Inspector and top toolbar groups such as `Arrange | Align | Group | Merge Shapes | Edit Shape`; unsupported operations remain visible/disabled with clear reason.
+
+## J. Persistence / History / Clipboard
+Backward-compatible schema normalization/migration, atomic history transactions, copy/paste with regenerated IDs and preserved group/assets/style/bindings, stable save/reload round trip.
+
+## K. Tests / Definition of Done
+Unit/UI/export/manual tests for all affected element types and permanent regression protection for LINE/FLEXIBLE_LINE/SPLIT/OSNAP/Face Split/Fill Bucket/Scissors/Erase Segment/guides/snapping/history/save-load/export.

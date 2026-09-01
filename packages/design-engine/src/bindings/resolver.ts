@@ -270,14 +270,6 @@ export function applyResolvedValueToElement(element: DesignElement, binding: Des
       }
       break;
 
-    case 'hyperlink':
-      if (element.type === 'IMAGE') {
-        if (typeof rawValue === 'string') {
-          (element as any).hyperlink = rawValue;
-        }
-      }
-      break;
-
     case 'tintColor':
       if (element.type === 'SVG') {
         if (typeof rawValue === 'string') {
@@ -347,7 +339,18 @@ export function resolveElementBindings(element: DesignElement, context: DesignDa
  */
 export function resolveArtboardBindings(artboard: Artboard, context: DesignDataContext): Artboard {
   let hasChanges = false;
-  
+  let resolvedBackground = artboard.background;
+
+  const backgroundBinding = artboard.backgroundBindings?.find(binding => binding.targetProperty === 'backgroundImageSource');
+  if (backgroundBinding && artboard.background.type === 'IMAGE') {
+    const rawValue = resolveDesignBinding(backgroundBinding, context);
+    const normalized = normalizeDynamicImageSource(rawValue, undefined);
+    if (normalized !== undefined) {
+      resolvedBackground = { ...artboard.background, source: normalized } as typeof artboard.background;
+      hasChanges = true;
+    }
+  }
+
   const resolvedElements = artboard.elements.map(el => {
     const resolvedEl = resolveElementBindings(el, context);
     if (resolvedEl !== el) hasChanges = true;
@@ -360,6 +363,7 @@ export function resolveArtboardBindings(artboard: Artboard, context: DesignDataC
 
   return {
     ...artboard,
+    background: resolvedBackground,
     elements: resolvedElements
   };
 }
