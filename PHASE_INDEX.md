@@ -143,3 +143,16 @@ CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference pa
 - Fixed CardDesigner blank-page crash caused by `canEditPath` and related capability constants being read in a hook dependency array before initialization.
 - Source transpile and declaration-order regression check: PASS.
 - Dashboard -> Card manual runtime verification: PENDING.
+
+- Phase 8.8A4 Fix3 — CAD Ray Isolated Reimplementation — implemented, manual UI verification pending.
+
+## Phase 8.8A5 — CAD Angle Line
+Status: SOURCE VERIFIED / MANUAL UI PENDING
+- Dedicated Angle Line utility tool and `A` shortcut.
+- Exact Length/Angle entry with stable HUD.
+- Reuses existing OSNAP/Polar/Ortho/reference tracking and standard LINE geometry.
+- No automatic chaining after commit.
+
+- Phase 8.8A5 Fix1 — CAD Line Grip Angle Editing — IMPLEMENTED, MANUAL UI PENDING
+
+- 8.8A5 Fix2 — Edge Align to Reference Geometry — IMPLEMENTED / MANUAL PENDING

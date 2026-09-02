@@ -601,3 +601,50 @@ CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference pa
 - Fixed CardDesigner blank-page crash caused by `canEditPath` and related capability constants being read in a hook dependency array before initialization.
 - Source transpile and declaration-order regression check: PASS.
 - Dashboard -> Card manual runtime verification: PENDING.
+
+## Phase 8.8A4 Fix3 — CAD Ray Isolated Reimplementation
+- [ ] Dashboard -> Card Designer opens without blank page or TDZ error.
+- [ ] Press R: RAY tool activates.
+- [ ] Click origin then rightward direction: ray extends only right to artboard boundary.
+- [ ] Click origin then leftward direction: ray extends only left to artboard boundary.
+- [ ] 30/45/90 degree Polar/Ortho ray behaves exactly.
+- [ ] LINE near RAY can acquire Parallel/Perpendicular reference.
+- [ ] Intersections with RAY are snap-able.
+- [ ] Save/reload preserves RAY.
+- [ ] PNG/JPEG/PDF export excludes RAY.
+- [ ] Existing Rectangle/Circle/LINE/Polyline/XLINE/Split/Shortcuts still work.
+
+## Phase 8.8A5 — CAD Angle Line
+- [ ] Dashboard -> Card Designer opens without blank page.
+- [ ] Press `A`; Angle Line activates.
+- [ ] Click a snapped start point; Length/Angle HUD appears.
+- [ ] Enter `40` mm and `30` degrees; Enter creates exact line.
+- [ ] After commit, tool asks for a new start point instead of chaining from the old endpoint.
+- [ ] `Tab` switches Length/Angle inputs.
+- [ ] Second-click mouse commit works when typed input is not used.
+- [ ] F8 Ortho / F10 Polar and shape/XLINE/RAY references remain available.
+- [ ] `L` still activates normal chained LINE.
+- [ ] `Alt+A` still activates Arrow shape.
+- [ ] Save/reload preserves created Angle Line as normal LINE PATH.
+- [ ] Edit Path + endpoint double-click Extend-to-Boundary still works on Angle Line-created geometry.
+
+## Phase 8.8A5 Fix1 — CAD Line Grip Angle Editing
+- [ ] Draw 40 mm @ 0 deg Angle Line from a circle center.
+- [ ] Select line -> Edit Path -> select Start grip. Change angle to 30 deg and Apply. Start point must remain exactly on circle center and length must remain 40 mm.
+- [ ] Select End anchor, change angle. End point must remain fixed.
+- [ ] Select Center anchor, change angle. Midpoint must remain fixed and both endpoints move symmetrically.
+- [ ] Change Length while Start anchor is active; start coordinate must remain fixed.
+- [ ] Undo/Redo restores geometry.
+- [ ] Double-click endpoint Extend-to-Boundary still works.
+- [ ] Dashboard -> Card Designer opens without blank page / TDZ error.
+
+## 8.8A5 Fix2 — Edge Align to Reference Geometry
+- [ ] Dashboard -> Card opens without blank page.
+- [ ] Select triangle -> `Align Edge` -> click triangle side -> click Ray: side becomes exactly collinear with Ray.
+- [ ] Repeat with XLINE.
+- [ ] Repeat with normal LINE / Angle Line.
+- [ ] Repeat with Rectangle edge.
+- [ ] Reference geometry does not move.
+- [ ] Target size does not change.
+- [ ] Undo restores original target position/rotation in one step.
+- [ ] Save/reload preserves aligned result.

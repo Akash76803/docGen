@@ -62,3 +62,18 @@ Manual regression after A4 RAY: Dashboard → Card produced a blank page. Recove
 - Fixed CardDesigner blank-page crash caused by `canEditPath` and related capability constants being read in a hook dependency array before initialization.
 - Source transpile and declaration-order regression check: PASS.
 - Dashboard -> Card manual runtime verification: PENDING.
+
+## Phase 8.8A4 Fix3 — CAD Ray Isolated Reimplementation
+RAY re-added on top of the manually verified TDZ-recovery baseline. Dashboard/Card Designer mount-order fix is preserved. Manual Windows UI verification pending.
+
+## Phase 8.8A5 — CAD Angle Line
+- Dedicated `A` Angle Line tool added on top of manually verified A4 Ray baseline.
+- Exact Length + Angle dynamic input reuses existing CAD endpoint resolver.
+- Angle Line commits standard LINE geometry but does not auto-chain.
+- Dashboard/Card TDZ recovery ordering preserved.
+- Manual UI verification: PENDING.
+
+## Phase 8.8A5 Fix1 — CAD Line Grip Angle Editing
+Added anchored Start/End/Center Length + Angle editing for CAD LINE PATHs in Edit Path mode. Manual UI verification pending.
+
+- Phase 8.8A5 Fix2: Edge Align to Reference Geometry implemented; manual UI verification pending.

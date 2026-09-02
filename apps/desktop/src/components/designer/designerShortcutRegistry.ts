@@ -16,6 +16,8 @@ export type DesignerUtilityShortcut =
   | 'LINE'
   | 'POLYLINE'
   | 'XLINE'
+  | 'RAY'
+  | 'ANGLE_LINE'
   | 'PEN'
   | 'EDIT_PATH'
   | 'SCISSORS'
@@ -77,6 +79,8 @@ export const DESIGNER_UTILITY_SHORTCUTS: Array<{ key: string; shift?: boolean; a
   { key: 'l', action: 'LINE', item: { keys: ['L'], action: 'Line', description: 'Activate the CAD two-point LINE tool.' } },
   { key: 'p', action: 'POLYLINE', item: { keys: ['P'], action: 'Polyline', description: 'Activate the connected multi-segment Polyline tool.' } },
   { key: 'x', action: 'XLINE', item: { keys: ['X'], action: 'Construction Line', description: 'Activate CAD XLINE reference drawing.' } },
+  { key: 'r', action: 'RAY', item: { keys: ['R'], action: 'Ray', description: 'Activate CAD RAY — an origin-based one-direction construction reference.' } },
+  { key: 'a', action: 'ANGLE_LINE', item: { keys: ['A'], action: 'Angle Line', description: 'Activate dedicated CAD Angle Line. Pick a start point, then enter exact Length and Angle or use the live preview.' } },
   { key: 'n', action: 'PEN', item: { keys: ['N'], action: 'Pen Tool', description: 'Activate the freeform Pen path tool.' } },
   { key: 'e', action: 'EDIT_PATH', item: { keys: ['E'], action: 'Edit Path', description: 'Enter Edit Path for exactly one selected PATH.' } },
   { key: 'k', action: 'SCISSORS', item: { keys: ['K'], action: 'Scissors', description: 'Activate Scissors for a selected editable PATH.' } },
@@ -131,7 +135,7 @@ export const DESIGNER_SHORTCUT_GROUPS: DesignerShortcutGroup[] = [
       { keys: ['Enter'], action: 'Finish current path', description: 'Finish the active Pen/Polyline path and stay ready to start another.' },
       { keys: ['Enter'], action: 'Commit dynamic input', description: 'While editing CAD Length/Angle or Circle Radius input, commit the exact typed value.' },
       { keys: ['Tab'], action: 'Switch CAD input field', description: 'Move between Length and Angle fields in the LINE dynamic input HUD.' },
-      { keys: ['Esc'], action: 'Exit drawing', description: 'Exit LINE, Polyline, Pen, Split, Mirror Line, XLINE, or shape drawing and return to Select.' },
+      { keys: ['Esc'], action: 'Exit drawing', description: 'Exit LINE, Polyline, Pen, Split, Mirror Line, XLINE, RAY, or shape drawing and return to Select.' },
     ],
   },
   {

@@ -14,9 +14,9 @@ export type ElementLibraryPanelProps = {
   onAddQr?: () => void;
   onAddBarcode?: () => void;
   availableShapes: DesignShapeKind[];
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'XLINE';
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'REFERENCE_ALIGN';
   drawShapeType?: DesignShapeKind | null;
-  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'XLINE') => void;
+  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'REFERENCE_ALIGN') => void;
   fillBucketType?: 'SOLID' | 'NONE';
   fillBucketColor?: string;
   onFillBucketTypeChange?: (type:'SOLID'|'NONE')=>void;
@@ -85,6 +85,8 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
     { id: 'select', label: 'Select Tool', tooltip: 'Exit the active drawing or trimming tool', icon: <MousePointer2 size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SELECT'), active: interactionMode === 'SELECT' },
     { id: 'flexible-line', label: 'Polyline', tooltip: 'Draw multiple connected CAD segments as one editable object', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FLEXIBLE_LINE'), active: interactionMode === 'FLEXIBLE_LINE' },
     { id: 'xline', label: 'Construction Line', tooltip: 'CAD XLINE — infinite editor reference line; excluded from export by default', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('XLINE'), active: interactionMode === 'XLINE' },
+    { id: 'ray', label: 'Ray', tooltip: 'CAD RAY — origin-based one-direction construction reference; excluded from export by default', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('RAY'), active: interactionMode === 'RAY' },
+    { id: 'angle-line', label: 'Angle Line', tooltip: 'CAD Angle Line — pick start point, then enter exact Length and Angle', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ANGLE_LINE'), active: interactionMode === 'ANGLE_LINE' },
     { id: 'pen', label: 'Pen Tool', tooltip: 'Draw custom paths', icon: <PenTool size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('PEN'), active: interactionMode === 'PEN' },
     { id: 'edit-path', label: 'Edit Path', tooltip: 'Edit path nodes and curves', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('EDIT_PATH'), active: interactionMode === 'EDIT_PATH', disabled: !canEditPath },
     { id: 'scissors', label: 'Scissors', tooltip: 'Scissors — cut an existing path at a point; it does not divide a closed shape into faces.', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },

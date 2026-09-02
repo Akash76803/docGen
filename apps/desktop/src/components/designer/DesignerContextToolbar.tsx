@@ -28,20 +28,21 @@ export type DesignerContextToolbarProps = {
   onGroupSelected?: () => void;
   onUngroupSelected?: () => void;
   pathEditMode?: { active: boolean; selectedNodeIds: string[] };
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE';
-  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE') => void;
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'REFERENCE_ALIGN';
+  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'REFERENCE_ALIGN') => void;
   pathSelectedSegmentIds?: string[];
   setPathSelectedSegmentIds?: (m: string[]) => void;
   setPathSelectedNodeIds?: (m: string[]) => void;
   onMirrorInvoked?: (axis: 'HORIZONTAL'|'VERTICAL') => void;
   onReferenceMirrorRequested?: (mode:'COPY'|'MOVE')=>void;
+  onReferenceAlignRequested?: ()=>void;
   pathSymmetryMode?: 'OFF'|'H'|'V';
   setPathSymmetryMode?: (mode:'OFF'|'H'|'V')=>void;
   onReplaceSelection?: (elementIds:string[])=>void;
 };
 
 export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
-  mode, sourceArtboard, sourceElements, primaryElementId, mutate, onGroupSelected, onUngroupSelected, pathEditMode, interactionMode, setInteractionMode, pathSelectedSegmentIds, setPathSelectedSegmentIds, setPathSelectedNodeIds, onMirrorInvoked, pathSymmetryMode='OFF', setPathSymmetryMode, onReplaceSelection, onReferenceMirrorRequested
+  mode, sourceArtboard, sourceElements, primaryElementId, mutate, onGroupSelected, onUngroupSelected, pathEditMode, interactionMode, setInteractionMode, pathSelectedSegmentIds, setPathSelectedSegmentIds, setPathSelectedNodeIds, onMirrorInvoked, pathSymmetryMode='OFF', setPathSymmetryMode, onReplaceSelection, onReferenceMirrorRequested, onReferenceAlignRequested
 }) => {
   if (mode === 'NONE') return null;
 
@@ -461,7 +462,7 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
   return (
     <div className="dg-designer-context-toolbar" role="toolbar">
       {sourceElements.length>0 && !(mode === 'PATH' && pathEditMode?.active) && <><div className="dg-designer-context-toolbar__group" data-page-center-mirror-tools><button className="dg-toolbar-button" title="Mirror Across Page Horizontal Center" onClick={()=>mirror('HORIZONTAL')}>↕ Mirror H</button><button className="dg-toolbar-button" title="Mirror Across Page Vertical Center" onClick={()=>mirror('VERTICAL')}>↔ Mirror V</button></div><div className="dg-designer-context-toolbar__separator" /></>}
-      {sourceElements.length>0 && !(mode === 'PATH' && pathEditMode?.active) && <><div className="dg-designer-context-toolbar__group" data-reference-line-mirror-tools><button className="dg-toolbar-button" title="CAD Mirror Copy: pick two points for the reference axis" onClick={()=>onReferenceMirrorRequested?.('COPY')} onDoubleClick={()=>onReferenceMirrorRequested?.('COPY')}>⌁ Line Copy</button><button className="dg-toolbar-button" title="CAD Mirror Move: pick two points for the reference axis" onClick={()=>onReferenceMirrorRequested?.('MOVE')} onDoubleClick={()=>onReferenceMirrorRequested?.('MOVE')}>⌁ Line Move</button></div><div className="dg-designer-context-toolbar__separator" /></>}
+      {sourceElements.length>0 && !(mode === 'PATH' && pathEditMode?.active) && <><div className="dg-designer-context-toolbar__group" data-reference-line-mirror-tools><button className="dg-toolbar-button" title="CAD Mirror Copy: pick two points for the reference axis" onClick={()=>onReferenceMirrorRequested?.('COPY')} onDoubleClick={()=>onReferenceMirrorRequested?.('COPY')}>⌁ Line Copy</button><button className="dg-toolbar-button" title="CAD Mirror Move: pick two points for the reference axis" onClick={()=>onReferenceMirrorRequested?.('MOVE')} onDoubleClick={()=>onReferenceMirrorRequested?.('MOVE')}>⌁ Line Move</button></div><div className="dg-designer-context-toolbar__separator" /></>}\n      {sourceElements.length===1 && (mode==='SHAPE'||mode==='PATH') && !(mode === 'PATH' && pathEditMode?.active) && <><div className="dg-designer-context-toolbar__group" data-reference-edge-align-tools><button className={`dg-toolbar-button ${interactionMode==='REFERENCE_ALIGN'?'active':''}`} title="Pick one edge on the selected vector, then click a Ray/XLINE/Line reference to rotate + move the edge onto it" onClick={()=>onReferenceAlignRequested?.()}>⌁ Align Edge</button></div><div className="dg-designer-context-toolbar__separator" /></>}
       {mode === 'TEXT' && renderTextToolbar()}
       {mode === 'IMAGE' && renderImageToolbar()}
       {mode === 'SVG' && renderSvgToolbar()}

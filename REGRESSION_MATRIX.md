@@ -158,3 +158,23 @@ CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference pa
 - Fixed CardDesigner blank-page crash caused by `canEditPath` and related capability constants being read in a hook dependency array before initialization.
 - Source transpile and declaration-order regression check: PASS.
 - Dashboard -> Card manual runtime verification: PENDING.
+
+## Phase 8.8A4 Fix3 regression gate
+- CardDesigner TDZ-safe initialization order: SOURCE PASS / MANUAL PENDING
+- RAY forward-only construction geometry: HELPER PASS / MANUAL PENDING
+- RAY non-export metadata: SOURCE PASS / MANUAL PENDING
+- Existing CAD/shape/section features: preserved by scoped implementation / MANUAL PENDING
+
+## Phase 8.8A5 CAD Angle Line regression addendum
+| Area | Expected | Status |
+|---|---|---|
+| Dashboard -> Card mount | No TDZ/blank-page regression | Source guard PASS / Manual PENDING |
+| Normal LINE | L shortcut + chaining preserved | Source PASS / Manual PENDING |
+| Angle Line | A shortcut, exact Length/Angle, no auto-chain | Source PASS / Manual PENDING |
+| Arrow shortcut | Alt+A remains Arrow | Source PASS / Manual PENDING |
+| Ray/XLINE/Polyline | Existing tool behavior unchanged | Manual PENDING |
+| Face Split / OSNAP / Trimmer / Boolean | No engine changes | Source diff PASS |
+
+| Phase 8.8A5 Fix1 CAD Line Grip Angle Editing | Source/transpile PASS; Start/End/Center math PASS; manual UI PENDING |
+
+| 8.8A5 Fix2 Edge Align | SHAPE/PATH straight edge -> Ray/XLINE/LINE segment exact collinearity | Automated math PASS; manual pending |

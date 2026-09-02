@@ -50,3 +50,5 @@ export * from './cadPolyline.js';
 export * from './cadXLine.js';
 
 export * from './cadDynamicInput.js';
+
+export * from './cadRay.js';
