@@ -103,3 +103,58 @@ Any Phase 8 change touching a row marked high export/regression risk must add ta
 
 | 8.7 Fix4 | Exact vector intersection welding | Source PASS | Manual PENDING |
 | 8.7 Fix4 | CAD wheel zoom 5%–3200% + pointer anchor | Source PASS | Manual PENDING |
+
+## Phase 8.8A1 CAD LINE Hardening
+- [PENDING MANUAL] click-click LINE does not commit on pointer release
+- [PENDING MANUAL] chained segment starts exactly at previous endpoint
+- [PENDING MANUAL] exact OSNAP/intersection/cardinal endpoint remains welded at deep zoom
+- [PENDING MANUAL] Enter finishes chain but keeps LINE ready
+- [PENDING MANUAL] Escape exits to Select
+- [PENDING MANUAL] closed-face boundary-to-boundary LINE split still works
+- [PASS SOURCE] createCadLineGeometry exact endpoint runtime smoke
+
+## Phase 8.8A2 CAD Polyline + Pan
+- [SOURCE PASS] Polyline stays one PATH with N vertices / N-1 segments.
+- [SOURCE PASS] Exact world vertex coordinates survive bounds normalization.
+- [SOURCE PASS] Duplicate final vertex is ignored for double-click finish.
+- [SOURCE PASS] Polyline metadata is section-engine ready.
+- [MANUAL PENDING] OSNAP/Cardinal/Intersection/Polar/Ortho behavior during Polyline drawing.
+- [MANUAL PENDING] Enter / double-click / Escape lifecycle.
+- [MANUAL PENDING] Pan toggle, middle-mouse pan, Space+drag pan without accidental geometry.
+- [MANUAL PENDING] save/reload/export of Polyline PATH.
+
+| 8.8A3 | CAD XLINE two-point construction geometry | SOURCE PASS / MANUAL PENDING |
+| 8.8A3 | XLINE excluded from export | SOURCE PASS / MANUAL PENDING |
+
+
+## Phase 8.8A3 Fix1 — XLINE Reference Tracking + Dynamic Input
+- Dedicated XLINE hover/acquire for Parallel/Perpendicular tracking.
+- On-canvas editable LINE Length/Angle dynamic input.
+- Exact typed endpoint engine helper.
+- Manual UI verification: PENDING.
+
+| Phase 8.8A3 Fix2 | Ordinary shape draw isolation from CAD/XLINE tracking | SOURCE PASS / MANUAL PENDING |
+| Phase 8.8A3 Fix2 | LINE dynamic input preserved | SOURCE PASS / MANUAL PENDING |
+| Phase 8.8A3 Fix2 | XLINE reference tracking preserved for line-like tools | SOURCE PASS / MANUAL PENDING |
+
+## Phase 8.8A3 Fix4
+- LINE stable editable Length/Angle HUD: SOURCE PASS / MANUAL PENDING
+- Circle center-first radius input: SOURCE PASS / MANUAL PENDING
+- Projected perpendicular virtual intersection: SOURCE PASS / MANUAL PENDING
+- Parametric shape drag-release excluding Circle: SOURCE PASS / MANUAL PENDING
+- Polyline/XLINE protected behavior: SOURCE PASS / MANUAL PENDING
+
+
+## Phase 8.8A3 Fix5
+CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference parity implemented. Manual verification: PENDING. See `UPDATE_PHASE_8_8A3_FIX5_LINE_EXTEND_SHAPE_REFERENCES.md`.
+
+| Phase 8.8A3 Fix6 Shortcuts header button | Source + Manual | PASS source / PENDING manual | `DesignerHeader` exposes Shortcuts action without altering existing actions. |
+| Phase 8.8A3 Fix6 Shortcuts modal | Source + Manual | PASS source / PENDING manual | Searchable categorized shortcut/help modal; backdrop/Escape/X close. |
+
+| 8.8A3 Fix7 shortcut registry | Utility + all exposed shapes + duplicate in place | Source PASS / Manual PENDING |
+
+
+## Phase 8.8A4 Fix2 — Card Designer TDZ Runtime Recovery
+- Fixed CardDesigner blank-page crash caused by `canEditPath` and related capability constants being read in a hook dependency array before initialization.
+- Source transpile and declaration-order regression check: PASS.
+- Dashboard -> Card manual runtime verification: PENDING.

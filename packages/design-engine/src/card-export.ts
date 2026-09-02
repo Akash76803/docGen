@@ -47,7 +47,7 @@ export function buildCardRenderModel(artboard: Artboard, request: CardExportRequ
     trimHeightMm: geometry.trimHeightMm,
     bleedMm: request.includeBleed ? 3 : 0,
     background: request.transparentBackground && request.format === 'PNG' ? 'transparent' : (artboard.background.type === 'SOLID' ? artboard.background.color : 'transparent'),
-    elements: artboard.elements.filter(e => e.visible)
+    elements: artboard.elements.filter(e => e.visible && e.metadata?.cadExport !== false && e.metadata?.cadConstruction !== true)
   };
 }
 

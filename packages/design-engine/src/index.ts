@@ -42,3 +42,11 @@ export * from './mirror.js';
 export * from './boolean-selection.js';
 
 export * from './cadGeometry.js';
+
+export * from './cadLine.js';
+
+export * from './cadPolyline.js';
+
+export * from './cadXLine.js';
+
+export * from './cadDynamicInput.js';

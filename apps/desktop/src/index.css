@@ -2462,3 +2462,4 @@ body { background: var(--bg-primary); color: var(--text-primary); }
 .card-smart-center-guide{position:absolute;pointer-events:none;z-index:2147482100;opacity:.34;border-color:#0ea5e9}.card-smart-center-guide.vertical{top:0;bottom:0;border-left:1px dashed #0ea5e9}.card-smart-center-guide.horizontal{left:0;right:0;border-top:1px dashed #0ea5e9}.card-path-center-guide{stroke:#0ea5e9;stroke-width:.35;stroke-dasharray:2 1.5;opacity:.7;vector-effect:non-scaling-stroke}
 
 .card-path-equal-guide{stroke:#db2777;stroke-width:.45;stroke-dasharray:1.5 1;opacity:.9;vector-effect:non-scaling-stroke}.card-path-guide-label{fill:#be185d;font-size:3px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:.8px;stroke-linejoin:round}
+.card-canvas-viewport.pan-ready{cursor:grab}.card-canvas-viewport.pan-ready:active{cursor:grabbing}

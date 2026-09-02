@@ -1,6 +1,6 @@
 import paper from 'paper';
 import type {DesignElement,PathDesignElement,PathGeometry,PathPoint,ShapeDesignElement} from '@document-tool/contracts';
-import {ensurePaperProject,geometryToPaperItem,transformGeometry} from './booleanUtils.js';
+import {geometryToPaperItem,transformGeometry} from './booleanUtils.js';
 import {localToWorld,shapeToPathGeometry} from './pathUtils.js';
 
 export type BoundarySnapKind='NODE'|'INTERSECTION'|'MIDPOINT'|'CENTER'|'ON_PATH';
@@ -15,11 +15,9 @@ function worldGeometry(element:DesignElement):PathGeometry|undefined{
  const geometry=sourceGeometry(element);return geometry?transformGeometry(geometry,point=>localToWorld(point,element)):undefined;
 }
 function vectorPath(element:DesignElement):paper.Path|undefined{
- ensurePaperProject();
  const geometry=worldGeometry(element);if(!geometry)return undefined;const item=geometryToPaperItem(geometry);return item instanceof paper.Path?item:undefined;
 }
 function simplePath(element:DesignElement):paper.Path|undefined{
- ensurePaperProject();
  const geometry=worldGeometry(element);if(!geometry?.closed)return undefined;const item=geometryToPaperItem(geometry);return item instanceof paper.Path?item:undefined;
 }
 
@@ -36,7 +34,6 @@ function choose(best:BoundarySnap|undefined,candidate:BoundarySnap|undefined):Bo
  * pointer-local: callers control the screen-space tolerance converted to mm.
  */
 export function findBoundarySnap(elements:readonly DesignElement[],point:{x:number;y:number},toleranceMm:number,excludeIds:readonly string[]=[]):BoundarySnap|undefined{
- ensurePaperProject();
  const excluded=new Set(excludeIds);
  const candidates=elements.filter(element=>!excluded.has(element.id)&&element.visible&&!element.locked&&!element.runtimeHidden&&(element.type==='PATH'||element.type==='SHAPE'));
  const paths=new Map<string,paper.Path>();

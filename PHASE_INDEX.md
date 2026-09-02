@@ -95,3 +95,51 @@ Adds 0°/90°/180°/270° hover boundary snap markers with green exact-lock feed
 - Phase 8.7 Add-on Fix3 — CAD Intersection Capture + Draw Tool Exit (`UPDATE_PHASE_8_7_ADDON_FIX3_CAD_INTERSECTION_CAPTURE_DRAW_TOOL_EXIT.md`) — SOURCE IMPLEMENTED / MANUAL PENDING
 
 - Phase 8.7 Add-on Fix4 — CAD Exact Intersection + Deep Zoom — SOURCE VERIFIED / MANUAL PENDING
+
+## Phase 8.8A1 — CAD LINE Hardening
+- strict click-click LINE command
+- continuous chained independent line segments
+- exact endpoint preservation
+- Enter finishes chain; Escape returns Select
+- future section-ready CAD line metadata
+- existing valid face split preserved
+
+## Phase 8.8A2 — CAD Polyline + Canvas Pan
+Status: SOURCE IMPLEMENTED / MANUAL UI PENDING
+Update: `UPDATE_PHASE_8_8A2_CAD_POLYLINE_AND_CANVAS_PAN.md`
+- one-object multi-segment Polyline
+- exact CAD snap vertices
+- Enter/double-click finish, Esc Select
+- future sectioning metadata
+- explicit Pan tool + Space/middle-mouse canvas pan
+
+- Phase 8.8A3 — CAD Construction Line / XLINE — IMPLEMENTED, manual UI verification pending.
+
+
+## Phase 8.8A3 Fix1 — XLINE Reference Tracking + Dynamic Input
+- Dedicated XLINE hover/acquire for Parallel/Perpendicular tracking.
+- On-canvas editable LINE Length/Angle dynamic input.
+- Exact typed endpoint engine helper.
+- Manual UI verification: PENDING.
+
+- Phase 8.8A3 Fix2 — Shape Draw Regression Isolation — source verified, manual UI pending.
+
+- Phase 8.8A3 Fix3 — Build + Shape Draw Recovery: IMPLEMENTED, manual verification PENDING.
+
+- Phase 8.8A3 Fix4 — Dynamic Input Interaction + Circle Radius + Projected Perpendicular Intersection — implementation complete, manual UI verification PENDING.
+
+
+## Phase 8.8A3 Fix5
+CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference parity implemented. Manual verification: PENDING. See `UPDATE_PHASE_8_8A3_FIX5_LINE_EXTEND_SHAPE_REFERENCES.md`.
+
+- Phase 8.8A3 Fix6 — Shortcuts Help Panel — IMPLEMENTED / MANUAL UI PENDING. See `UPDATE_PHASE_8_8A3_FIX6_SHORTCUTS_HELP_PANEL.md`.
+
+- **Phase 8.8A3 Fix7 — Utility, Shape & Duplicate Shortcuts**: runtime tool/shape hotkeys, Ctrl+Shift+D duplicate-in-place, centralized shortcut registry. Manual verification PENDING.
+
+- Phase 8.8A4 Fix1 — Dashboard/Card navigation recovery; RAY temporarily rolled back after blank-page regression.
+
+
+## Phase 8.8A4 Fix2 — Card Designer TDZ Runtime Recovery
+- Fixed CardDesigner blank-page crash caused by `canEditPath` and related capability constants being read in a hook dependency array before initialization.
+- Source transpile and declaration-order regression check: PASS.
+- Dashboard -> Card manual runtime verification: PENDING.

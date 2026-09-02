@@ -512,3 +512,92 @@ Status: PENDING
 3. Place cursor over the junction and roll mouse wheel. Expected: zoom is centered around the pointer.
 4. Middle-mouse drag or Space+drag. Expected: canvas pans without changing geometry.
 5. Type 1600 into the zoom percentage input. Expected: exact 1600% zoom.
+
+## Phase 8.8A1 — CAD LINE Hardening
+1. Activate LINE. Click start, move, release mouse without second click: **no line should commit**.
+2. Click second point: line commits exactly there.
+3. Move to a third point and click: second independent LINE starts exactly at previous endpoint.
+4. Snap a point to an intersection/cardinal marker and inspect at 1600–3200% zoom: no geometric gap expected.
+5. Press Enter after a committed segment: chain ends and LINE says `Specify first point`.
+6. Press Escape: LINE exits and Select cursor becomes active.
+7. Draw a valid boundary-to-boundary line across a closed face: existing section split remains functional.
+
+## Phase 8.8A2 — CAD Polyline + Canvas Pan
+1. Select Polyline. Click A, B, C, D. Expected: one PATH/layer, four vertices, three connected segments.
+2. Draw left/up after initial point. Expected: full geometry remains visible; no clipping.
+3. Snap vertices to endpoint/intersection/cardinal points. Expected: exact green lock coordinates are committed.
+4. Press Enter. Expected: current Polyline finishes, tool stays ready at `Specify first point`.
+5. Draw another Polyline and double-click last point. Expected: finish with no duplicate zero-length segment.
+6. Press Esc. Expected: Select cursor.
+7. Turn Pan ON and left-drag anywhere over artboard. Expected: canvas moves, no geometry/selection drag occurs.
+8. Middle-mouse drag with Pan OFF. Expected: canvas pans.
+9. In Polyline mode hold Space + left-drag. Expected: canvas pans and no Polyline point is added.
+10. Wheel zoom then pan at 800%+. Expected: pointer-centered zoom and smooth viewport navigation.
+
+## Phase 8.8A3 — CAD Construction Line / XLINE
+1. Select Construction Line. Click first point and second direction point. Expected: dashed reference line spans the artboard in both directions.
+2. Enable Ortho/Polar and repeat. Expected: direction uses existing CAD tracking.
+3. Draw normal LINE to XLINE crossing. Expected: crossing participates in intersection snap.
+4. Save/reload. Expected: XLINE persists.
+5. Export PNG/JPEG/PDF. Expected: XLINE is absent from output.
+6. Press Esc while XLINE is active. Expected: Select cursor.
+
+
+## Phase 8.8A3 Fix1 — XLINE Reference Tracking + Dynamic Input
+- Dedicated XLINE hover/acquire for Parallel/Perpendicular tracking.
+- On-canvas editable LINE Length/Angle dynamic input.
+- Exact typed endpoint engine helper.
+- Manual UI verification: PENDING.
+
+## Phase 8.8A3 Fix2 — Shape Draw Regression
+1. Draw Rectangle by drag — must create normally.
+2. Draw Circle/Ellipse — must create normally.
+3. Draw Triangle/Polygon/Star — must create normally.
+4. Draw a shape while an XLINE exists and hover/cross that XLINE — ordinary shape drawing must not be captured by XLINE tracking.
+5. Draw LINE — dynamic Length/Angle HUD must still appear after first point.
+6. Hover XLINE while drawing LINE — XLINE Parallel/Perpendicular reference must still work.
+7. Polyline and XLINE creation must remain functional.
+
+## Phase 8.8A3 Fix3 focused smoke
+- Rectangle drag-release creates one element.
+- Circle/Ellipse drag-release creates one element.
+- Triangle/Polygon/Star drag-release creates one element.
+- LINE remains click-click and dynamic L/A input works.
+- XLINE remains click-click and non-exporting.
+- `npm run build` must complete without the Fix3 source errors.
+
+## Phase 8.8A3 Fix4
+- LINE: click first point, move cursor, click Length/Angle field; preview must not move/commit while editing. Type values and Enter to commit exact geometry.
+- CIRCLE: click center, move for live radius; click radius field and enter 25; Enter must create a 25 mm radius circle. Second-point click must also commit live radius.
+- Projected perpendicular: create/reference two vertices with useful X/Y projections, start a line from another endpoint, approach their virtual common X/Y point; green guides + green × must appear and endpoint must commit exactly there.
+- Regression: Rectangle, Ellipse, Polygon, Star drag-release still work; LINE/Polyline/XLINE remain operational.
+
+
+## Phase 8.8A3 Fix5
+CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference parity implemented. Manual verification: PENDING. See `UPDATE_PHASE_8_8A3_FIX5_LINE_EXTEND_SHAPE_REFERENCES.md`.
+
+## Phase 8.8A3 Fix6 — Shortcuts Help Panel
+1. Open Card Designer. Expected: top header contains a `Shortcuts` button near New / ID Card actions.
+2. Click `Shortcuts`. Expected: centered modal opens without changing current selection/design geometry.
+3. Verify categories: General, Selection & Clipboard, Groups, CAD Drawing, Path Editing, Canvas Navigation.
+4. Search `polar`. Expected: F10 / Polar entry remains visible while unrelated entries filter out.
+5. Search `pan`. Expected: middle mouse, Space+Drag, and Pan tool references are discoverable.
+6. Click modal backdrop. Expected: modal closes.
+7. Reopen and press Escape. Expected: modal closes without deleting/moving/editing geometry.
+8. Reopen and use the X close button. Expected: modal closes.
+9. Verify existing designer actions (Undo/Redo/New/ID Card/Save/Export) still work and header remains usable at normal desktop width.
+
+## Phase 8.8A3 Fix7 — Shortcut Smoke
+- V -> Select.
+- L -> LINE. P -> Polyline. X -> XLINE.
+- Alt+R -> Rectangle; Alt+C -> Circle; Alt+G -> Star; verify several additional Alt shape mappings.
+- Ctrl+D -> duplicate with offset.
+- Ctrl+Shift+D -> duplicate in exact same position.
+- Focus any input/search field and press shortcut keys; tool must NOT change.
+- E/K/J/Shift+C must show eligibility status instead of mutating when selection preconditions are not met.
+
+
+## Phase 8.8A4 Fix2 — Card Designer TDZ Runtime Recovery
+- Fixed CardDesigner blank-page crash caused by `canEditPath` and related capability constants being read in a hook dependency array before initialization.
+- Source transpile and declaration-order regression check: PASS.
+- Dashboard -> Card manual runtime verification: PENDING.

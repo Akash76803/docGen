@@ -8,7 +8,18 @@ export function normalizeExportColor(value: string | undefined | null): string {
   if (!value) return 'transparent';
   if (value.startsWith('var(')) {
     // In an ideal system, we would resolve vars, but export shouldn't contain them.
-    return '#000000';
+    // If it does, we strip it to black or transparent.
+    return 'transparent';
+  }
+  if (value.startsWith('color(display-p3')) {
+    const match = value.match(/color\(\s*display-p3\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)(?:\s*\/\s*([0-9.]+))?\s*\)/);
+    if (match) {
+      const r = Math.max(0, Math.min(255, Math.round(parseFloat(match[1]) * 255)));
+      const g = Math.max(0, Math.min(255, Math.round(parseFloat(match[2]) * 255)));
+      const b = Math.max(0, Math.min(255, Math.round(parseFloat(match[3]) * 255)));
+      const a = match[4] ? parseFloat(match[4]) : 1;
+      return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
   }
   return value;
 }
@@ -18,6 +29,7 @@ function normalizeShadow(shadow?: DesignShadow): string {
   const color = normalizeExportColor(shadow.color);
   return `${shadow.offsetXmm}px ${shadow.offsetYmm}px ${shadow.blurMm}px ${color}`;
 }
+
 
 function normalizeStroke(stroke: DesignStroke | undefined, mmToPx: number): string {
   if (!stroke || !stroke.widthMm || stroke.style === 'NONE') return 'none';
@@ -46,7 +58,7 @@ export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artbo
         <ExportVectorFillDefs fill={artboard.background} ids={ids} assets={assets} width={artboard.widthMm} height={artboard.heightMm}/>
         <rect x="0" y="0" width={artboard.widthMm} height={artboard.heightMm} fill={backgroundPaint} fillOpacity={backgroundOpacity}/>
       </svg>
-      {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => e.visible && !e.runtimeHidden).map(e => (
+      {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => e.visible && !e.runtimeHidden && e.metadata?.cadExport !== false && e.metadata?.cadConstruction !== true).map(e => (
         <IsolatedExportElement key={e.id} element={e} assets={assets} mmToPx={MM_TO_CSS_PX} />
       ))}
     </div>

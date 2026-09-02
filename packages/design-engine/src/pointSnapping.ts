@@ -1,6 +1,6 @@
 import paper from 'paper';
 import type {Artboard,DesignElement,PathDesignElement,PathGeometry,ShapeDesignElement} from '@document-tool/contracts';
-import {ensurePaperProject,geometryToPaperItem,transformGeometry} from './booleanUtils.js';
+import {geometryToPaperItem,transformGeometry} from './booleanUtils.js';
 import {localToWorld,shapeToPathGeometry} from './pathUtils.js';
 
 export type PointSnapKind=
@@ -20,7 +20,6 @@ export interface PointSnapResult {
   elementId?:string;
   guideId?:string;
   detailId?:string;
-  label?:string;
 }
 
 export interface PointSnapOptions {
@@ -98,7 +97,6 @@ function within(point:{x:number;y:number},candidate:{x:number;y:number},toleranc
  */
 export function resolvePointSnap(artboard:Artboard,point:{x:number;y:number},options:PointSnapOptions):PointSnapResult|undefined{
   if(options.enabled===false||options.toleranceMm<=0)return undefined;
-  ensurePaperProject();
   const toleranceMm=options.toleranceMm;
   const excluded=new Set(options.excludeIds??[]);
   const snapToBoundaries=options.snapToBoundaries??true;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Undo2, Redo2, Save, Download, Copy, ClipboardPaste, FilePlus2, LayoutTemplate, House } from 'lucide-react';
+import { Undo2, Redo2, Save, Download, Copy, ClipboardPaste, FilePlus2, LayoutTemplate, House, Keyboard } from 'lucide-react';
 
 export type DesignerHeaderProps = {
   title?: string;
@@ -19,6 +19,7 @@ export type DesignerHeaderProps = {
   onTemplateAction?: () => void;
   onPreview?: () => void;
   onExport?: () => void;
+  onShortcuts?: () => void;
 };
 
 export const DesignerHeader: React.FC<DesignerHeaderProps> = ({
@@ -38,7 +39,8 @@ export const DesignerHeader: React.FC<DesignerHeaderProps> = ({
   onNew,
   onTemplateAction,
   onPreview,
-  onExport
+  onExport,
+  onShortcuts
 }) => {
   return (
     <header className="dg-designer-header">
@@ -109,6 +111,12 @@ export const DesignerHeader: React.FC<DesignerHeaderProps> = ({
         {(onCopy || onPaste) && <div style={{ width: '1px', height: '16px', background: 'var(--color-border)', margin: '0 4px' }} />}
         
         <div style={{ display: 'flex', gap: '8px' }}>
+          {onShortcuts && (
+            <button className="dg-button dg-button--ghost dg-button--sm" onClick={onShortcuts} title="View enabled keyboard and mouse shortcuts" aria-label="Shortcuts">
+              <Keyboard size={14} />
+              Shortcuts
+            </button>
+          )}
           {onNew && (
             <button className="dg-button dg-button--ghost dg-button--sm" onClick={onNew} title="New Design">
               <FilePlus2 size={14} />
