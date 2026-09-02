@@ -24,7 +24,7 @@ export function transformGeometry(geometry: PathGeometry, transformFn: (pt: {x: 
  * Initializes the paper environment if not already initialized.
  * Paper needs a project to work with paths.
  */
-function ensurePaperProject() {
+export function ensurePaperProject() {
   if (!paper.project) {
     paper.setup(new paper.Size(1000, 1000));
   }

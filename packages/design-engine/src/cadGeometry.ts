@@ -1,6 +1,6 @@
 import paper from 'paper';
 import type {DesignElement,PathDesignElement,PathGeometry,ShapeDesignElement} from '@document-tool/contracts';
-import {geometryToPaperItem,transformGeometry} from './booleanUtils.js';
+import {ensurePaperProject,geometryToPaperItem,transformGeometry} from './booleanUtils.js';
 import {localToWorld,shapeToPathGeometry} from './pathUtils.js';
 
 export type CadRayIntersection={x:number;y:number;distanceMm:number;elementId:string};
@@ -12,6 +12,7 @@ function sourceGeometry(element:DesignElement):PathGeometry|undefined{
 }
 
 function worldPathItem(element:DesignElement):paper.PathItem|undefined{
+  ensurePaperProject();
   const geometry=sourceGeometry(element);if(!geometry)return undefined;
   const world=transformGeometry(geometry,point=>localToWorld(point,element));
   const item=geometryToPaperItem(world);
@@ -22,6 +23,7 @@ function worldPathItem(element:DesignElement):paper.PathItem|undefined{
 
 /** Exact Paper.js ray/vector-boundary intersections for CAD snapping. */
 export function findCadRayIntersections(elements:readonly DesignElement[],start:{x:number;y:number},angleDeg:number,excludeIds:readonly string[]=[]):CadRayIntersection[]{
+  ensurePaperProject();
   const excluded=new Set(excludeIds),rad=angleDeg*Math.PI/180,dx=Math.cos(rad),dy=Math.sin(rad);
   // Long finite construction ray. Coordinates are millimetres; 100000 mm is safely beyond any supported artboard.
   const ray=new paper.Path.Line(new paper.Point(start.x,start.y),new paper.Point(start.x+dx*100000,start.y+dy*100000));
