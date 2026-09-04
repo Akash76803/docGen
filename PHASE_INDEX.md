@@ -1,5 +1,13 @@
 # Phase Index
 
+## Phase 9.0 — Test Stabilization and WAVE Geometry Recovery
+
+- Missing editable WAVE path conversion implemented.
+- Seven inherited regression files reconciled with current modular behavior.
+- Typecheck PASS; 190/190 test files and 957/957 tests PASS; build PASS.
+- Windows manual UI verification pending.
+- Update: `UPDATE_PHASE_9_0_TEST_STABILIZATION.md`.
+
 ## Current stabilization addendum
 
 - **Phase 8.8B1 Fix8 — Smallest Planar Compartment Fill** (`UPDATE_PHASE_8_8B1_FIX8_SMALLEST_PLANAR_COMPARTMENT_FILL.md`) — typecheck, 183/183 test files (938/938 tests), and build PASS; Windows UI pending.

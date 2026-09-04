@@ -1,5 +1,18 @@
 # Current Baseline
 
+Latest stabilization: **Phase 9.0 — Test Stabilization and WAVE Geometry Recovery**.
+
+Automated verification after Phase 9.0:
+- `npm run typecheck`: PASS
+- `npm test -- --run`: PASS — 190 files, 957 tests
+- `npm run build`: PASS — 17 workspaces, desktop Vite bundle 1698 modules
+- Manual Windows UI verification: PENDING
+
+Phase 9.0 restores the missing editable closed WAVE conversion geometry and
+reconciles seven inherited source-string regression files with the current
+modular Split, Fill Bucket, joined-region, Polyline and CAD tracking behavior.
+See `UPDATE_PHASE_9_0_TEST_STABILIZATION.md`.
+
 Latest implementation: **Phase 8.8B1 Fix8 — Smallest Planar Compartment Fill**.
 
 Feature baseline: **Phase 8.8A5 Fix2 — Edge Align to Reference Geometry**.

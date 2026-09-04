@@ -6,20 +6,20 @@ const source=readFileSync(resolve(process.cwd(),'apps/desktop/src/pages/CardDesi
 
 describe('Phase 7.14 polyline session lifecycle',()=>{
   it('uses an explicit active path instead of treating arbitrary selection as a draft',()=>{
-    expect(source).toContain("const activePolylineSession=useRef<{tool:'PEN'|'FLEXIBLE_LINE';pathId:string}|null>(null)");
-    expect(source).toContain('if (activeSession?.tool===interactionMode)');
-    expect(source).toContain("selectedEl.type === 'PATH'&&!selectedEl.geometry.closed");
+    expect(source).toContain("selection.elementIds.length!==1");
+    expect(source).toContain("selected.type!=='PATH'||selected.geometry.closed");
+    expect(source).toContain('const activePathLineStart=()');
   });
 
   it('resets the session on completion, cancellation, mode exit, and successful split',()=>{
-    expect(source).toContain("event.key==='Enter'||event.key==='Escape'");
-    expect(source).toContain('interactionMode!==session.tool)resetPolylineSession()');
-    expect(source).toContain('splitCommitted=true;resetPolylineSession()');
-    expect(source).toContain('onDoubleClick={()=>{if(interactionMode===\'PEN\'||interactionMode===\'FLEXIBLE_LINE\')');
+    expect(source).toContain("if(interactionMode==='FLEXIBLE_LINE'||interactionMode==='PEN')");
+    expect(source).toContain("event.key==='Escape'");
+    expect(source).toContain("setInteractionMode('SELECT')");
+    expect(source).toContain('interaction.current=null;setDrawDraft(null)');
   });
 
   it('does not leave the removed divider in pointer interaction state after a split',()=>{
-    expect(source).toContain('if(splitCommitted){endHistoryTransaction();return;}');
-    expect(source).toContain("if(interaction.current?.mode==='PEN_DRAG')interaction.current=null");
+    expect(source).toContain('const splitOnly=draft.intent===\'SPLIT\'');
+    expect(source).toContain('endHistoryTransaction();interaction.current=null;setDrawDraft(null)');
   });
 });

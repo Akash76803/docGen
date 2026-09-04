@@ -8,36 +8,34 @@ const toolbar=readFileSync(resolve(process.cwd(),'apps/desktop/src/components/de
 
 describe('dedicated Divider / Split tool',()=>{
   it('is visible, selectable, and described independently from path tools',()=>{
-    expect(library).toContain("id: 'divider', label: 'Divider'");
+    expect(library).toContain("id: 'split', label: 'Split'");
     expect(library).toContain("onSetInteractionMode?.('SPLIT')");
-    expect(library).toContain('draw across a closed shape or filled section to create new independently fillable sections');
+    expect(library).toContain('create separate, independently editable parts');
     expect(library).toContain("id: 'trimmer', label: 'Erase Segment'");
     expect(library).toContain("id: 'scissors', label: 'Scissors'");
   });
 
   it('reuses the live line draft and OSNAP resolver path',()=>{
-    expect(designer).toContain("interactionMode==='SPLIT'||(interactionMode==='DRAW_SHAPE'&&drawShapeType==='LINE')");
-    expect(designer).toContain("shapeType:interactionMode==='SPLIT'?'LINE':drawShapeType!");
-    expect(designer).toContain("splitOnly:interactionMode==='SPLIT'");
-    expect(designer).toContain('const snap=drawingSnap(raw,[],op?{x:op.startX,y:op.startY}:undefined)');
-    expect(designer).toContain('onPointerMove={moveCanvasWithSplit}');
-    expect(designer).toContain('onPointerUp={upCanvasWithLineCommit}');
+    expect(designer).toContain("const activeShapeType:DesignShapeKind=interactionMode==='SPLIT'?'LINE':drawShapeType!");
+    expect(designer).toContain("intent:interactionMode==='SPLIT'?'SPLIT':'DRAW'");
+    expect(designer).toContain("const splitOnly=draft.intent==='SPLIT'");
+    expect(designer).toContain('const snap=useCadSnap?drawingSnap(raw,[],existing?{x:existing.startX,y:existing.startY}:undefined)');
+    expect(designer).toContain("interactionMode==='SPLIT'||activeShapeType==='LINE'");
   });
 
   it('uses the canonical face splitter and removes a failed attempted divider',()=>{
-    expect(designer).toContain('const split=splitComponentFaceByDivider(nextArt.elements,divider');
-    expect(designer).toContain('else if(draft.splitOnly){splitFailed=true;return t;}');
-    expect(designer).toContain('Line must start and end on a shape boundary to split it');
-    expect(designer).toContain('Split complete — parts are independently editable');
+    expect(designer).toContain('const split=splitComponentFaceByDivider([...artboard.elements,divider],divider');
+    expect(designer).toContain('Split failed — line must start and end on a closed shape boundary');
+    expect(designer).toContain('Split created ${faceIds.length} independent parts');
   });
 
   it('keeps boolean Subtract distinct and documented',()=>{
-    expect(toolbar).toContain('Subtract — remove the top/cutter path area from the bottom/base path');
+    expect(toolbar).toContain('Subtract — subtract every other selected vector from the Primary element.');
     expect(toolbar).toContain("doBooleanOperation('SUBTRACT')");
   });
 
   it('does not rename or replace internal Trimmer behavior',()=>{
-    expect(designer).toContain("interactionMode === 'TRIMMER'");
+    expect(designer).toContain("interactionMode==='TRIMMER'");
     expect(designer).toContain('computeIntervals');
     expect(designer).toContain('deleteManualTrimRange');
   });

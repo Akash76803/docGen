@@ -862,6 +862,28 @@ export function shapeToPathGeometry(shapeType: string, sizeMm: {widthMm: number,
     points[0]!.inHandle={x:r-k,y:0};
     const types:PathSegment['type'][]=['LINE','CUBIC_BEZIER','LINE','CUBIC_BEZIER','LINE','CUBIC_BEZIER','LINE','CUBIC_BEZIER'];
     types.forEach((type,index)=>segments.push({id:crypto.randomUUID(),type,fromPointId:ids[index]!,toPointId:ids[(index+1)%ids.length]!}));
+  } else if (shapeType === 'WAVE') {
+    // A closed ribbon-like wave: two smooth cubic chains joined by straight
+    // sides. Keeping six stable anchors makes the converted shape practical
+    // to edit while preserving the live shape's full width/height bounds.
+    const ids=Array.from({length:6},()=>crypto.randomUUID());
+    const handleX=w*.18;
+    points.push(
+      {id:ids[0]!,x:0,y:h*.35,mode:'SMOOTH',outHandle:{x:handleX,y:h*.05}},
+      {id:ids[1]!,x:w*.5,y:h*.15,mode:'SMOOTH',inHandle:{x:w*.5-handleX,y:h*.15},outHandle:{x:w*.5+handleX,y:h*.15}},
+      {id:ids[2]!,x:w,y:h*.35,mode:'SMOOTH',inHandle:{x:w-handleX,y:h*.65}},
+      {id:ids[3]!,x:w,y:h*.75,mode:'SMOOTH',outHandle:{x:w-handleX,y:h*.45}},
+      {id:ids[4]!,x:w*.5,y:h*.55,mode:'SMOOTH',inHandle:{x:w*.5+handleX,y:h*.55},outHandle:{x:w*.5-handleX,y:h*.55}},
+      {id:ids[5]!,x:0,y:h*.75,mode:'SMOOTH',inHandle:{x:handleX,y:h*1.05}}
+    );
+    segments.push(
+      {id:crypto.randomUUID(),type:'CUBIC_BEZIER',fromPointId:ids[0]!,toPointId:ids[1]!},
+      {id:crypto.randomUUID(),type:'CUBIC_BEZIER',fromPointId:ids[1]!,toPointId:ids[2]!},
+      {id:crypto.randomUUID(),type:'LINE',fromPointId:ids[2]!,toPointId:ids[3]!},
+      {id:crypto.randomUUID(),type:'CUBIC_BEZIER',fromPointId:ids[3]!,toPointId:ids[4]!},
+      {id:crypto.randomUUID(),type:'CUBIC_BEZIER',fromPointId:ids[4]!,toPointId:ids[5]!},
+      {id:crypto.randomUUID(),type:'LINE',fromPointId:ids[5]!,toPointId:ids[0]!}
+    );
   } else if (shapeType === 'POLYGON') {
     addClosedPolygon([{ x: w * 0.25, y: 0 }, { x: w * 0.75, y: 0 }, { x: w, y: h * 0.5 }, { x: w * 0.75, y: h }, { x: w * 0.25, y: h }, { x: 0, y: h * 0.5 }]);
   } else if (shapeType === 'STAR') {
