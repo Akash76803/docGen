@@ -52,3 +52,11 @@ export * from './cadXLine.js';
 export * from './cadDynamicInput.js';
 
 export * from './cadRay.js';
+
+export * from './cadArc.js';
+
+export * from './joinedLineRegion.js';
+
+export * from './endpointWeld.js';
+
+export * from './intersectionTopology.js';

@@ -1,5 +1,145 @@
 # Manual Smoke Tests
 
+## Phase 8.8B1 Fix8 — Smallest Planar Compartment Fill
+
+1. Draw one circle and reproduce the supplied nested-diamond/fan pattern using Polyline or LINE.
+2. Confirm top, bottom, left, right and internal junctions acquire exact Endpoint/Intersection snaps.
+3. Select Fill Bucket, choose a visibly different color and click inside the center diamond. Confirm only the center diamond fills.
+4. Click each adjacent triangular/diamond strip in turn. Confirm only the clicked smallest compartment becomes a persistent independent section.
+5. Click the remaining area between the outer diamond and circle. Confirm that curved outer compartment fills without coloring the entire circle.
+6. Change/remove fill on an already generated section. Confirm the same section is edited rather than another duplicate face being created.
+7. Click an ordinary closed shape with no internal partitions. Confirm normal whole-shape fill still works.
+8. Repeat at 200%, 400% and 800%; verify no neighboring face is selected through a junction.
+9. Undo/Redo each created section, then Save/Reload and run PDF/PNG export.
+
+**Status:** typecheck, 183 files / 938 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8B1 Fix7 — Duplicate Intersection Cluster Consolidation
+
+1. Recreate the supplied fan-junction image with three or more manually drawn LINE endpoints aimed at one declared intersection.
+2. Hover the existing point before every click and confirm `Intersection` feedback appears.
+3. Finish each LINE and inspect at 200%, 400% and 800% zoom. Confirm there is one junction only—no tiny triangle, fan, gap or overlapping nearby points.
+4. Enter Edit Path on every participating LINE and verify each connected endpoint has the exact same displayed world coordinate.
+5. Draw a branch ending up to 0.2 mm short of an existing segment. Confirm the gap closes, the endpoint projects to the segment and the target segment receives a persistent node.
+6. Repeat with an already-declared intersection in the cluster; confirm its coordinate remains the master rather than being averaged or shifted.
+7. Keep an unrelated endpoint more than 0.2 mm away and confirm it is not pulled into the junction.
+8. Use the resulting network with Fill Bucket/automatic face split and confirm clean independent multi-sections.
+9. Undo/Redo, Save/Reload and PDF/PNG export; inspect the junction after reload/export.
+
+**Status:** typecheck, 183 files / 935 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8B1 Fix6 — Persistent Intersection Nodes & Exact OSNAP
+
+1. Draw a horizontal LINE and a vertical LINE crossing through its middle.
+2. Finish the command, start another LINE and hover near the crossing. Confirm `Intersection` highlights before Endpoint/Vertex/Boundary feedback.
+3. Click the highlighted intersection as the new LINE start; finish elsewhere. Enter Edit Path and confirm its start coordinate exactly matches the crossing—not a nearby projected value.
+4. Start elsewhere and use the same declared intersection as the endpoint; confirm exact merge.
+5. Create a T-junction by ending a new LINE at the middle of an existing LINE. Confirm the target LINE is split into two segments and both paths store one canonical junction.
+6. Connect three, four and more lines to that point; every new start/end must lock to the same persistent intersection.
+7. Recreate the Circle/Triangle reference: make the first crossing divider, then draw further lines between declared intersection points. Confirm closed regions become independent multi-sections.
+8. Inspect at 200%, 400% and 800% zoom; confirm no micro-gap, overlap or approximate endpoint.
+9. Move/trim a connected segment and verify topology remains valid or is recalculated on the next committed LINE operation.
+10. Undo/Redo each LINE/intersection/face operation, Save/Reload and compare PDF/PNG export.
+
+**Status:** typecheck, 183 files / 933 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8B1 Fix5 — T-Junction Auto Multi-Section Topology
+
+1. Draw a Triangle inside a Circle.
+2. Draw one horizontal normal LINE completely across the Triangle, with its raw endpoints outside the Triangle boundary.
+3. Confirm the engine clips the divider to the Triangle entry/exit intersections and converts the Triangle into two independently selectable sections; the outside line portions must not become section edges.
+4. Draw another LINE from the Triangle top corner to the middle of the new shared horizontal divider.
+5. Confirm endpoint/intersection feedback at both ends and verify the touched section splits again.
+6. Confirm the Triangle component now contains exactly three independent closed sections; click each and apply a different fill.
+7. Repeat from another corner/shared-divider point to produce four or more sections incrementally.
+8. Draw a line that crosses the boundary only once and ends inside; confirm no invalid section is generated.
+9. Undo once per divider and confirm each complete topology replacement reverses in one step; Redo restores it.
+10. Save/Reload, inspect junctions at 400–800% zoom and run quick PDF/PNG export comparison.
+11. Regress dedicated Split, Face Split/Multi-section, LINE chaining, Polyline, Trimmer, Fill Bucket, OSNAP and endpoint weld.
+
+**Status:** typecheck, 181 files / 929 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8B1 Fix4 — Post-Trim Multi-Point Endpoint Weld
+
+1. Recreate the supplied case: make multiple lines meet near one central junction and use Trimmer/Erase Segment to remove the extra line portion.
+2. Confirm the newly exposed endpoint lands exactly on the existing central node—no visible wedge, gap or short overlapping connector at 200%, 400% and 800% zoom.
+3. Repeat with three and four segments meeting at the same point. Confirm every trimmed fragment shares the same displayed junction coordinate.
+4. Enter Edit Path and inspect the involved endpoints; dragging one to the junction should show Endpoint/Vertex feedback and exact placement.
+5. Keep a target endpoint more than 0.15 mm away and trim; confirm it is not pulled across the guarded tolerance.
+6. Undo once and confirm the whole trim+weld operation reverses together; Redo restores it.
+7. Use Fill Bucket inside the resulting joined boundary and confirm one clean independent section is created.
+8. Save/Reload and compare the junction at deep zoom; then run quick PDF/PNG export comparison.
+9. Regress LINE, Polyline, XLINE, Ray, Arc, Face Split/Multi-section and Extend-to-Boundary.
+
+**Status:** typecheck, 180 files / 926 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8B1 Fix3 — Joined-Line Independent Sections
+
+1. Draw four separate LINE elements as a rectangle, using endpoint OSNAP so every corner highlights and joins accurately.
+2. Press Enter to finish LINE chaining, choose Fill Bucket (`B`), select a visible solid color and click inside the loop.
+3. Confirm `Joined Line Section` is created and immediately selected as an independent closed PATH.
+4. Change its fill, move it, hide it and delete it; confirm the four source LINE elements remain unchanged.
+5. Undo once after creation and confirm only the generated section disappears; Redo restores it.
+6. Leave one corner open by more than 0.05 mm and click inside; confirm no section is created and `no closed boundary` feedback appears.
+7. Close that corner using grip endpoint snap, then repeat Fill Bucket; confirm section creation succeeds.
+8. Create a smaller closed loop inside a larger loop. Click inside the smaller loop and confirm the smallest enclosed section is generated.
+9. Save/Reload and confirm section geometry, fill and independent selection persist.
+10. Quick PDF/PNG export and inherited LINE/Polyline/Face Split/Multi-section/OSNAP regression.
+
+**Status:** typecheck, 178 files / 923 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8B1 Fix2 — CAD Grip Stretch & Angular OSNAP Feedback
+
+1. Dashboard → Card; confirm no blank page and Rectangle/Circle/Star draw/select normally.
+2. Draw two separate LINE/PATH elements. Select the first, enter Edit Path, grab its endpoint and stretch it near the second line's endpoint. Confirm a green `Endpoint` marker appears; release and verify exact point-to-point connection.
+3. Repeat endpoint drag toward a PATH vertex and confirm `Vertex` feedback and exact merge.
+4. Arrange two other straight elements so they intersect. Drag an open LINE endpoint along its fixed segment direction toward that crossing; confirm `Intersection` highlights and release commits exactly at the intersection.
+5. Undo once and confirm the whole grip stretch reverts; Redo restores it.
+6. Activate LINE, click the first point and move the cursor around it. Confirm labelled guides at 0°, 45°, 90°, 135°, 180°, 225°, 270° and 315° remain screen-readable at deep zoom.
+7. Turn Polar on (`F10`) and keep Angle at 15° or set it to 45°. Approach 45°, 90° and 135°; confirm the active guide turns amber and the angle HUD reports the exact angle. `F8` must still constrain to horizontal/vertical.
+8. Draw toward an existing endpoint, vertex and line crossing. Confirm the target highlights before the click and the committed endpoint lands exactly on it.
+9. Repeat the angular guide and intersection checks with Angle Line; verify its Length/Angle fields remain clickable.
+10. Quick regressions: Circle Radius; LINE chaining; Polyline; XLINE; Ray; Line Grip Angle Editing; Extend-to-Boundary; projected perpendicular intersection; Face Split/Multi-section; Shortcuts modal; duplicate shortcuts; Align Edge (Triangle→Ray, Rectangle→XLINE, Shape→LINE).
+11. Save/Reload, Undo/Redo, and quick PDF/PNG export comparison.
+
+**Status:** typecheck, 176 files / 919 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8B1 — CAD Arc
+
+1. Open Dashboard → Card and confirm no blank page/TDZ error.
+2. Open Elements → Utility → CAD Arc, or press `Shift+A`.
+3. Click Start, move and click Through, then move and click End. Confirm live line/arc preview and OSNAP markers at all stages.
+   - Repeat with every click directly over an existing filled Rectangle/Circle/Star; Arc must own the click and the existing shape must not move/select.
+   - Confirm the canvas cursor visibly changes to crosshair while CAD Arc is active.
+4. Confirm a circular open arc is created through all three picked points and remains ready for the next arc.
+5. Pick three nearly/fully collinear points; confirm no corrupt path is created and actionable feedback appears.
+6. Press Esc, select the arc, verify size/angle/endpoints/midpoints/center, then resize and rotate it.
+7. Enter Edit Path and move endpoints/through node/Bezier handles; confirm it stays an editable PATH.
+8. Undo once immediately after creation and confirm the entire arc is removed; Redo restores it.
+9. Verify `A` still opens Angle Line, `Shift+A` opens CAD Arc, and `Alt+A` draws Arrow.
+10. Verify OSNAP, F8 Ortho, F10 Polar, LINE, Polyline, XLINE, Ray, Angle Line, Circle Radius, Extend-to-Boundary, Face Split and Align Edge quick regressions.
+11. Save/Reload and compare arc geometry/metadata.
+12. Export PDF and PNG and confirm the CAD Arc is printable and visually matches the canvas.
+
+**Status:** typecheck, 175 files / 916 tests and build PASS; Windows UI PENDING.
+
+## Phase 8.8A5 Fix4 — Zoom Pan & Vector Selection Inspection
+
+1. Dashboard → Card; confirm the designer opens and no blank page/TDZ console error appears.
+2. Draw Rectangle, Circle, Star and Half Circle. After each drag-release, confirm Select becomes active and the new shape can immediately be moved, resized and rotated.
+3. Select each SHAPE/PATH. Confirm width × height, rotation angle, blue endpoint squares, amber segment midpoints and the center marker are visible and update during resize/rotation.
+4. Double-click a PATH or choose Edit Path; move nodes/handles and confirm geometry is editable.
+5. Set zoom to 200%, 400% and 800%. At every level use Pan tool, middle-mouse drag and Space+drag in all directions; confirm top, bottom, left and right artboard edges can all be brought into view without top freeze/clipping.
+6. Circle Radius input; LINE Length/Angle; Angle Line; LINE Start/End/Center grip-angle editing; endpoint Extend-to-Boundary; Polyline; XLINE; Ray; projected perpendicular intersection.
+7. Face Split, then split a generated face again and confirm independent multi-section selection.
+8. Open Shortcuts; verify utility/shape/duplicate entries, `A` Angle Line vs `Alt+A` Arrow, `Ctrl+D` offset duplicate and `Ctrl+Shift+D` in-place duplicate.
+9. Align Edge: Triangle edge → Ray, Rectangle edge → XLINE, Shape edge → normal LINE. Confirm reference is unchanged and target is not distorted.
+10. Undo/Redo draw, transform and Align Edge operations; Save/Reload; quick PDF and PNG export comparison.
+
+**Expected:** high-zoom navigation remains unconstrained, selection inspection remains screen-readable, and all inherited CAD/section/export behavior remains functional.
+
+**Status:** automated gates PASS; Windows UI execution PENDING.
+
 Each release phase should record these results instead of assuming automated coverage equals runtime behavior.
 
 ## Selection and Transform
@@ -40,6 +180,25 @@ Save a design containing shape/path/group/image binding/generated face, reload a
 
 ## Export
 Export representative design as PDF, PNG and JPEG. Compare text, fills, images, PATHs, rotations, generated faces and dynamic content with canvas preview.
+
+## Phase 8.8A5 Fix3 — Windows UI Gate
+1. Dashboard → Card opens without a blank page or TDZ console error.
+2. Draw Rectangle, Circle and Star; confirm normal drag-release behavior.
+3. Circle: click center, enter exact Radius, commit with Enter.
+4. LINE: click start, edit Length/Angle, commit; draw a continuous chain and finish it.
+5. Angle Line: press `A`, set start and exact Length/Angle; confirm it does not auto-chain. Confirm `Alt+A` still draws Arrow.
+6. Line Grip Angle Editing: Edit Path on a CAD LINE; test Start, End and Center anchors with exact Length/Angle.
+7. Double-click a LINE endpoint and verify Extend-to-Boundary reaches the nearest valid boundary.
+8. Draw a multi-segment Polyline and finish with Enter/double-click.
+9. Draw XLINE and Ray; confirm XLINE is bidirectional and Ray is forward-only.
+10. Verify projected horizontal/vertical perpendicular intersection marker and exact endpoint capture.
+11. Split a closed shape, then split one generated face again; verify independent multi-section faces.
+12. Open Shortcuts; verify search plus Utility, Shape and Duplicate entries.
+13. Verify `Ctrl+D` offset duplicate and `Ctrl+Shift+D` duplicate in place.
+14. Align Edge: Triangle edge → Ray; Rectangle edge → XLINE; Shape edge → normal LINE. In each case verify collinearity, unchanged reference, and no target distortion.
+15. Undo/Redo each geometry operation, especially Align Edge as one history step.
+16. Save, reload, and compare geometry, layer order and CAD metadata.
+17. Quick export regression: PDF and PNG (plus JPEG if available); compare visible printable geometry. Confirm Ray/XLINE remain editor-only where configured.
 
 
 # Phase 8.2 Styling Smoke

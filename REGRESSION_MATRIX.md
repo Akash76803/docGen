@@ -1,5 +1,117 @@
 # Shape Operations Permanent Regression Matrix
 
+## Phase 8.8B1 Fix8 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Circle/Bezier boundary participates in region graph | joined-line region tests | PASS | fill curved outer compartment |
+| Internal divider produces independent sides | joined-line region tests | PASS | left/right circle halves |
+| Nested boundary selects smallest compartment | joined-line region tests | PASS | center diamond only |
+| Fill priority: existing face → planar region → parent | desktop wiring test | PASS | recolor, create, ordinary fill |
+| Full regression suite | 183 files / 938 tests | PASS | inherited CAD/UI/export smoke |
+
+Fix8 changes region detection and Fill Bucket target priority. It does not modify `faceSplit.ts`, point snapping, Trimmer, Boolean, export or path-topology algorithms.
+
+## Phase 8.8B1 Fix7 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Multi-endpoint fan consolidation | persistent intersection topology test | PASS | one visible junction at 800% |
+| Existing declared point remains master | same engine test | PASS | no coordinate drift |
+| Near endpoint-to-segment gap closure | same engine test | PASS | endpoint projects and target splits |
+| Guarded 0.2 mm clustering | engine implementation + manual gate | PASS | unrelated point remains separate |
+| Full regression suite | 183 files / 935 tests | PASS | inherited CAD/UI/export smoke |
+
+Fix7 changes only straight-PATH intersection materialization; XLINE, Ray, Bezier geometry and protected export/Boolean/Trimmer algorithms remain unchanged.
+
+## Phase 8.8B1 Fix6 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Crossing segments → persistent nodes | `phase88b1-fix6-persistent-intersection-topology.test.ts` | PASS | cross two LINEs and inspect nodes |
+| Endpoint-to-segment T-junction | same engine test | PASS | target segment becomes two segments |
+| Declared intersection snap priority | same engine test + point OSNAP suite | PASS | exact coordinate beats projected candidate |
+| UI materialization before face rebuild | `phase88b1-fix6-persistent-intersection-ui.test.ts` | PASS | LINE commit then multi-section |
+| T-junction multi-section inheritance | Fix5 acceptance tests | PASS | Circle/Triangle network |
+| Full regression suite | 183 files / 933 tests | PASS | inherited CAD/UI/export smoke |
+
+Fix6 is limited to straight PATH segments. Bezier self/cross intersection materialization remains outside this phase.
+
+## Phase 8.8B1 Fix5 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Extended LINE clipped to face intersections | `phase88b1-fix5-tjunction-auto-multisection.test.ts` | PASS | horizontal line through Triangle |
+| Shared-divider T-junction | same acceptance test | PASS | corner → divider midpoint |
+| Incremental 2 → 3 sections | same acceptance test | PASS | independently select/fill all faces |
+| One-crossing invalid divider rejection | same acceptance test | PASS | no corrupt face generated |
+| Existing face topology | phase 7.3 + phase 7.5 tests (10 tests) | PASS | dedicated Split regression |
+| Full regression suite | 181 files / 929 tests | PASS | inherited CAD/UI/export smoke |
+
+Fix5 changes the canonical face splitter only to resolve and clip valid inside spans between boundary contacts. Existing strict boundary-to-boundary behavior remains covered.
+
+## Phase 8.8B1 Fix4 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Trim endpoint → canonical node | `phase88b1-fix4-trim-endpoint-weld.test.ts` | PASS | inspect central junction at deep zoom |
+| 2+ generated endpoints at one junction | same engine test | PASS | three/four segment junction |
+| Guarded 0.15 mm tolerance | same engine test | PASS | distant endpoint remains unchanged |
+| Trimmer commit wiring | `phase88b1-fix4-trim-endpoint-weld-ui.test.ts` | PASS | trim and one-step Undo/Redo |
+| Existing smart trimmer | `phase71-smart-trimmer.test.ts` (11 tests) | PASS | interval and manual trim |
+| Full regression suite | 180 files / 926 tests | PASS | inherited CAD/UI/export smoke |
+
+The existing Trimmer interval algorithm, face split, Boolean, point snapping and export engines were not modified.
+
+## Phase 8.8B1 Fix3 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Four separate LINEs → closed section | `phase88b1-fix3-joined-line-region.test.ts` | PASS | Fill Bucket inside joined loop |
+| CAD endpoint tolerance | same engine test | PASS | ≤0.05 mm accepted |
+| Open graph rejection | same engine test | PASS | actionable no-boundary feedback |
+| Nested-loop face choice | same engine test | PASS | smallest clicked region |
+| Independent persistent AUTO_SECTION | `phase88b1-fix3-joined-line-section-ui.test.ts` | PASS | select/fill/move/delete without source-line mutation |
+| Full regression suite | 178 files / 923 tests | PASS | inherited CAD/UI/export smoke |
+
+Existing point snapping, face splitting, trimming, Boolean, export and path-topology algorithms were not modified.
+
+## Phase 8.8B1 Fix2 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Endpoint grip → endpoint/vertex exact merge | `phase88b1-fix2-cad-grip-angular-osnap.test.ts` + point OSNAP engine tests | PASS | drag and release on highlighted point |
+| Endpoint grip → computed intersection | same targeted test + existing intersection engine tests | PASS | stretch endpoint along its segment to crossing |
+| Live grip snap classification | same targeted test | PASS | Endpoint / Vertex / Intersection label |
+| 45-degree construction guides | same targeted test | PASS | 0° through 315° labels and amber active ray |
+| Existing Polar/Ortho/intersection drawing | phase 8.7 targeted regressions | PASS | F8/F10 and exact drop |
+| Full regression suite | 176 files / 919 tests | PASS | inherited CAD/UI smoke |
+
+Protected geometry modules and export logic were not modified in Fix2.
+
+## Phase 8.8B1 CAD Arc additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| Three-point circular construction | `phase88b1-cad-arc.test.ts` | PASS | Start → Through → End visual check |
+| Degenerate/collinear rejection | `phase88b1-cad-arc.test.ts` | PASS | no corrupt element |
+| Editable PATH + print metadata | engine + UI targeted tests | PASS | Edit Path and PDF/PNG |
+| Shortcut isolation | `phase88b1-cad-arc-ui.test.ts` | PASS | A / Shift+A / Alt+A |
+| Full regression suite | 175 files / 916 tests | PASS | inherited CAD/UI smoke |
+| Arc pointer ownership over shapes | `phase88b1-cad-arc-ui.test.ts` | PASS | draw all three points over existing shapes |
+| Arc crosshair cursor | `phase88b1-cad-arc-ui.test.ts` | PASS | cursor changes immediately on activation |
+
+## Phase 8.8A5 Fix4 additions
+
+| Area | Automated coverage | Result | Manual gate |
+|---|---|---|---|
+| High-zoom pan footprint | `phase88a5-fix4-zoom-pan-selection-inspection.test.ts` | PASS | 200/400/800%, all edges reachable |
+| Shape draw → Select | same targeted test + existing draw regressions | PASS | newly drawn shape immediately editable |
+| Vector inspection | same targeted test | PASS | size, angle, endpoints, midpoints, center |
+| Full regression suite | 173 files / 910 tests | PASS | inherited CAD/UI smoke required |
+
+Protected geometry algorithms (`faceSplit.ts`, `pointSnapping.ts`, `trimmerUtils.ts`, `booleanUtils.ts`) and export logic were not modified in Fix4.
+
 | Feature | Existing automated coverage | Quality | Manual check | Export risk |
 |---|---|---|---|---|
 | LINE | existing drawing/path tests | PARTIAL/REAL mixed | draw normal line | medium |
@@ -178,3 +290,16 @@ CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference pa
 | Phase 8.8A5 Fix1 CAD Line Grip Angle Editing | Source/transpile PASS; Start/End/Center math PASS; manual UI PENDING |
 
 | 8.8A5 Fix2 Edge Align | SHAPE/PATH straight edge -> Ray/XLINE/LINE segment exact collinearity | Automated math PASS; manual pending |
+
+## Phase 8.8A5 Fix3 stabilization gate
+| Gate | Result |
+|---|---|
+| TypeScript project references | PASS — 0 errors |
+| Unit/integration suite | PASS — 172 files / 907 tests |
+| Workspace production build | PASS |
+| Exact-size multi-edit position stability | PASS automated |
+| PATH/image/group persistence normalization | PASS automated |
+| Dynamic Base64 and artboard image binding fixtures | PASS automated |
+| Edge Align / LINE / Polyline / XLINE / Ray / Angle Line source guards | PASS automated |
+| Card Designer TDZ declaration order | SOURCE CHECK PASS / MANUAL PENDING |
+| Complete Windows UI smoke | PENDING |

@@ -1,0 +1,16 @@
+import { addGuide,clearGuides,createBlankArtboard,deleteGuide,moveGuide,setAllGuidesLocked,setGuideLocked,snapMoveDelta } from '../packages/design-engine/dist/index.js';
+const assert=(condition,message)=>{if(!condition)throw new Error(message);};
+let template={kind:'CARD_DESIGN',schemaVersion:1,id:'t',name:'Guide smoke',version:1,status:'DRAFT',sharedAssets:[],artboards:[createBlankArtboard({id:'a',name:'Front',order:0,widthMm:90,heightMm:50})]};
+template=addGuide(template,'a',{id:'v',orientation:'VERTICAL',positionMm:20});
+template=addGuide(template,'a',{id:'h',orientation:'HORIZONTAL',positionMm:25});
+assert(template.artboards[0].guides.length===2,'guides should be added');
+template=moveGuide(template,'a','v',30);assert(template.artboards[0].guides.find(g=>g.id==='v').positionMm===30,'guide should move');
+template=setGuideLocked(template,'a','v',true);const before=template;template=moveGuide(template,'a','v',40);assert(template===before,'locked guide must not move');
+template=setGuideLocked(template,'a','v',false);template=deleteGuide(template,'a','v');assert(template.artboards[0].guides.length===1,'guide should delete');
+template=setAllGuidesLocked(template,'a',true);template=clearGuides(template,'a');assert(template.artboards[0].guides.length===1,'default clear preserves locked guides');
+template=setAllGuidesLocked(template,'a',false);template=clearGuides(template,'a');assert(template.artboards[0].guides.length===0,'unlocked guides should clear');
+template=addGuide(template,'a',{id:'snap',orientation:'VERTICAL',positionMm:20});
+template.artboards[0].elements.push({id:'e',type:'SHAPE',name:'Box',shape:'RECTANGLE',position:{xMm:10,yMm:10},size:{widthMm:8,heightMm:8},rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:0,fill:{type:'SOLID',color:'#fff',opacity:1},stroke:{color:'#000',widthMm:0,style:'NONE'}});
+const snap=snapMoveDelta(template.artboards[0],['e'],{xMm:1.2,yMm:0},{snapToArtboard:false,snapToElements:false,snapToGuides:true,toleranceMm:1.5});
+assert(snap.snappedX&&snap.guides.some(g=>g.source==='GUIDE'),'smart snapping should consume authored guide');
+console.log('Phase 6.1.3 rulers/grid/guides smoke PASS');

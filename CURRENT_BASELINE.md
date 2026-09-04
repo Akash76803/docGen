@@ -1,8 +1,36 @@
 # Current Baseline
 
-Latest implementation: **Phase 8.8A3 — CAD Construction Line / XLINE
+Latest implementation: **Phase 8.8B1 Fix8 — Smallest Planar Compartment Fill**.
 
-Previous manually verified baseline: Phase 8.8A2 — CAD Polyline + Canvas Pan**.
+Feature baseline: **Phase 8.8A5 Fix2 — Edge Align to Reference Geometry**.
+
+Automated verification after Phase 8.8B1 Fix8:
+- `npm run typecheck`: PASS
+- `npm test -- --run`: PASS — 183 files, 938 tests
+- `npm run build`: PASS
+- Manual Windows UI verification: PENDING for Fix8
+
+Fix8 makes Fill Bucket resolve the smallest planar compartment before falling back to the containing parent shape. Closed SHAPE/PATH boundaries, curved circle/ellipse edges and internal LINE/polyline segments participate in one intersection-split face graph. Existing generated sections remain directly recolorable, while a click inside a new compartment creates only that independent `AUTO_SECTION` face instead of filling the complete outer circle.
+
+Fix7 consolidates nearby endpoint fans into one persistent intersection. Within a guarded 0.2 mm topology tolerance, an existing declared intersection remains the deterministic master; all new endpoints move to that exact coordinate. Near endpoint-to-segment gaps are projected closed, the target segment is split, and no additional nearby intersection is created.
+
+Fix6 materializes straight-line crossings and endpoint-to-segment T-junctions as persistent intersection nodes. Both involved PATH segments split at one canonical coordinate, future LINE start/end hover resolves the declared intersection before dynamic/projected candidates, and face splitting records its entry/exit intersection nodes for subsequent multi-section operations.
+
+Fix5 allows a normal CAD LINE to extend beyond a closed face: the splitter resolves the actual boundary entry/exit intersections, clips the divider to the interior span and creates independent faces. A subsequent boundary-to-shared-divider line forms a canonical T-junction and incrementally splits the affected face, producing three or more independently selectable sections.
+
+Fix4 canonicalizes endpoints produced by Trimmer/Erase Segment. Every generated fragment endpoint within 0.15 mm of an existing PATH node is moved to that exact node coordinate; 2, 3 or more generated endpoints can share the same junction without inserting artificial connector segments. Non-target geometry and endpoints outside tolerance remain unchanged.
+
+Fix3 recognizes a closed graph made from separate point-connected straight LINE/PATH elements. Fill Bucket inside the loop creates a new independent closed `AUTO_SECTION` PATH while preserving all source lines. Endpoint clustering uses the existing 0.05 mm CAD topology tolerance, open graphs are rejected, and nested loops choose the smallest region containing the click.
+
+Fix2 enables endpoint grip stretching to snap exactly onto other-element endpoints, vertices, boundaries and computed intersections. Live green snap markers identify the acquired target. LINE and Angle Line drawing now display labelled 0°/45°/90°/135°/.../315° construction guides while preserving configurable Polar, F8 Ortho and F10 Polar behavior.
+
+Phase 8.8B1 adds an isolated three-point CAD Arc command: Start → Through → End. It creates an editable open cubic PATH with circular handles, OSNAP input, live preview, printable metadata, collinear-point rejection and one-step undo. Shortcut parity: `A` Angle Line, `Shift+A` CAD Arc, `Alt+A` Arrow.
+
+Fix1 adds the missing Arc drawing-mode capture and crosshair cursor gates. Arc clicks now reach the canvas even when an existing shape occupies the pointer location.
+
+Fix4 reserves a zoom-scaled scroll footprint with a top-left transform origin, so every canvas edge remains reachable above 200% zoom. Ordinary shape draw now returns to Select, and selected SHAPE/PATH elements expose live size, angle, endpoint, midpoint and center inspection markers. The earlier Card Designer TDZ declaration order remains preserved.
+
+Previous manually verified baseline: **Phase 8.8A2 — CAD Polyline + Canvas Pan**.
 
 Baseline inherited from **Phase 8.8A1 — CAD LINE Hardening**, manually verified PASS by the user.
 

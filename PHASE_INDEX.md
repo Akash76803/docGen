@@ -1,5 +1,20 @@
 # Phase Index
 
+## Current stabilization addendum
+
+- **Phase 8.8B1 Fix8 — Smallest Planar Compartment Fill** (`UPDATE_PHASE_8_8B1_FIX8_SMALLEST_PLANAR_COMPARTMENT_FILL.md`) — typecheck, 183/183 test files (938/938 tests), and build PASS; Windows UI pending.
+- **Phase 8.8B1 Fix7 — Duplicate Intersection Cluster Consolidation** (`UPDATE_PHASE_8_8B1_FIX7_DUPLICATE_INTERSECTION_CLUSTER_CONSOLIDATION.md`) — typecheck, 183/183 test files (935/935 tests), and build PASS; Windows UI pending.
+- **Phase 8.8B1 Fix6 — Persistent Intersection Nodes & Exact OSNAP** (`UPDATE_PHASE_8_8B1_FIX6_PERSISTENT_INTERSECTION_NODES_EXACT_OSNAP.md`) — typecheck, 183/183 test files (933/933 tests), and build PASS; Windows UI pending.
+- **Phase 8.8B1 Fix5 — T-Junction Auto Multi-Section Topology** (`UPDATE_PHASE_8_8B1_FIX5_TJUNCTION_AUTO_MULTISECTION_TOPOLOGY.md`) — typecheck, 181/181 test files (929/929 tests), and build PASS; Windows UI pending.
+- **Phase 8.8B1 Fix4 — Post-Trim Multi-Point Endpoint Weld** (`UPDATE_PHASE_8_8B1_FIX4_POST_TRIM_MULTI_POINT_ENDPOINT_WELD.md`) — typecheck, 180/180 test files (926/926 tests), and build PASS; Windows UI pending.
+- **Phase 8.8B1 Fix3 — Joined-Line Independent Sections** (`UPDATE_PHASE_8_8B1_FIX3_JOINED_LINE_INDEPENDENT_SECTIONS.md`) — typecheck, 178/178 test files (923/923 tests), and build PASS; Windows UI pending.
+- **Phase 8.8B1 Fix2 — CAD Grip Stretch & Angular OSNAP Feedback** (`UPDATE_PHASE_8_8B1_FIX2_CAD_GRIP_STRETCH_ANGULAR_OSNAP.md`) — typecheck, 176/176 test files (919/919 tests), and build PASS; Windows UI pending.
+- **Phase 8.8B1 Fix1 — CAD Arc Pointer/Cursor Activation** (`UPDATE_PHASE_8_8B1_FIX1_ARC_POINTER_CURSOR_ACTIVATION.md`) — typecheck/test/build PASS; Windows UI pending.
+- **Phase 8.8B1 — CAD Arc** (`UPDATE_PHASE_8_8B1_CAD_ARC.md`) — three-point editable circular PATH; automated tests/typecheck PASS, build/manual gate pending.
+- **Phase 8.8A5 Fix4 — Zoom Pan & Vector Selection Inspection** (`UPDATE_PHASE_8_8A5_FIX4_ZOOM_PAN_VECTOR_SELECTION_INSPECTION.md`) — SOURCE/TYPECHECK/TEST/BUILD PASS; Windows UI verification pending.
+- High zoom now has a scaled scrollable footprint anchored at the artboard top-left.
+- Completed normal shapes return to Select and expose live vector inspection markers.
+
 This file prevents older update docs from being mistaken for the current baseline.
 
 ## Current card-designer sequence
@@ -156,3 +171,5 @@ Status: SOURCE VERIFIED / MANUAL UI PENDING
 - Phase 8.8A5 Fix1 — CAD Line Grip Angle Editing — IMPLEMENTED, MANUAL UI PENDING
 
 - 8.8A5 Fix2 — Edge Align to Reference Geometry — IMPLEMENTED / MANUAL PENDING
+
+- **Phase 8.8A5 Fix3 — Build, Typecheck & Test Stabilization** — TYPECHECK PASS / 172 TEST FILES, 907 TESTS PASS / BUILD PASS / MANUAL WINDOWS UI PENDING. See `UPDATE_PHASE_8_8A5_FIX3_BUILD_TYPECHECK_TEST_STABILIZATION.md`.

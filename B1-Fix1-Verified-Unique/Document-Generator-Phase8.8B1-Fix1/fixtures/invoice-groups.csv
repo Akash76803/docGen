@@ -1,0 +1,5 @@
+InvoiceNo,CustomerName,GSTIN,Product,Qty,Rate
+INV001,ABC Ltd,GST1,Item A,2,500
+INV001,ABC Ltd,GST1,Item B,1,300
+INV002,XYZ Ltd,GST2,Item C,5,200
+INV002,XYZ Ltd,GST2,Item D,2,400

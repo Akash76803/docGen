@@ -54,7 +54,7 @@ function sampleRoute(path:paper.Path,start:number,end:number):Array<{x:number;y:
  const length=path.length,distance=(end-start+length)%length,steps=Math.max(1,Math.ceil(distance/.35)),points:Array<{x:number;y:number}>=[];
  for(let index=0;index<=steps;index++){const offset=(start+distance*index/steps)%length,p=path.getPointAt(offset===length?0:offset);if(p)points.push({x:p.x,y:p.y});}return points;
 }
-function sampleOpen(path:paper.Path):Array<{x:number;y:number}>{const steps=Math.max(1,Math.ceil(path.length/.35)),points=[] as Array<{x:number;y:number}>;for(let i=0;i<=steps;i++){const p=path.getPointAt(path.length*i/steps);if(p)points.push({x:p.x,y:p.y});}return points;}
+function sampleOpenRange(path:paper.Path,startOffset:number,endOffset:number):Array<{x:number;y:number}>{const distance=endOffset-startOffset,steps=Math.max(1,Math.ceil(distance/.35)),points=[] as Array<{x:number;y:number}>;for(let i=0;i<=steps;i++){const p=path.getPointAt(startOffset+distance*i/steps);if(p)points.push({x:p.x,y:p.y});}return points;}
 
 function dividerLineage(source:DesignElement,dividerId:string):string[]{
  const existing=source.metadata?.faceDividerIds;
@@ -92,18 +92,20 @@ export function splitClosedElementByDivider(source:DesignElement,divider:PathDes
  const dividerItem=geometryToPaperItem(dividerGeo);
  if(!(dividerItem instanceof paper.Path)||dividerItem.length<1e-4)return undefined;
 
- // Boundary snaps are exact in normal CAD usage, but relying on Paper.js
- // getIntersections() for endpoint-only contacts is brittle: endpoint
- // intersections can be omitted depending on path topology. Resolve both
- // endpoints geometrically against the closed boundary instead.
+ // Build boundary contacts from exact endpoints plus true crossings. This lets
+ // a long CAD line cross a face and be clipped to its entry/exit points, while
+ // preserving the endpoint-only behavior needed by shared-divider T-junctions.
+ const contacts:Array<{dividerOffset:number;boundaryLocation:paper.CurveLocation}>=[];
+ const addContact=(dividerOffset:number,point:paper.Point)=>{const boundaryLocation=boundary.getNearestLocation(point);if(!boundaryLocation||boundaryLocation.point.getDistance(point)>FACE_SPLIT_BOUNDARY_EPS_MM)return;if(contacts.some(contact=>Math.abs(contact.dividerOffset-dividerOffset)<1e-5||contact.boundaryLocation.point.getDistance(boundaryLocation.point)<FACE_SPLIT_BOUNDARY_EPS_MM))return;contacts.push({dividerOffset,boundaryLocation});};
  const start=dividerItem.firstSegment.point,end=dividerItem.lastSegment.point;
- const startLocation=boundary.getNearestLocation(start),endLocation=boundary.getNearestLocation(end);
- if(!startLocation||!endLocation)return undefined;
- if(startLocation.point.getDistance(start)>FACE_SPLIT_BOUNDARY_EPS_MM||endLocation.point.getDistance(end)>FACE_SPLIT_BOUNDARY_EPS_MM)return undefined;
+ addContact(0,start);addContact(dividerItem.length,end);
+ for(const crossing of dividerItem.getIntersections(boundary))addContact(crossing.offset,crossing.point);
+ contacts.sort((a,b)=>a.dividerOffset-b.dividerOffset);
+ let selected:{start:typeof contacts[number];end:typeof contacts[number];points:Array<{x:number;y:number}>}|undefined;
+ for(let index=0;index<contacts.length-1;index++){const first=contacts[index]!,last=contacts[index+1]!;if(last.dividerOffset-first.dividerOffset<FACE_SPLIT_BOUNDARY_EPS_MM)continue;const points=sampleOpenRange(dividerItem,first.dividerOffset,last.dividerOffset);if(points.length<2||points.slice(1,-1).some(point=>!pointInsideOrOnBoundary(boundary,point)))continue;if(!selected||last.dividerOffset-first.dividerOffset>selected.end.dividerOffset-selected.start.dividerOffset)selected={start:first,end:last,points};}
+ if(!selected)return undefined;
+ const startLocation=selected.start.boundaryLocation,endLocation=selected.end.boundaryLocation,dividerPoints=selected.points;
  if(startLocation.point.getDistance(endLocation.point)<FACE_SPLIT_BOUNDARY_EPS_MM)return undefined;
-
- const dividerPoints=sampleOpen(dividerItem);
- if(dividerPoints.length<2||dividerPoints.slice(1,-1).some(point=>!pointInsideOrOnBoundary(boundary,point)))return undefined;
 
  const forward=sampleRoute(boundary,startLocation.offset,endLocation.offset);
  const backward=sampleRoute(boundary,endLocation.offset,startLocation.offset);
@@ -123,7 +125,7 @@ export function splitClosedElementByDivider(source:DesignElement,divider:PathDes
  ];
  if(faceWorld.some(points=>points.length<3||polygonArea(points)<FACE_SPLIT_MIN_AREA_MM2))return undefined;
 
- return faceWorld.map((points,index)=>{const normalized=geometryFromWorld(points);return{...source,id:crypto.randomUUID(),type:'PATH',name:`${source.name} Face ${index+1}`,position:normalized.position,size:normalized.size,rotationDeg:0,zIndex:source.zIndex+index,groupId,geometry:normalized.geometry,fill:source.type==='PATH'?source.fill:(source as ShapeDesignElement).fill,stroke:source.type==='PATH'?source.stroke:(source as ShapeDesignElement).stroke,metadata:{...source.metadata,faceComponentId:groupId,faceGeneration:'AUTO_SECTION',faceTopologyVersion:1,faceDividerIds:dividerLineage(source,divider.id),sharedDividerId:divider.id,sharedEdgeStrategy:'COINCIDENT_CANONICAL_EDGE'}} as PathDesignElement;});
+ return faceWorld.map((points,index)=>{const normalized=geometryFromWorld(points),intersectionNodeIds=normalized.geometry.points.filter(point=>{const world={x:point.x+normalized.position.xMm,y:point.y+normalized.position.yMm};return Math.hypot(world.x-startLocation.point.x,world.y-startLocation.point.y)<FACE_SPLIT_BOUNDARY_EPS_MM||Math.hypot(world.x-endLocation.point.x,world.y-endLocation.point.y)<FACE_SPLIT_BOUNDARY_EPS_MM;}).map(point=>point.id);return{...source,id:crypto.randomUUID(),type:'PATH',name:`${source.name} Face ${index+1}`,position:normalized.position,size:normalized.size,rotationDeg:0,zIndex:source.zIndex+index,groupId,geometry:normalized.geometry,fill:source.type==='PATH'?source.fill:(source as ShapeDesignElement).fill,stroke:source.type==='PATH'?source.stroke:(source as ShapeDesignElement).stroke,metadata:{...source.metadata,faceComponentId:groupId,faceGeneration:'AUTO_SECTION',faceTopologyVersion:1,faceDividerIds:dividerLineage(source,divider.id),sharedDividerId:divider.id,sharedEdgeStrategy:'COINCIDENT_CANONICAL_EDGE',intersectionNodeIds:[...new Set([...(Array.isArray(source.metadata?.intersectionNodeIds)?source.metadata.intersectionNodeIds.filter((value):value is string=>typeof value==='string'):[]),...intersectionNodeIds])],intersectionTopologyVersion:1}} as PathDesignElement;});
 }
 
 

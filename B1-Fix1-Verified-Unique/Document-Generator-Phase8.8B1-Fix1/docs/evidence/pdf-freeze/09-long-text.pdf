@@ -1,0 +1,326 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [10 0 R 12 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold >>
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+8 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold >>
+endobj
+9 0 obj
+<< /Length 14840 >>
+stream
+BT /F2 11 Tf 0 0 0 rg 1 0 0 1 34.016 796.874 Tm (Long Text - HEADER) Tj ET
+BT /F1 7 Tf 0 0 0 rg 1 0 0 1 34.016 41.085 Tm (Registered office | Freeze QA) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 766.866 289.984 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 774.335 Tm (Description) Tj ET
+0.796 0.835 0.882 RG 1 w 324 766.866 79.087 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 383.197 774.335 Tm (Qty) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 766.866 79.087 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 457.784 774.335 Tm (Rate) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 766.866 79.087 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 527.871 774.335 Tm (Amount) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 733.928 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 752.197 Tm (Item 1 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 741.397 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 733.928 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 395.257 746.797 Tm (1) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 733.928 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 746.797 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 733.928 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 525.171 746.797 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 700.989 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 719.258 Tm (Item 2 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 708.458 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 700.989 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 713.858 Tm (2) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 700.989 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 713.858 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 700.989 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 525.171 713.858 Tm (2469.12) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 668.05 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 686.32 Tm (Item 3 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 675.52 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 668.05 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 680.92 Tm (3) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 668.05 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 680.92 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 668.05 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 522.111 680.92 Tm (3703.68) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 635.112 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 653.381 Tm (Item 4 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 642.581 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 635.112 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 647.981 Tm (4) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 635.112 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 647.981 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 635.112 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 522.111 647.981 Tm (4938.24) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 602.173 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 620.443 Tm (Item 5 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 609.643 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 602.173 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 615.043 Tm (5) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 602.173 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 615.043 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 602.173 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 530.391 615.043 Tm (6172.8) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 569.235 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 587.504 Tm (Item 6 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 576.704 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 569.235 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 582.104 Tm (6) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 569.235 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 582.104 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 569.235 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 522.111 582.104 Tm (7407.36) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 536.296 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 554.565 Tm (Item 7 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 543.765 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 536.296 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 549.165 Tm (7) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 536.296 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 549.165 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 536.296 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 525.171 549.165 Tm (8641.92) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 503.357 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 521.627 Tm (Item 8 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 510.827 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 503.357 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 516.227 Tm (8) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 503.357 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 516.227 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 503.357 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 522.111 516.227 Tm (9876.48) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 470.419 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 488.688 Tm (Item 9 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 477.888 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 470.419 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 392.197 483.288 Tm (9) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 470.419 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 483.288 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 470.419 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 532.191 483.288 Tm (11111.04) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 437.48 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 455.75 Tm (Item 10 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 444.95 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 437.48 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 450.35 Tm (10) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 437.48 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 450.35 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 437.48 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 525.171 450.35 Tm (12345.6) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 404.542 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 422.811 Tm (Item 11 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 412.011 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 404.542 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 393.097 417.411 Tm (11) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 404.542 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 417.411 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 404.542 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 523.011 417.411 Tm (13580.16) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 371.603 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 389.872 Tm (Item 12 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 379.072 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 371.603 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 384.472 Tm (12) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 371.603 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 384.472 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 371.603 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 523.011 384.472 Tm (14814.72) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 338.665 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 356.934 Tm (Item 13 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 346.134 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 338.665 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 351.534 Tm (13) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 338.665 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 351.534 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 338.665 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 519.951 351.534 Tm (16049.28) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 305.726 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 323.995 Tm (Item 14 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 313.195 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 305.726 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 318.595 Tm (14) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 305.726 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 318.595 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 305.726 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 519.951 318.595 Tm (17283.84) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 272.787 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 291.057 Tm (Item 15 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 280.257 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 272.787 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 285.657 Tm (15) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 272.787 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 285.657 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 272.787 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 528.231 285.657 Tm (18518.4) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 239.849 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 258.118 Tm (Item 16 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 247.318 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 239.849 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 252.718 Tm (16) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 239.849 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 252.718 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 239.849 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 519.951 252.718 Tm (19752.96) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 206.91 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 225.18 Tm (Item 17 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 214.38 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 206.91 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 219.78 Tm (17) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 206.91 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 219.78 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 206.91 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 516.891 219.78 Tm (20987.52) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 173.972 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 192.241 Tm (Item 18 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 181.441 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 173.972 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 186.841 Tm (18) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 173.972 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 186.841 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 173.972 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 516.891 186.841 Tm (22222.08) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 141.033 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 159.302 Tm (Item 19 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 148.502 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 141.033 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 153.902 Tm (19) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 141.033 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 153.902 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 141.033 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 516.891 153.902 Tm (23456.64) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 108.094 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 126.364 Tm (Item 20 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 115.564 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 108.094 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 386.977 120.964 Tm (20) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 108.094 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 120.964 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 108.094 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 525.171 120.964 Tm (24691.2) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 75.156 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 93.425 Tm (Item 21 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 82.625 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 75.156 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 390.037 88.025 Tm (21) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 75.156 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 88.025 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 75.156 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 516.891 88.025 Tm (25925.76) Tj ET
+BT /F1 8 Tf 0.392 0.455 0.545 rg 1 0 0 1 278.678 11.906 Tm (Page 1 of 2) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.276 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R /F5 7 0 R /F6 8 0 R >>  >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Length 4646 >>
+stream
+BT /F2 11 Tf 0 0 0 rg 1 0 0 1 34.016 796.874 Tm (Long Text - HEADER) Tj ET
+BT /F1 7 Tf 0 0 0 rg 1 0 0 1 34.016 41.085 Tm (Registered office | Freeze QA) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 766.866 289.984 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 774.335 Tm (Description) Tj ET
+0.796 0.835 0.882 RG 1 w 324 766.866 79.087 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 383.197 774.335 Tm (Qty) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 766.866 79.087 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 457.784 774.335 Tm (Rate) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 766.866 79.087 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 527.871 774.335 Tm (Amount) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 733.928 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 752.197 Tm (Item 22 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 741.397 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 733.928 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 386.977 746.797 Tm (22) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 733.928 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 746.797 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 733.928 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 519.951 746.797 Tm (27160.32) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 700.989 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 719.258 Tm (Item 23 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 708.458 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 700.989 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 386.977 713.858 Tm (23) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 700.989 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 713.858 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 700.989 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 516.891 713.858 Tm (28394.88) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 668.05 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 686.32 Tm (Item 24 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 675.52 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 668.05 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 386.977 680.92 Tm (24) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 668.05 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 680.92 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 668.05 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 516.891 680.92 Tm (29629.44) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 635.112 289.984 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 653.381 Tm (Item 25 with a long product description that wraps on word boundaries) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 642.581 Tm (and never overlaps adjacent numeric cells) Tj ET
+0.796 0.835 0.882 RG 1 w 324 635.112 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 386.977 647.981 Tm (25) Tj ET
+0.796 0.835 0.882 RG 1 w 403.087 635.112 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 446.084 647.981 Tm (1234.56) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 635.112 79.087 32.939 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 529.491 647.981 Tm (30864) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 612.973 448.157 22.139 re S [] 0 d
+BT /F2 9 Tf 0 0 0 rg 1 0 0 1 455.624 620.443 Tm (Total) Tj ET
+0.796 0.835 0.882 RG 1 w 482.173 612.973 79.087 22.139 re S [] 0 d
+BT /F2 9 Tf 0 0 0 rg 1 0 0 1 514.731 620.443 Tm (401232.00) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 34.016 598.304 Tm (TOTAL TAX AMOUNT \(IN WORDS\): Thirty Eight Thousand Nine Hundred Twenty Two Only) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 568.696 263.622 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 576.165 Tm (Tax Type) Tj ET
+0.796 0.835 0.882 RG 1 w 297.638 568.696 263.622 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 527.871 576.165 Tm (Amount) Tj ET
+0.796 0.835 0.882 RG 1 w 34.016 546.557 263.622 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 39.685 554.027 Tm (TOTAL TAX AMOUNT) Tj ET
+0.796 0.835 0.882 RG 1 w 297.638 546.557 263.622 22.139 re S [] 0 d
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 519.951 554.027 Tm (38922.31) Tj ET
+BT /F2 16 Tf 0 0 0 rg 1 0 0 1 34.016 524.888 Tm (QR) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 127.559 531.888 Tm (BANK DETAILS) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 127.559 521.088 Tm (Account: 123456789) Tj ET
+BT /F1 9 Tf 0 0 0 rg 1 0 0 1 127.559 510.288 Tm (IFSC: ABCD0001234) Tj ET
+BT /F1 8 Tf 0.392 0.455 0.545 rg 1 0 0 1 277.318 11.906 Tm (Page 2 of 2) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.276 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R /F5 7 0 R /F6 8 0 R >>  >> /Contents 11 0 R >>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000019 00000 n 
+0000000068 00000 n 
+0000000133 00000 n 
+0000000203 00000 n 
+0000000278 00000 n 
+0000000350 00000 n 
+0000000421 00000 n 
+0000000489 00000 n 
+0000000562 00000 n 
+0000015455 00000 n 
+0000015640 00000 n 
+0000020339 00000 n 
+trailer
+<< /Size 13 /Root 1 0 R >>
+startxref
+20525
+%%EOF

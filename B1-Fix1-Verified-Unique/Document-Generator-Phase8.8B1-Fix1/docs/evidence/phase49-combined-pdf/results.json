@@ -1,0 +1,50 @@
+[
+  {
+    "name": "01-two-single-page-invoices.pdf",
+    "documents": 2,
+    "pages": 2,
+    "bytes": 1919,
+    "durationMs": 2
+  },
+  {
+    "name": "02-one-and-three-page.pdf",
+    "documents": 2,
+    "pages": 4,
+    "bytes": 26851,
+    "durationMs": 6
+  },
+  {
+    "name": "03-three-mixed-invoices.pdf",
+    "documents": 3,
+    "pages": 6,
+    "bytes": 40756,
+    "durationMs": 4
+  },
+  {
+    "name": "07-per-document-numbering.pdf",
+    "documents": 2,
+    "pages": 5,
+    "bytes": 39730,
+    "durationMs": 4
+  },
+  {
+    "name": "08-global-numbering.pdf",
+    "documents": 2,
+    "pages": 5,
+    "bytes": 39730,
+    "durationMs": 3
+  },
+  {
+    "name": "09-large-combined.pdf",
+    "documents": 50,
+    "pages": 50,
+    "bytes": 29363,
+    "durationMs": 4
+  },
+  {
+    "name": "10-mixed-page-sizes.pdf",
+    "documents": 2,
+    "pages": 2,
+    "bytes": 1939
+  }
+]

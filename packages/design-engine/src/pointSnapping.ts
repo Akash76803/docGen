@@ -16,6 +16,8 @@ export type PointSnapKind=
 export interface PointSnapResult {
   point:{x:number;y:number};
   kind:PointSnapKind;
+  /** Optional human-readable feedback for UI-only/custom snap results. */
+  label?:string;
   distanceMm:number;
   elementId?:string;
   guideId?:string;
@@ -39,13 +41,13 @@ export interface PointSnapOptions {
 
 /**
  * CAD point-snap priority. Lower wins before distance is considered.
- * Endpoint > vertex > intersection > exact boundary projection > guide >
+ * Declared intersection > endpoint > vertex > exact boundary projection > guide >
  * object center > artboard center > grid.
  */
 export const POINT_SNAP_PRIORITY:Readonly<Record<PointSnapKind,number>>={
-  LINE_ENDPOINT:0,
-  VERTEX:1,
-  INTERSECTION:2,
+  INTERSECTION:0,
+  LINE_ENDPOINT:1,
+  VERTEX:2,
   BOUNDARY:3,
   GUIDE:4,
   OBJECT_CENTER:5,
@@ -124,15 +126,17 @@ export function resolvePointSnap(artboard:Artboard,point:{x:number;y:number},opt
     for(const element of vectorElements){
       const geometry=geometries.get(element.id);if(!geometry)continue;
       const endpointIds=isLineLikePath(element,geometry)?new Set([geometry.segments[0]?.fromPointId,geometry.segments.at(-1)?.toPointId]):new Set<string|undefined>();
+      const declaredIntersectionIds=new Set(Array.isArray(element.metadata?.intersectionNodeIds)?element.metadata.intersectionNodeIds.filter((value):value is string=>typeof value==='string'):[]);
       for(const node of geometry.points){
         const distance=within(point,node,toleranceMm);if(distance===undefined)continue;
         const endpoint=endpointIds.has(node.id);
-        best=better(best,{point:{x:node.x,y:node.y},kind:endpoint?'LINE_ENDPOINT':'VERTEX',distanceMm:distance,elementId:element.id,detailId:node.id});
+        const declaredIntersection=declaredIntersectionIds.has(node.id);
+        best=better(best,{point:{x:node.x,y:node.y},kind:declaredIntersection?'INTERSECTION':endpoint?'LINE_ENDPOINT':'VERTEX',label:declaredIntersection?'Intersection':undefined,distanceMm:distance,elementId:element.id,detailId:node.id});
       }
     }
   }
 
-  if(snapToIntersections&&options.lineStart&&Math.hypot(point.x-options.lineStart.x,point.y-options.lineStart.y)>1e-6){
+  if(snapToIntersections&&best?.kind!=='INTERSECTION'&&options.lineStart&&Math.hypot(point.x-options.lineStart.x,point.y-options.lineStart.y)>1e-6){
     const probe=new paper.Path.Line(new paper.Point(options.lineStart.x,options.lineStart.y),new paper.Point(point.x,point.y));
     for(const element of vectorElements){
       const path=paths.get(element.id);if(!path)continue;
