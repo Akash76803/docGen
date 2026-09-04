@@ -1,0 +1,4 @@
+import { describe,expect,it } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+describe('Phase 9.4D-F packaging artwork UI',()=>{const source=readFileSync(new URL('../src/pages/CardDesigner.tsx',import.meta.url),'utf8');it('exposes panel artwork assignment and fit controls',()=>{for(const marker of ['Assign selected elements to focused panel artwork','>Fit</button>','>Fill</button>','>Contain</button>','>Bleed Fill</button>'])expect(source).toContain(marker);});it('shows live packaging warnings and clips focused artwork',()=>{expect(source).toContain('Warnings {packagingIssues.length}');expect(source).toContain('packagingClipInsets');expect(source).toContain('clipPath:packagingClipPath');});it('auto-tags common inserted artwork while panel focus is active',()=>{expect(source).toContain('addPanelAwareDesignElement');expect(source).toContain('prepareElementForPackagingPanel');expect(source).toContain('panelPlacement');});});

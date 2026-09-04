@@ -2,9 +2,9 @@ import { describe,expect,it } from 'vitest';
 import { DECORATIVE_ASSETS,DESIGN_STARTER_TEMPLATES,validateDesignTemplate } from '../src/index.js';
 
 describe('Phase 6.1.3A starter template and floral asset pack',()=>{
-  it('ships eight editable starter templates',()=>{
-    expect(DESIGN_STARTER_TEMPLATES).toHaveLength(8);
-    expect(new Set(DESIGN_STARTER_TEMPLATES.map(t=>t.id)).size).toBe(8);
+  it('ships the professional editable starter template pack',()=>{
+    expect(DESIGN_STARTER_TEMPLATES.length).toBeGreaterThanOrEqual(20);
+    expect(new Set(DESIGN_STARTER_TEMPLATES.map(t=>t.id)).size).toBe(DESIGN_STARTER_TEMPLATES.length);
   });
   it('all starter templates satisfy the shared design contract',()=>{
     for(const starter of DESIGN_STARTER_TEMPLATES){

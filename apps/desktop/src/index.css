@@ -2276,6 +2276,8 @@ body { background: var(--bg-primary); color: var(--text-primary); }
 .card-starter-template-list{display:flex;flex-direction:column;gap:7px;max-height:280px;overflow:auto;padding-right:2px}
 .card-starter-template-button{text-align:left;display:flex!important;flex-direction:column;align-items:flex-start!important;gap:3px;padding:9px 10px!important}
 .card-starter-template-button strong{font-size:12px}.card-starter-template-button span{font-size:10px;line-height:1.25;color:var(--text-muted,#64748b)}
+.card-template-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-bottom:8px}.card-template-filters input,.card-template-filters select{min-width:0;height:32px;border:1px solid var(--glass-border);border-radius:7px;background:var(--bg-tertiary);color:var(--text-primary);padding:5px 7px;font-size:10px}.card-starter-template-button.card-template-preview{display:grid!important;grid-template-columns:10px minmax(0,1fr);align-items:stretch!important;gap:8px!important}.card-template-swatch{width:10px!important;min-height:70px;border-radius:5px;color:transparent!important}.card-template-copy{display:flex!important;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;color:inherit!important}.card-template-copy strong,.card-template-copy small,.card-template-copy span,.card-template-copy em{max-width:100%;text-align:left}.card-template-copy small{font-size:9px;color:var(--accent-primary);font-weight:750}.card-template-copy em{font-size:8.5px;color:var(--text-secondary);font-style:normal;font-weight:650}
+.card-dieline-form{display:flex;flex-direction:column;gap:8px}.card-dieline-form>label{display:flex;flex-direction:column;gap:4px;font-size:9px;font-weight:750;color:var(--text-secondary)}.card-dieline-form select,.card-dieline-form input{min-width:0;height:30px;border:1px solid var(--glass-border);border-radius:6px;background:var(--bg-tertiary);color:var(--text-primary);padding:4px 6px;font-size:10px}.card-dieline-generate{min-height:34px;border:1px solid var(--accent-primary);border-radius:7px;background:var(--accent-primary);color:#fff;font-size:10px;font-weight:800}.card-dieline-generate:disabled{opacity:.45}.card-dieline-issue{padding:6px 7px;border-radius:6px;font-size:9px;line-height:1.35}.card-dieline-issue.error{background:#fee2e2;color:#991b1b}.card-dieline-issue.warning{background:#fef3c7;color:#92400e}.card-dieline-layer-toggles{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding-top:7px;border-top:1px solid var(--glass-border)}.card-dieline-layer-toggles strong{grid-column:1/-1;font-size:9px}.card-dieline-layer-toggles button{min-height:27px;border:1px solid var(--glass-border);border-radius:6px;background:var(--bg-tertiary);color:var(--text-secondary);font-size:8.5px}.card-dieline-layer-toggles button.active{border-color:var(--accent-primary);color:var(--accent-primary)}
 .card-decorative-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:280px;overflow:auto}
 .card-decorative-grid button{min-width:0;display:flex;flex-direction:column;gap:5px;align-items:center;padding:7px!important;font-size:10px;line-height:1.15;text-align:center}
 .card-decorative-thumb{width:54px;height:38px;display:grid;place-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}
@@ -2464,3 +2466,24 @@ body { background: var(--bg-primary); color: var(--text-primary); }
 
 .card-path-equal-guide{stroke:#db2777;stroke-width:.45;stroke-dasharray:1.5 1;opacity:.9;vector-effect:non-scaling-stroke}.card-path-guide-label{fill:#be185d;font-size:3px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:.8px;stroke-linejoin:round}
 .card-canvas-viewport.pan-ready{cursor:grab}.card-canvas-viewport.pan-ready:active{cursor:grabbing}
+
+/* Phase 9.4 IMG1-IMG2 — background removal preview */
+.card-bg-removal-preview {
+  min-height: 150px;
+  max-height: 260px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+    linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
+.card-bg-removal-preview img { max-width: 100%; max-height: 250px; object-fit: contain; display:block; }

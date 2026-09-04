@@ -1,17 +1,44 @@
 import type { Artboard, ArtboardPrintSettings, ArtboardRole, ArtboardTarget, ArtboardTargetMode, DesignFill, DesignInsets, DesignTemplate, DesignUnit } from '@document-tool/contracts';
-export interface ArtboardPreset { id:string; label:string; widthMm:number; heightMm:number; category:'CARD'|'LABEL'|'PAPER'|'CUSTOM'; }
+export type ArtboardPresetCategory='CARD'|'LABEL'|'PAPER'|'FOLDED'|'STICKER'|'TAG'|'CUSTOM';
+export type ArtboardPresetLayout='SINGLE'|'FRONT_BACK'|'FOLDED'|'SHEET';
+export type ArtboardOrientation='PORTRAIT'|'LANDSCAPE';
+export interface ArtboardPreset { id:string; label:string; widthMm:number; heightMm:number; category:ArtboardPresetCategory; layout?:ArtboardPresetLayout; description?:string; tags?:readonly string[]; bleedMm?:number; safeAreaMm?:number; preferredDpi?:number; userDefined?:boolean; }
+export const ARTBOARD_PRESET_CATEGORIES:readonly {id:'ALL'|ArtboardPresetCategory;label:string}[]=[
+ {id:'ALL',label:'All formats'},{id:'CARD',label:'Cards'},{id:'FOLDED',label:'Folded & tent'},{id:'LABEL',label:'Labels'},{id:'TAG',label:'Tags'},{id:'STICKER',label:'Stickers'},{id:'PAPER',label:'Paper'},{id:'CUSTOM',label:'My presets'}
+];
 export const ARTBOARD_PRESETS:readonly ArtboardPreset[]=[
-{id:'business-card-90x50',label:'Business Card · 90 × 50 mm',widthMm:90,heightMm:50,category:'CARD'},
-{id:'business-card-85x55',label:'Business Card · 85 × 55 mm',widthMm:85,heightMm:55,category:'CARD'},
-{id:'id-card-cr80',label:'ID Card · 85.60 × 53.98 mm',widthMm:85.6,heightMm:53.98,category:'CARD'},
-{id:'a6',label:'A6 · 105 × 148 mm',widthMm:105,heightMm:148,category:'PAPER'},
-{id:'a5',label:'A5 · 148 × 210 mm',widthMm:148,heightMm:210,category:'PAPER'},
-{id:'a4',label:'A4 · 210 × 297 mm',widthMm:210,heightMm:297,category:'PAPER'}];
+{id:'business-card-90x50',label:'Business Card · 90 × 50 mm',widthMm:90,heightMm:50,category:'CARD',layout:'FRONT_BACK',tags:['visiting','corporate'],bleedMm:3,safeAreaMm:3},
+{id:'business-card-85x55',label:'Business Card · 85 × 55 mm',widthMm:85,heightMm:55,category:'CARD',layout:'FRONT_BACK',tags:['visiting'],bleedMm:3,safeAreaMm:3},
+{id:'business-card-us',label:'US Business Card · 3.5 × 2 in',widthMm:88.9,heightMm:50.8,category:'CARD',layout:'FRONT_BACK',tags:['visiting','inch'],bleedMm:3.175,safeAreaMm:3.175},
+{id:'id-card-cr80',label:'CR80 ID / Bank Card · 85.60 × 53.98 mm',widthMm:85.6,heightMm:53.98,category:'CARD',layout:'FRONT_BACK',tags:['employee','student','membership','loyalty','gift'],bleedMm:3,safeAreaMm:3},
+{id:'playing-card-poker',label:'Poker Playing Card · 63.5 × 88.9 mm',widthMm:63.5,heightMm:88.9,category:'CARD',layout:'FRONT_BACK',tags:['game'],bleedMm:3,safeAreaMm:4},
+{id:'postcard-a6',label:'A6 Postcard · 148 × 105 mm',widthMm:148,heightMm:105,category:'CARD',layout:'FRONT_BACK',tags:['postcard','mail'],bleedMm:3,safeAreaMm:5},
+{id:'postcard-6x4',label:'Postcard · 6 × 4 in',widthMm:152.4,heightMm:101.6,category:'CARD',layout:'FRONT_BACK',tags:['postcard','inch'],bleedMm:3.175,safeAreaMm:5},
+{id:'invitation-a6',label:'A6 Invitation · 105 × 148 mm',widthMm:105,heightMm:148,category:'CARD',layout:'FRONT_BACK',tags:['wedding','invitation','thank you'],bleedMm:3,safeAreaMm:5},
+{id:'invitation-5x7',label:'Invitation · 5 × 7 in',widthMm:127,heightMm:177.8,category:'CARD',layout:'FRONT_BACK',tags:['wedding','inch'],bleedMm:3.175,safeAreaMm:5},
+{id:'greeting-a6-folded',label:'A6 Folded Greeting Spread · 210 × 148 mm',widthMm:210,heightMm:148,category:'FOLDED',layout:'FOLDED',description:'A5 sheet folded once to an A6 finished card.',tags:['greeting','fold'],bleedMm:3,safeAreaMm:5},
+{id:'table-tent-a6',label:'A6 Table Tent Spread · 210 × 297 mm',widthMm:210,heightMm:297,category:'FOLDED',layout:'FOLDED',tags:['menu','tent'],bleedMm:3,safeAreaMm:5},
+{id:'label-product-80x50',label:'Product Label · 80 × 50 mm',widthMm:80,heightMm:50,category:'LABEL',layout:'SINGLE',tags:['product','packaging'],bleedMm:2,safeAreaMm:3},
+{id:'label-bottle-100x60',label:'Bottle Label · 100 × 60 mm',widthMm:100,heightMm:60,category:'LABEL',layout:'SINGLE',tags:['bottle','jar'],bleedMm:2,safeAreaMm:3},
+{id:'label-shipping-100x150',label:'Shipping Label · 100 × 150 mm',widthMm:100,heightMm:150,category:'LABEL',layout:'SINGLE',tags:['courier','barcode'],bleedMm:0,safeAreaMm:3},
+{id:'hang-tag-50x90',label:'Hang Tag · 50 × 90 mm',widthMm:50,heightMm:90,category:'TAG',layout:'FRONT_BACK',tags:['retail','apparel'],bleedMm:3,safeAreaMm:4},
+{id:'sticker-round-50',label:'Round Sticker · 50 × 50 mm',widthMm:50,heightMm:50,category:'STICKER',layout:'SINGLE',tags:['roll','circle'],bleedMm:2,safeAreaMm:2},
+{id:'sticker-sheet-a4',label:'A4 Sticker Sheet · 210 × 297 mm',widthMm:210,heightMm:297,category:'STICKER',layout:'SHEET',tags:['sheet'],bleedMm:3,safeAreaMm:5},
+...([['a0',841,1189],['a1',594,841],['a2',420,594],['a3',297,420],['a4',210,297],['a5',148,210],['a6',105,148],['a7',74,105],['a8',52,74],['a9',37,52],['a10',26,37]] as const).map(([id,widthMm,heightMm])=>({id,label:`${id.toUpperCase()} · ${widthMm} × ${heightMm} mm`,widthMm,heightMm,category:'PAPER' as const,layout:'SINGLE' as const,bleedMm:3,safeAreaMm:5})),
+...([['b0',1000,1414],['b1',707,1000],['b2',500,707],['b3',353,500],['b4',250,353],['b5',176,250],['b6',125,176]] as const).map(([id,widthMm,heightMm])=>({id,label:`${id.toUpperCase()} · ${widthMm} × ${heightMm} mm`,widthMm,heightMm,category:'PAPER' as const,layout:'SINGLE' as const,bleedMm:3,safeAreaMm:5})),
+{id:'us-letter',label:'US Letter · 8.5 × 11 in',widthMm:215.9,heightMm:279.4,category:'PAPER',layout:'SINGLE',tags:['letter','inch'],bleedMm:3.175,safeAreaMm:6.35},
+{id:'us-legal',label:'US Legal · 8.5 × 14 in',widthMm:215.9,heightMm:355.6,category:'PAPER',layout:'SINGLE',tags:['legal','inch'],bleedMm:3.175,safeAreaMm:6.35},
+{id:'us-tabloid',label:'US Tabloid · 11 × 17 in',widthMm:279.4,heightMm:431.8,category:'PAPER',layout:'SINGLE',tags:['tabloid','inch'],bleedMm:3.175,safeAreaMm:6.35}];
 export const EMPTY_INSETS:DesignInsets=Object.freeze({topMm:0,rightMm:0,bottomMm:0,leftMm:0});
 const EMPTY_FILL:DesignFill=Object.freeze({type:'SOLID',color:'#ffffff',opacity:1});
 export const mmToUnit=(valueMm:number,unit:DesignUnit)=>unit==='IN'?valueMm/25.4:valueMm;
 export const unitToMm=(value:number,unit:DesignUnit)=>unit==='IN'?value*25.4:value;
 export const normalizeDisplayValue=(value:number)=>Number(value.toFixed(3));
+const uniformInsets=(value:number):DesignInsets=>({topMm:value,rightMm:value,bottomMm:value,leftMm:value});
+export function orientedPresetDimensions(preset:ArtboardPreset,orientation:ArtboardOrientation):{widthMm:number;heightMm:number}{const short=Math.min(preset.widthMm,preset.heightMm),long=Math.max(preset.widthMm,preset.heightMm);return orientation==='LANDSCAPE'?{widthMm:long,heightMm:short}:{widthMm:short,heightMm:long};}
+export function searchArtboardPresets(presets:readonly ArtboardPreset[],query='',category:'ALL'|ArtboardPresetCategory='ALL'):ArtboardPreset[]{const needle=query.trim().toLowerCase();return presets.filter(p=>(category==='ALL'||p.category===category)&&(!needle||[p.label,p.description,p.category,...(p.tags??[])].filter(Boolean).join(' ').toLowerCase().includes(needle)));}
+export function findArtboardPresetBySize(widthMm:number,heightMm:number,presets:readonly ArtboardPreset[]=ARTBOARD_PRESETS,toleranceMm=.01):ArtboardPreset|undefined{return presets.find(p=>(Math.abs(p.widthMm-widthMm)<=toleranceMm&&Math.abs(p.heightMm-heightMm)<=toleranceMm)||(Math.abs(p.heightMm-widthMm)<=toleranceMm&&Math.abs(p.widthMm-heightMm)<=toleranceMm));}
+export function applyArtboardPreset(template:DesignTemplate,artboardId:string,preset:ArtboardPreset,orientation:ArtboardOrientation='PORTRAIT'):DesignTemplate{const size=orientedPresetDimensions(preset,orientation),bleed=preset.bleedMm??3,safe=preset.safeAreaMm??5;return{...template,artboards:template.artboards.map(a=>a.id===artboardId?{...a,...size,print:{...a.print,bleed:uniformInsets(bleed),safeArea:uniformInsets(safe),preferredRasterDpi:preset.preferredDpi??a.print.preferredRasterDpi??300},metadata:{...a.metadata,presetId:preset.id,presetCategory:preset.category,presetLayout:preset.layout??'SINGLE'}}:a)};}
 export function createBlankArtboard(input:{id:string;name:string;order:number;widthMm:number;heightMm:number;displayUnit?:DesignUnit;background?:DesignFill;role?:ArtboardRole;pairId?:string}):Artboard{return{id:input.id,name:input.name.trim()||`Artboard ${input.order+1}`,order:input.order,widthMm:input.widthMm,heightMm:input.heightMm,displayUnit:input.displayUnit??'MM',background:input.background??{...EMPTY_FILL},print:{bleed:{...EMPTY_INSETS},safeArea:{...EMPTY_INSETS}},guides:[],groups:[],elements:[],role:input.role,pairId:input.pairId};}
 export function normalizeArtboardOrder(artboards:readonly Artboard[]):Artboard[]{return[...artboards].sort((a,b)=>a.order-b.order).map((a,i)=>({...a,order:i}));}
 export function addArtboard(template:DesignTemplate,artboard:Artboard):DesignTemplate{return{...template,artboards:normalizeArtboardOrder([...template.artboards,artboard])};}

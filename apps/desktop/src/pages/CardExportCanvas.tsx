@@ -3,6 +3,7 @@ import React from 'react';
 import type { Artboard, DesignElement, DesignTemplate, DesignShadow, DesignFill, DesignStroke, QrDesignElement, PathDesignElement } from '@document-tool/contracts';
 import QRCode from 'react-qr-code';
 import { geometryToSvgPath, shapeToPathGeometry, resolveRasterImageElementSource, resolveRasterImageFillSource, normalizeImageFillTransform, normalizeStrokeDashArray } from '@document-tool/design-engine';
+import { resolvePathRasterBounds } from './cardExportPathBounds';
 
 export function normalizeExportColor(value: string | undefined | null): string {
   if (!value) return 'transparent';
@@ -58,7 +59,7 @@ export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artbo
         <ExportVectorFillDefs fill={artboard.background} ids={ids} assets={assets} width={artboard.widthMm} height={artboard.heightMm}/>
         <rect x="0" y="0" width={artboard.widthMm} height={artboard.heightMm} fill={backgroundPaint} fillOpacity={backgroundOpacity}/>
       </svg>
-      {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => e.visible && !e.runtimeHidden && e.metadata?.cadExport !== false && e.metadata?.cadConstruction !== true).map(e => (
+      {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => !e.runtimeHidden && e.metadata?.cadExport !== false && e.metadata?.cadConstruction !== true).map(e => (
         <IsolatedExportElement key={e.id} element={e} assets={assets} mmToPx={MM_TO_CSS_PX} />
       ))}
     </div>
@@ -97,13 +98,17 @@ function forceSvgFit(dataUri: string): string {
 function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignElement, assets: DesignTemplate['sharedAssets'], mmToPx: number }) {
   const e = element;
   const geom = resolveDesignElementGeometry(e);
+  const pathRasterBounds = e.type === 'PATH' ? resolvePathRasterBounds(e as PathDesignElement) : undefined;
+  const shellGeom = pathRasterBounds
+    ? { ...geom, xMm: pathRasterBounds.xMm, yMm: pathRasterBounds.yMm, widthMm: pathRasterBounds.widthMm, heightMm: pathRasterBounds.heightMm }
+    : geom;
   
   const shellStyle: React.CSSProperties = {
     position: 'absolute',
-    left: `${geom.xMm * mmToPx}px`,
-    top: `${geom.yMm * mmToPx}px`,
-    width: `${geom.widthMm * mmToPx}px`,
-    height: `${geom.heightMm * mmToPx}px`,
+    left: `${shellGeom.xMm * mmToPx}px`,
+    top: `${shellGeom.yMm * mmToPx}px`,
+    width: `${shellGeom.widthMm * mmToPx}px`,
+    height: `${shellGeom.heightMm * mmToPx}px`,
     transform: `rotate(${geom.rotation}deg)`,
     opacity: e.opacity,
     zIndex: e.zIndex + 1,
@@ -153,8 +158,9 @@ function IsolatedExportElement({ element, assets, mmToPx }: { element: DesignEle
     const pathElement=e as PathDesignElement,clean=pathElement.id.replace(/[^a-zA-Z0-9_-]/g,'');
     const ids={linear:`export-linear-${clean}`,radial:`export-radial-${clean}`,pattern:`export-pattern-${clean}`,image:`export-image-${clean}`};
     const fill=exportVectorFillPaint(pathElement.fill,ids),fillOpacity=exportVectorFillOpacity(pathElement.fill),strokeProps=exportVectorStrokeProps(pathElement.stroke,1);
-    const widthMm=Math.max(pathElement.size.widthMm,.1),heightMm=Math.max(pathElement.size.heightMm,.1),shadow=normalizeShadow(pathElement.shadow),pathLabel=pathElement.label?.enabled?pathElement.label:undefined;
-    content=(<div style={{position:'relative',width:'100%',height:'100%'}}><svg data-export-path-id={pathElement.id} width="100%" height="100%" viewBox={`0 0 ${widthMm} ${heightMm}`} preserveAspectRatio="none" style={{position:'absolute',inset:0,overflow:'visible',filter:shadow!=='none'?`drop-shadow(${shadow})`:undefined}}><ExportVectorFillDefs fill={pathElement.fill} ids={ids} assets={assets} width={widthMm} height={heightMm}/><path d={geometryToSvgPath(pathElement.geometry)} fill={fill} fillOpacity={fillOpacity} strokeWidth={pathElement.stroke.style==='NONE'?0:pathElement.stroke.widthMm} {...strokeProps} vectorEffect="non-scaling-stroke"/></svg>{pathLabel&&<div style={{position:'absolute',inset:`${pathLabel.paddingMm*mmToPx}px`,display:'flex',alignItems:pathLabel.verticalAlignment==='TOP'?'flex-start':pathLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:pathLabel.alignment==='LEFT'?'flex-start':pathLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:pathLabel.fontFamily,fontSize:`${pathLabel.fontSizePt}pt`,fontWeight:pathLabel.fontWeight,fontStyle:pathLabel.italic?'italic':'normal',textDecoration:pathLabel.underline?'underline':'none',color:normalizeExportColor(pathLabel.color),lineHeight:pathLabel.lineHeight,textAlign:pathLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{pathLabel.text}</div>}</div>);
+    const rasterBounds=pathRasterBounds ?? resolvePathRasterBounds(pathElement),shadow=normalizeShadow(pathElement.shadow),pathLabel=pathElement.label?.enabled?pathElement.label:undefined;
+    const labelOffsetPx=rasterBounds.contentOffsetMm*mmToPx;
+    content=(<div style={{position:'relative',width:'100%',height:'100%'}}><svg data-export-path-id={pathElement.id} width="100%" height="100%" viewBox={`${rasterBounds.viewBoxX} ${rasterBounds.viewBoxY} ${rasterBounds.viewBoxWidthMm} ${rasterBounds.viewBoxHeightMm}`} preserveAspectRatio="none" style={{position:'absolute',inset:0,overflow:'visible',filter:shadow!=='none'?`drop-shadow(${shadow})`:undefined}}><ExportVectorFillDefs fill={pathElement.fill} ids={ids} assets={assets} width={rasterBounds.viewBoxWidthMm} height={rasterBounds.viewBoxHeightMm}/><path d={geometryToSvgPath(pathElement.geometry)} fill={fill} fillOpacity={fillOpacity} strokeWidth={pathElement.stroke.style==='NONE'?0:pathElement.stroke.widthMm} {...strokeProps} vectorEffect="non-scaling-stroke"/></svg>{pathLabel&&<div style={{position:'absolute',left:labelOffsetPx,top:labelOffsetPx,width:`${pathElement.size.widthMm*mmToPx}px`,height:`${pathElement.size.heightMm*mmToPx}px`,padding:`${pathLabel.paddingMm*mmToPx}px`,boxSizing:'border-box',display:'flex',alignItems:pathLabel.verticalAlignment==='TOP'?'flex-start':pathLabel.verticalAlignment==='BOTTOM'?'flex-end':'center',justifyContent:pathLabel.alignment==='LEFT'?'flex-start':pathLabel.alignment==='RIGHT'?'flex-end':'center',overflow:'hidden',fontFamily:pathLabel.fontFamily,fontSize:`${pathLabel.fontSizePt}pt`,fontWeight:pathLabel.fontWeight,fontStyle:pathLabel.italic?'italic':'normal',textDecoration:pathLabel.underline?'underline':'none',color:normalizeExportColor(pathLabel.color),lineHeight:pathLabel.lineHeight,textAlign:pathLabel.alignment.toLowerCase() as any,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{pathLabel.text}</div>}</div>);
   } else if (e.type === 'IMAGE') {
     const source = resolveRasterImageElementSource(e, assets);
     if (source) {

@@ -21,6 +21,7 @@ export * from './history.js';
 export * from './clipboard.js';
 
 export * from './starter-templates.js';
+export * from './cartonDieline.js';
 
 export * from './alignment.js';
 export * from './pathUtils.js';
@@ -60,3 +61,9 @@ export * from './joinedLineRegion.js';
 export * from './endpointWeld.js';
 
 export * from './intersectionTopology.js';
+
+export * from './packagingArtwork.js';
+
+export * from './svgDielineImport.js';
+
+export * from './imageBackgroundRemoval.js';

@@ -1,0 +1,4 @@
+import { describe,expect,it } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+describe('Phase 9.3 carton dieline UI',()=>{const source=readFileSync(new URL('../src/pages/CardDesigner.tsx',import.meta.url),'utf8');it('provides structure, measurement and manufacturing inputs',()=>{for(const marker of ['Box Dieline Generator','Carton structure','Carton measurement basis','Width','Depth','Material','Glue flap','Tuck depth','Dust flap','Safe margin','Tolerance'])expect(source).toContain(marker);});it('supports guarded generation, regeneration and technical layer visibility',()=>{expect(source).toContain('Regenerate dieline?');expect(source).toContain('The current design will be replaced');expect(source).toContain("['CUT','CREASE','BLEED','SAFE','ANNOTATION']");expect(source).toContain('setGroupVisibility');expect(source).toContain('Converter approval required');});});

@@ -1,5 +1,37 @@
 # Phase Index
 
+## Phase 9.3 — Parameterized Folding-Carton Dieline Generator
+
+- Straight/Reverse Tuck End, slit-lock variants and Simple Sleeve.
+- Internal/external measurement basis and material-caliper compensation.
+- Width/depth/height, glue, tuck, dust, bleed, safe and tolerance inputs.
+- Continuous CUT contour and independently editable CREASE paths.
+- Front/Back/Left/Right/Glue panel mapping and technical annotations.
+- CUT, CREASE, BLEED, SAFE and ANNOTATION technical groups with visibility controls.
+- Input validation, guarded regeneration, Undo integration and metadata round-trip.
+- Editor guides excluded from export; visible CUT/CREASE retained for dieline proof.
+- Update: `UPDATE_PHASE_9_3_CARTON_DIELINE_GENERATOR.md`.
+
+## Phase 9.2 — Professional Editable Sample Template Pack
+
+- 22 editable print samples across 14 production categories.
+- Searchable and category-filtered gallery with format and front/back information.
+- Named editable elements, dynamic field bindings and 300 DPI print defaults.
+- Correct paired Front/Back artboards for every two-sided sample.
+- Dedicated samples for ID, business, membership, invitations, labels, shipping,
+  hang tags, vouchers, certificates, stickers, table tents and packaging panels.
+- Update: `UPDATE_PHASE_9_2_PROFESSIONAL_TEMPLATE_PACK.md`.
+
+## Phase 9.1 — Professional Page Size & Format System
+
+- Searchable categories for cards, folded formats, labels, tags, stickers and paper.
+- ISO A0–A10, B0–B6 and Letter/Legal/Tabloid plus production card formats.
+- Portrait/landscape application with format-specific bleed and safe-area defaults.
+- Front/back layout metadata and existing paired-artboard workflow preserved.
+- Locally saved custom presets with validation and deletion.
+- Exact 300 DPI pixel dimensions shown beside manual dimensions.
+- Update: `UPDATE_PHASE_9_1_PAGE_FORMAT_SYSTEM.md`.
+
 ## Phase 9.0 — Test Stabilization and WAVE Geometry Recovery
 
 - Missing editable WAVE path conversion implemented.
@@ -181,3 +213,42 @@ Status: SOURCE VERIFIED / MANUAL UI PENDING
 - 8.8A5 Fix2 — Edge Align to Reference Geometry — IMPLEMENTED / MANUAL PENDING
 
 - **Phase 8.8A5 Fix3 — Build, Typecheck & Test Stabilization** — TYPECHECK PASS / 172 TEST FILES, 907 TESTS PASS / BUILD PASS / MANUAL WINDOWS UI PENDING. See `UPDATE_PHASE_8_8A5_FIX3_BUILD_TYPECHECK_TEST_STABILIZATION.md`.
+
+## Phase 9.4D–9.4F — Packaging Artwork Operations
+- Automatic panel artwork ownership/index
+- Focused-panel artwork insertion
+- Assign / Fit / Fill / Contain / Bleed Fill
+- Focus preview clipping
+- Safe-area / panel-overflow / bleed warnings
+- Details: `UPDATE_PHASE_9_4D_TO_9_4F_PACKAGING_ARTWORK.md`
+
+## Phase 9.4 UX1 — Professional Canvas Workspace
+- Larger Illustrator/Photoshop-style canvas workspace foundation.
+- Side content panels collapsed by default; rails remain available.
+- Canvas/Tab toggles side panels.
+- Compact single-row local canvas toolbar with horizontal overflow.
+- SELECT mode double-click-and-drag empty canvas activates temporary pan.
+- Existing Space/middle-mouse/Pan tool behavior preserved.
+- See `UPDATE_PHASE_9_4_UX1_PROFESSIONAL_CANVAS_WORKSPACE.md`.
+
+## Phase 9.4J-K — Packaging Persistence + Export Modes
+- Serialization-boundary packaging normalization and artwork-index repair.
+- Undo/Redo coverage for panel orientation.
+- Client Proof, Dieline Proof and Technical View export policies.
+- Shared export filtering across PDF/PNG/JPEG and bulk generation.
+
+## Phase 9.4L–9.4M — SVG Dieline Import + Manual Panel Mapping
+- Printer SVG import with physical size preservation.
+- Editable vector extraction with multi-subpath splitting.
+- Manual CUT / CREASE / Other classification and technical locking.
+- Manual Front/Back/Left/Right/Glue + Top/Bottom Tuck/Dust panel mapping.
+- Existing panel Focus / Inspector / Preflight / artwork pipeline reused.
+- PDF recognition remains later scope.
+- See `UPDATE_PHASE_9_4L_TO_9_4M_SVG_DIELINE_IMPORT_PANEL_MAPPING.md`.
+
+## Phase 9.4 IMG1–IMG2 — Image Background Removal
+- Connected-border Auto/Color background removal.
+- Internal matching foreground protection.
+- Non-destructive transparent derived assets.
+- Inspector live preview, tolerance, eyedropper, Before/After, Apply as Copy, Reset Original.
+- IMG3 remains edge refinement/manual brushes; IMG4 remains shape-fill/dynamic/packaging-wide integration.

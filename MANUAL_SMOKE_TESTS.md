@@ -807,3 +807,12 @@ CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference pa
 - [ ] Target size does not change.
 - [ ] Undo restores original target position/rotation in one step.
 - [ ] Save/reload preserves aligned result.
+
+## Phase 9.4J-K Packaging Persistence + Export
+1. Generate carton; focus Front; add text/image; orient Front to 90°.
+2. Save, reload, and verify panel ownership and 90° orientation remain.
+3. Undo/Redo an orientation change and verify the artwork returns/reapplies.
+4. Export Artwork Only: artwork visible; CUT/CREASE absent.
+5. Export Dieline Proof: artwork + CUT/CREASE visible; SAFE/BLEED/labels absent.
+6. Export Technical View: CUT/CREASE + panel labels visible; artwork absent.
+7. Compare PDF and PNG outputs for the selected mode.

@@ -1216,3 +1216,47 @@
     height: 20px;
   }
 }
+
+/* Phase 9.4 UX1 — professional large-canvas workspace */
+.dg-designer-main{background:var(--color-workspace-bg)}
+.dg-designer-legacy-workspace{gap:0;grid-template-columns:minmax(0,1fr) auto}
+.card-canvas-column{border-radius:0;border-top:0;border-bottom:0;min-width:0}
+.card-canvas-toolbar{
+  min-height:38px!important;
+  height:38px;
+  padding:4px 8px!important;
+  flex-wrap:nowrap!important;
+  gap:8px!important;
+  overflow:hidden!important;
+  align-items:center!important;
+}
+.canvas-artboard-name{flex:0 0 auto!important;min-width:150px;max-width:240px;white-space:nowrap;overflow:hidden}
+.canvas-artboard-name strong,.canvas-artboard-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.canvas-zoom-controls{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  flex-wrap:nowrap!important;
+  justify-content:flex-start!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scrollbar-width:thin;
+  padding-bottom:1px;
+}
+.canvas-zoom-controls::-webkit-scrollbar{height:4px}
+.canvas-zoom-controls::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--color-text-muted) 28%,transparent);border-radius:999px}
+.canvas-zoom-controls button,.canvas-zoom-controls .card-toolbar-check,.canvas-zoom-controls .card-grid-size-control{min-height:28px!important;white-space:nowrap}
+.card-canvas-stage{padding:48px!important}
+.card-canvas-status{min-height:24px!important;padding:3px 8px!important}
+.card-record-navigator{min-height:26px!important;padding-block:2px!important}
+.card-canvas-viewport.pan-ready{cursor:grab!important}
+.card-canvas-viewport.pan-active{cursor:grabbing!important;user-select:none}
+
+/* Keep the canvas as the dominant surface; side rails remain available to reopen panels. */
+.dg-designer-left-panel{box-shadow:1px 0 0 var(--color-border)}
+.dg-designer-inspector-layout{box-shadow:-1px 0 0 var(--color-border)}
+
+@media(max-width:1180px){
+  .card-canvas-toolbar{height:38px!important;align-items:center!important}
+  .canvas-artboard-name{width:auto!important}
+  .canvas-zoom-controls{flex:1 1 auto!important;justify-content:flex-start!important}
+}

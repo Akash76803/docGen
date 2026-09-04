@@ -1,6 +1,56 @@
 # Current Baseline
 
-Latest stabilization: **Phase 9.0 — Test Stabilization and WAVE Geometry Recovery**.
+Latest implementation: **Phase 9.4L–9.4M — SVG Dieline Import + Manual Panel Mapping**, on top of the verified Phase 9.4K Fix6 export baseline. See `UPDATE_PHASE_9_4L_TO_9_4M_SVG_DIELINE_IMPORT_PANEL_MAPPING.md`. Full dependency-based verification for L–M is pending; targeted functional harnesses passed in the implementation environment.
+
+Latest implementation: **Phase 9.3 — Parameterized Folding-Carton Dieline Generator**.
+
+Phase 9.3 generates five editable ECMA-style folding-carton structures from
+finished dimensions: Straight Tuck End, Reverse Tuck End, both slit-lock
+variants and Simple Sleeve. It produces a continuous CUT contour, independent
+CREASE paths, panel mapping, editor-only BLEED/SAFE/ANNOTATION guides,
+manufacturing input validation, guarded deterministic regeneration and
+technical-layer visibility controls. Converter approval remains mandatory.
+See `UPDATE_PHASE_9_3_CARTON_DIELINE_GENERATOR.md`.
+
+Automated verification after Phase 9.3:
+- `npm run typecheck`: PASS — 0 errors
+- `npm test -- --run`: PASS — 198 files, 983 tests
+- `npm run build`: PASS — 17 workspaces, desktop Vite bundle 1700 modules
+- `git diff --check`: PASS
+- Manual Windows UI, 100% paper fold and converter review: PENDING
+
+Previous implementation: **Phase 9.2 — Professional Editable Sample Template Pack**.
+
+Phase 9.2 provides 22 editable, print-configured sample designs across ID,
+business, membership, invitation, greeting, promotional, label, shipping, tag,
+voucher, certificate, sticker, menu/tent and packaging categories. The gallery
+supports search/category filters and displays format, sidedness and print-ready
+metadata. Two-sided samples use real paired Front/Back artboards and the pack is
+dynamic-field-ready. See `UPDATE_PHASE_9_2_PROFESSIONAL_TEMPLATE_PACK.md`.
+
+Automated verification after Phase 9.2:
+- `npm run typecheck`: PASS — 0 errors
+- `npm test -- --run`: PASS — 195 files, 973 tests
+- `npm run build`: PASS — 17 workspaces, desktop Vite bundle 1699 modules
+- `git diff --check`: PASS
+- Manual Windows UI verification: PENDING
+
+Previous implementation: **Phase 9.1 — Professional Page Size & Format System**.
+
+Phase 9.1 adds a searchable categorized catalog for cards, folded work, labels,
+tags, stickers, ISO A0–A10, ISO B0–B6 and US paper. Presets carry orientation,
+layout, bleed, safe-area and DPI defaults. Users can save/delete custom formats
+in local persistence, while existing front/back pairing and free dimensions remain
+available. See `UPDATE_PHASE_9_1_PAGE_FORMAT_SYSTEM.md`.
+
+Automated verification after Phase 9.1:
+- `npm run typecheck`: PASS — 0 errors
+- `npm test -- --run`: PASS — 193 files, 967 tests
+- `npm run build`: PASS — 17 workspaces, desktop Vite bundle 1699 modules
+- `git diff --check`: PASS
+- Manual Windows UI verification: PENDING
+
+Previous stabilization: **Phase 9.0 — Test Stabilization and WAVE Geometry Recovery**.
 
 Automated verification after Phase 9.0:
 - `npm run typecheck`: PASS
@@ -13,7 +63,7 @@ reconciles seven inherited source-string regression files with the current
 modular Split, Fill Bucket, joined-region, Polyline and CAD tracking behavior.
 See `UPDATE_PHASE_9_0_TEST_STABILIZATION.md`.
 
-Latest implementation: **Phase 8.8B1 Fix8 — Smallest Planar Compartment Fill**.
+Previous geometry implementation: **Phase 8.8B1 Fix8 — Smallest Planar Compartment Fill**.
 
 Feature baseline: **Phase 8.8A5 Fix2 — Edge Align to Reference Geometry**.
 
@@ -118,3 +168,18 @@ RAY re-added on top of the manually verified TDZ-recovery baseline. Dashboard/Ca
 Added anchored Start/End/Center Length + Angle editing for CAD LINE PATHs in Edit Path mode. Manual UI verification pending.
 
 - Phase 8.8A5 Fix2: Edge Align to Reference Geometry implemented; manual UI verification pending.
+
+## Phase 9.4D–9.4F add-on
+Panel-aware packaging artwork operations are now layered on top of Phase 9.4A–C. See `UPDATE_PHASE_9_4D_TO_9_4F_PACKAGING_ARTWORK.md`. Full workspace verification must still be executed on the supported Node 20 environment with dependencies installed.
+
+## Local continuation — Phase 9.4J-K
+Packaging persistence normalization and packaging export modes have been implemented on top of the Phase 9.4G-I working source. Fresh full-suite verification is pending in a complete Node 20 dependency environment; see `UPDATE_PHASE_9_4J_TO_9_4K_PACKAGING_PERSISTENCE_EXPORT_MODES.md`.
+
+## Phase 9.4 IMG1–IMG2 — Image Background Removal Foundation + UI
+- Border-connected Auto/Selected Color removal implemented for normal IMAGE elements.
+- Non-destructive derived PNG assets preserve original assets.
+- Inspector preview includes tolerance, eyedropper, checkerboard, Before/After, Apply as Copy and Reset Original.
+- Targeted processing/persistence harness: PASS.
+- Changed UI/browser helper transpile syntax: PASS.
+- Full Node 20 monorepo verification: PENDING in a complete dependency environment.
+- See `UPDATE_PHASE_9_4_IMG1_IMG2_BACKGROUND_REMOVAL.md`.
