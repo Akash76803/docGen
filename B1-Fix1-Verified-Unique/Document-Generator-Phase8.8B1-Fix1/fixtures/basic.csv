@@ -1,3 +1,0 @@
-InvoiceNo,Customer,Amount,Active
-INV001,ABC Traders,5000,true
-INV002,XYZ Stores,1250.50,false
