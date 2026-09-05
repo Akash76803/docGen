@@ -16,6 +16,7 @@ import {
   getAlignmentUnitCount
 } from '@document-tool/design-engine';
 import { DesignerToolbarMode } from './designerToolbarConfig.js';
+import { DESIGN_FONT_FAMILIES } from './fontLibrary.js';
 import { AlignLeft, AlignCenter, AlignRight, AlignHorizontalSpaceAround, AlignVerticalSpaceAround } from 'lucide-react';
 
 export type DesignerContextToolbarProps = {
@@ -59,7 +60,8 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
       <>
         <div className="dg-designer-context-toolbar__group">
           <select value={el.style.fontFamily} onChange={e => update(e_ => ({ ...e_, style: { ... (e_ as TextDesignElement).style, fontFamily: e.target.value } }))}>
-            {['Arial','Helvetica','Georgia','Times New Roman','Verdana','Trebuchet MS','Courier New'].map(f=><option key={f}>{f}</option>)}
+            {!DESIGN_FONT_FAMILIES.includes(el.style.fontFamily)&&<option value={el.style.fontFamily}>{el.style.fontFamily} (Current)</option>}
+            {DESIGN_FONT_FAMILIES.map(f=><option key={f} value={f}>{f}</option>)}
           </select>
           <input 
             type="number" 

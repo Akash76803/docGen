@@ -2487,3 +2487,29 @@ body { background: var(--bg-primary); color: var(--text-primary); }
   background-position: 0 0, 0 9px, 9px -9px, -9px 0;
 }
 .card-bg-removal-preview img { max-width: 100%; max-height: 250px; object-fit: contain; display:block; }
+/* Phase 9.4 IMG3 — brush/refine interactions */
+.card-bg-removal-preview.interactive img{user-select:none;-webkit-user-drag:none}
+.card-bg-removal-preview.brush-active{outline:1px dashed color-mix(in srgb,var(--accent-color,#2563eb) 60%, transparent)}
+
+/* TEXT5 — Text Styling inspector arrangement */
+.card-property-sections .dg-inspector-section[data-section-key="TYPOGRAPHY"]{margin-bottom:10px;border:1px solid var(--glass-border);border-radius:10px;background:color-mix(in srgb,var(--bg-secondary) 86%,transparent);overflow:hidden}
+.card-property-sections .dg-inspector-section[data-section-key="TYPOGRAPHY"] .dg-inspector-section__header{position:sticky;top:0;z-index:2;padding:8px 10px;background:color-mix(in srgb,var(--bg-secondary) 94%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--glass-border)}
+.card-property-sections .dg-inspector-section[data-section-key="TYPOGRAPHY"] .dg-inspector-section__body{padding:9px;display:flex;flex-direction:column;gap:9px}
+.card-property-sections .dg-inspector-section[data-section-key="TYPOGRAPHY"] .dg-inspector-section__body>label{margin:0}
+.card-property-sections .dg-inspector-section[data-section-key="TYPOGRAPHY"] .dg-inspector-section__body>.card-property-details{padding:8px 9px;overflow:visible}
+.card-property-sections .dg-inspector-section[data-section-key="TYPOGRAPHY"] .dg-inspector-section__body>.card-property-details>strong{display:block;margin-bottom:7px;font-size:10px;letter-spacing:.02em}
+.card-text-style-presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.card-text-style-presets button{min-height:34px;border:1px solid var(--glass-border);border-radius:8px;background:var(--bg-tertiary);color:var(--text-primary);font-size:10px;font-weight:750;cursor:pointer}
+.card-text-style-presets button.active{outline:2px solid color-mix(in srgb,var(--accent-color,#2563eb) 65%,transparent);border-color:var(--accent-color,#2563eb)}
+.card-text-style-presets button:hover{background:color-mix(in srgb,var(--accent-color,#2563eb) 9%,var(--bg-tertiary))}
+/* TEXT6A — Photoshop-like Layer Effects stack foundation */
+.card-text-layer-effects-engine{display:flex;flex-direction:column;gap:8px}
+.card-text-layer-effect-row{border:1px solid var(--glass-border);border-radius:8px;background:var(--bg-secondary);overflow:hidden}
+.card-text-layer-effect-row>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;cursor:pointer;list-style:none}
+.card-text-layer-effect-row>summary::-webkit-details-marker{display:none}
+.card-text-layer-effect-row[open]>summary{border-bottom:1px solid var(--glass-border)}
+.card-text-layer-effect-row>.card-property-details{padding:10px}
+/* TEXT6B — independent multi-stroke layer rendering */
+.card-text-layer-stack{position:relative;display:block;isolation:isolate}
+.card-text-stroke-layer{position:absolute;inset:0;width:100%;color:transparent!important;-webkit-text-fill-color:transparent!important;pointer-events:none;user-select:none;paint-order:stroke fill;white-space:inherit;word-break:inherit}
+.card-text-fill-layer{position:relative;z-index:100;display:block;width:100%}

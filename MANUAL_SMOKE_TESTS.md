@@ -816,3 +816,17 @@ CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference pa
 5. Export Dieline Proof: artwork + CUT/CREASE visible; SAFE/BLEED/labels absent.
 6. Export Technical View: CUT/CREASE + panel labels visible; artwork absent.
 7. Compare PDF and PNG outputs for the selected mode.
+
+## TEXT6B-FONT2 — Professional Font Manager smoke test
+1. Open Card Designer and select a TEXT element.
+2. Open Text Styling → Typography → Font Manager.
+3. Upload one licensed `.ttf`, `.otf`, `.woff`, or `.woff2` font under 5 MB.
+4. Confirm it appears under My Fonts with a live `Ag 0123` preview and loaded check mark.
+5. Click the font and confirm the selected text changes immediately.
+6. Mark the font as favorite, switch to another font, and confirm it appears in Favorites and Recent groups in the Font Family dropdown.
+7. Save/reload Card Designer. Confirm My Fonts persists and the uploaded family is registered again.
+8. Apply the uploaded family to a rich-text selection and to Shape/PATH text; verify canvas rendering.
+9. Export PNG/JPEG/PDF through the existing export flow and compare the visible glyph style with canvas output.
+10. Remove the uploaded font. Confirm existing text keeps the family name and the Font Manager shows a missing-font warning/replacement control instead of crashing or blanking Card Designer.
+11. Open Assets → My Assets and verify uploaded font files do not appear as broken image thumbnails.
+12. Attempt an unsupported file and a font over 5 MB; verify a clear status message and no library corruption.

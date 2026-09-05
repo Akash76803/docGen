@@ -23,7 +23,7 @@ export const InspectorSection: React.FC<InspectorSectionProps> = ({
   children
 }) => {
   return (
-    <div className="dg-inspector-section">
+    <div className="dg-inspector-section" data-section-key={sectionKey}>
       <div className="dg-inspector-section__header">
         <span className="dg-inspector-section__icon">{iconMap[sectionKey]}</span>
         <h3 className="dg-inspector-section__title">{title}</h3>

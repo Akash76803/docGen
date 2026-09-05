@@ -37,7 +37,7 @@ export function createTextElement(options:ElementFactoryOptions):TextDesignEleme
     size:{widthMm:options.widthMm??45,heightMm:options.heightMm??12},
     rotationDeg:0,opacity:1,visible:true,locked:false,zIndex:options.zIndex??0,
     text:'Double-click to edit',
-    style:{fontFamily:'Arial',fontSizePt:18,fontWeight:400,italic:false,underline:false,color:'#111827',alignment:'LEFT',lineHeight:1.2,letterSpacingPt:0},
+    style:{fontFamily:'Arial',fontSizePt:18,fontWeight:400,italic:false,underline:false,strikethrough:false,color:'#111827',alignment:'LEFT',paragraphAlignment:'LEFT',verticalAlignment:'TOP',lineHeight:1.2,letterSpacingPt:0,paddingMm:0,textCase:'NONE',fill:{type:'SOLID',color:'#111827',opacity:1},stroke:{color:'#111827',widthMm:0,opacity:1},glow:{enabled:false,color:'#60a5fa',blurMm:1.5,opacity:.65},materialPreset:'CUSTOM',advancedEffects:{bevel:{enabled:false,depthMm:.35,highlightColor:'#ffffff',shadowColor:'#111827',intensity:.65},highlight:{enabled:false,color:'#ffffff',offsetYmm:-.25,blurMm:.25,opacity:.6},longShadow:{enabled:false,color:'#111827',distanceMm:2,angleDeg:45,opacity:.45},innerShadow:{enabled:false,color:'#111827',offsetXmm:.18,offsetYmm:.18,blurMm:.3,opacity:.45},innerGlow:{enabled:false,color:'#ffffff',blurMm:.7,opacity:.45},secondaryStroke:{enabled:false,color:'#ffffff',widthMm:.35,opacity:1},reflection:{enabled:false,color:'#ffffff',offsetYmm:.35,blurMm:.35,opacity:.35},grain:{enabled:false,color:'#111827',amount:35,opacity:.18}},textPath:{mode:'BOX',startOffsetPct:50,reverse:false,side:'OUTSIDE'},autoFit:{enabled:false,minFontSizePt:6},layerEffects:[]},
     shadow:{enabled:false,color:'#000000',opacity:.25,offsetXmm:1,offsetYmm:1,blurMm:2},
   };
 }

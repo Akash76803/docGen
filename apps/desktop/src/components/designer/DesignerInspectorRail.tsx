@@ -23,7 +23,7 @@ const labelMap: Record<InspectorSectionKey, string> = {
   GENERAL: 'General',
   TRANSFORM: 'Transform',
   APPEARANCE: 'Appearance',
-  TYPOGRAPHY: 'Typography',
+  TYPOGRAPHY: 'Text Styling',
   DATA_BINDING: 'Data Binding',
   ADVANCED: 'Advanced',
 };

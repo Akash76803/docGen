@@ -1,0 +1,15 @@
+* [33m33a5eb4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Phase 9.4 packaging and background removal updates
+* [33mb8b1a1b[m fix: stabilize tests and restore wave geometry
+* [33md68ebc4[m chore: remove duplicate project and generated artifacts
+* [33maad2be4[m Added Polyline and Line common junction point
+* [33mc7fac82[m Updated CAD panal
+* [33m7c1c390[m Updated shortcut panal
+* [33me79d4b3[m Update design engine geometry and snapping utilities
+* [33ma8e7116[m feat: implement Phase 8.7 CAD guides, tracking, mirror, boolean tools and update desktop build
+* [33mce8132e[m feat: implement Phase 8.6 rich artboard backgrounds and refresh Windows desktop package
+* [33mf34aa21[m docs: add baseline documentation, shape operations audit, and test updates
+* [33m486621a[m docs: update project features and drawing guide
+* [33m8f6acf3[m feat: improve designer navigation and polyline drawing
+* [33m1e78a04[m feat: add CAD snapping split tools and artboard styling
+* [33m30800fd[m Implement Phases 7.7 updates and refresh Windows package
+* [33m1a426a2[m Implement Phase 7.7 updates and refresh Windows package

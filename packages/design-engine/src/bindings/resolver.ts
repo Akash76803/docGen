@@ -1,5 +1,6 @@
 import type { DesignBinding, DesignDataContext, DesignElement, Artboard, TextDesignElement } from '@document-tool/contracts';
 import { evaluateElementVisibility } from './visibility.js';
+import { remapTextStyleRunsForTemplate } from '../richText.js';
 
 /**
  * Resolves a dot-notation path against a record deterministically.
@@ -310,7 +311,19 @@ export function resolveElementBindings(element: DesignElement, context: DesignDa
   // If we are in TEMPLATE mode for text, resolve the mixed placeholders
   if (isTemplateMode) {
     const textElement = resolvedElement as unknown as TextDesignElement;
-    const resolution = resolveTextTemplate(textElement.text, context);
+    const sourceText = textElement.text;
+    const resolution = resolveTextTemplate(sourceText, context);
+    if (textElement.style.runs?.length) {
+      textElement.style.runs = remapTextStyleRunsForTemplate(
+        sourceText,
+        resolution.text,
+        textElement.style.runs,
+        path => {
+          const resolved = resolvePath(context.record, path);
+          return resolved === null || resolved === undefined || typeof resolved === 'object' ? '' : String(resolved);
+        }
+      );
+    }
     textElement.text = resolution.text;
   }
 

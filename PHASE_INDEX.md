@@ -252,3 +252,10 @@ Status: SOURCE VERIFIED / MANUAL UI PENDING
 - Non-destructive transparent derived assets.
 - Inspector live preview, tolerance, eyedropper, Before/After, Apply as Copy, Reset Original.
 - IMG3 remains edge refinement/manual brushes; IMG4 remains shape-fill/dynamic/packaging-wide integration.
+
+## TEXT6B-FONT2 — Professional Font Manager + Custom Font Upload (2026-09-05)
+- Baseline: TEXT6C overlay engine.
+- Adds persistent custom font upload (`.ttf/.otf/.woff/.woff2`), My Fonts preview/search/favorites/recent workflow, browser FontFace registration, missing-font warning and replacement selector.
+- Font files are stored as user-library `OTHER` assets with `fontAsset` metadata, not bundled as third-party proprietary fonts.
+- Normal text, rich text, Shape/PATH labels and the context toolbar use the expanded font workflow.
+- See `UPDATE_PHASE_TEXT6B_FONT2_PROFESSIONAL_FONT_MANAGER.md`.

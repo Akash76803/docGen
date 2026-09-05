@@ -67,3 +67,7 @@ export * from './packagingArtwork.js';
 export * from './svgDielineImport.js';
 
 export * from './imageBackgroundRemoval.js';
+
+export * from './richText.js';
+
+export * from './textLayerEffects.js';

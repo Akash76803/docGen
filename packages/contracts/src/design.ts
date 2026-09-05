@@ -168,6 +168,60 @@ export interface BaseDesignElement {
   runtimeHidden?:boolean; // Runtime evaluation result, never persisted
 }
 
+
+export interface TextStyleRunStyle {
+  fontFamily?:string;
+  fontSizePt?:number;
+  fontWeight?:number;
+  italic?:boolean;
+  underline?:boolean;
+  strikethrough?:boolean;
+  color?:string;
+  baselineShift?:'NORMAL'|'SUPERSCRIPT'|'SUBSCRIPT';
+}
+
+export interface TextStyleRun {
+  id:string;
+  start:number;
+  end:number;
+  style:TextStyleRunStyle;
+}
+
+
+export type TextLayerEffectType = 'STROKE'|'COLOR_OVERLAY'|'GRADIENT_OVERLAY'|'PATTERN_OVERLAY'|'INNER_SHADOW'|'INNER_GLOW'|'OUTER_GLOW'|'DROP_SHADOW'|'BEVEL_EMBOSS';
+export type TextLayerEffectBlendMode = 'NORMAL'|'MULTIPLY'|'SCREEN'|'OVERLAY'|'SOFT_LIGHT';
+export interface TextLayerEffect {
+  id:string;
+  type:TextLayerEffectType;
+  enabled:boolean;
+  name?:string;
+  opacity?:number;
+  blendMode?:TextLayerEffectBlendMode;
+  settings:{
+    color?:string;
+    widthMm?:number;
+    position?:'INSIDE'|'CENTER'|'OUTSIDE';
+    offsetXmm?:number;
+    offsetYmm?:number;
+    angleDeg?:number;
+    distanceMm?:number;
+    blurMm?:number;
+    spread?:number;
+    gradient?:DesignLinearGradient|DesignRadialGradient;
+    gradientScalePct?:number;
+    gradientReverse?:boolean;
+    pattern?:DesignPatternFill;
+    patternOffsetX?:number;
+    patternOffsetY?:number;
+    depthMm?:number;
+    sizeMm?:number;
+    softenMm?:number;
+    direction?:'UP'|'DOWN';
+    highlightColor?:string;
+    shadowColor?:string;
+  };
+}
+
 export interface TextDesignElement extends BaseDesignElement {
   type:'TEXT';
   text:string;
@@ -177,10 +231,42 @@ export interface TextDesignElement extends BaseDesignElement {
     fontWeight:number;
     italic:boolean;
     underline:boolean;
+    strikethrough?:boolean;
     color:string;
     alignment:DesignHorizontalAlignment;
+    paragraphAlignment?:DesignHorizontalAlignment|'JUSTIFY';
+    verticalAlignment?:DesignVerticalAlignment;
     lineHeight:number;
     letterSpacingPt:number;
+    paddingMm?:number;
+    textCase?:'NONE'|'UPPERCASE'|'LOWERCASE'|'TITLE';
+    fill?:DesignFill;
+    stroke?:{ color:string; widthMm:number; opacity?:number };
+    glow?:{ enabled:boolean; color:string; blurMm:number; opacity:number };
+    materialPreset?:'CUSTOM'|'GOLD'|'SILVER'|'CHROME'|'NEON'|'GLASS'|'VINTAGE'|'ROSE_GOLD'|'BRONZE'|'COPPER'|'STEEL'|'HOLOGRAPHIC'|'GLITTER'|'FOIL'|'PLASTIC'|'CANDY'|'FROSTED_GLASS'|'RETRO'|'COMIC'|'GRUNGE'|'INK_STAMP'|'EMBOSSED_PAPER'|'ENGRAVED'|'WOOD'|'STONE'|'LEATHER'|'GRADIENT_NEON'|'OUTLINE_NEON';
+    advancedEffects?:{
+      bevel?:{ enabled:boolean; depthMm:number; highlightColor:string; shadowColor:string; intensity:number };
+      highlight?:{ enabled:boolean; color:string; offsetYmm:number; blurMm:number; opacity:number };
+      longShadow?:{ enabled:boolean; color:string; distanceMm:number; angleDeg:number; opacity:number };
+      innerShadow?:{ enabled:boolean; color:string; offsetXmm:number; offsetYmm:number; blurMm:number; opacity:number };
+      innerGlow?:{ enabled:boolean; color:string; blurMm:number; opacity:number };
+      secondaryStroke?:{ enabled:boolean; color:string; widthMm:number; opacity:number };
+      reflection?:{ enabled:boolean; color:string; offsetYmm:number; blurMm:number; opacity:number };
+      grain?:{ enabled:boolean; color:string; amount:number; opacity:number };
+    };
+    textPath?:{
+      mode:'BOX'|'ARC_UP'|'ARC_DOWN'|'CIRCLE'|'PATH';
+      pathElementId?:string;
+      startOffsetPct?:number;
+      reverse?:boolean;
+      side?:'OUTSIDE'|'INSIDE';
+    };
+    autoFit?:{
+      enabled:boolean;
+      minFontSizePt:number;
+    };
+    runs?:TextStyleRun[];
+    layerEffects?:TextLayerEffect[];
   };
   shadow?:DesignShadow;
   textBindingMode?:'FULL'|'TEMPLATE';

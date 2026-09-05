@@ -144,7 +144,7 @@ export function pasteDesignElementStyle(element:DesignElement,clipboard:DesignSt
 
 export function resetDesignElementStyle(element:DesignElement):DesignElement {
   switch(element.type){
-    case 'TEXT': return {...element,opacity:1,style:{fontFamily:'Arial',fontSizePt:18,fontWeight:400,italic:false,underline:false,color:'#111827',alignment:'LEFT',lineHeight:1.2,letterSpacingPt:0},shadow:clone(DEFAULT_DESIGN_SHADOW)};
+    case 'TEXT': return {...element,opacity:1,style:{fontFamily:'Arial',fontSizePt:18,fontWeight:400,italic:false,underline:false,strikethrough:false,color:'#111827',alignment:'LEFT',paragraphAlignment:'LEFT',verticalAlignment:'TOP',lineHeight:1.2,letterSpacingPt:0,paddingMm:0,textCase:'NONE',fill:{type:'SOLID',color:'#111827',opacity:1},stroke:{color:'#111827',widthMm:0,opacity:1},glow:{enabled:false,color:'#60a5fa',blurMm:1.5,opacity:.65}},shadow:clone(DEFAULT_DESIGN_SHADOW)};
     case 'SHAPE': return {...element,opacity:1,fill:clone(DEFAULT_SHAPE_FILL),stroke:{color:'#2563eb',widthMm:.35,style:'SOLID',opacity:1,lineCap:'BUTT',lineJoin:'MITER',miterLimit:4,dashOffset:0},cornerRadiusMm:element.shape==='ROUNDED_RECTANGLE'?3:0,shadow:clone(DEFAULT_DESIGN_SHADOW)};
     case 'IMAGE': return {...element,opacity:1,fit:'FIT',flipX:false,flipY:false,maintainAspectRatio:true,cornerRadiusMm:0,stroke:clone(DEFAULT_DESIGN_STROKE),shadow:clone(DEFAULT_DESIGN_SHADOW)};
     case 'SVG': return {...element,opacity:1,preserveVector:true,tintColor:undefined,stroke:clone(DEFAULT_DESIGN_STROKE),shadow:clone(DEFAULT_DESIGN_SHADOW)};
