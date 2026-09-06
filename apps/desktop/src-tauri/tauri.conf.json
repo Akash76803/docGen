@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "Document Tool",
-    "version": "1.0.0-rc.1"
+    "version": "1.0.0-rc.2"
   },
   "build": {
     "distDir": "../dist",

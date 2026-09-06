@@ -47,7 +47,7 @@ export async function processImageBackground(source:string,settings:BackgroundRe
   await new Promise<void>(resolve=>setTimeout(resolve,0));
   if(signal?.aborted)throw new DOMException('Background removal cancelled.','AbortError');
   const result=runImageBackgroundRemovalPipeline({width,height,data:pixels.data},settings);
-  context.putImageData(new ImageData(result.image.data,width,height),0,0);
+  context.putImageData(new ImageData(result.image.data as unknown as Uint8ClampedArray<ArrayBuffer>,width,height),0,0);
   const output={dataUrl:canvas.toDataURL('image/png'),widthPx:width,heightPx:height,backgroundColor:result.backgroundColor,removedPixels:result.removedPixels,totalPixels:result.totalPixels};
   remember(key,output);
   return output;
@@ -99,7 +99,7 @@ export async function processDynamicBackgroundRemovalArtboard(artboard:Artboard,
       const runtimeSource=(element.fill as typeof element.fill & {source?:unknown}).source;
       if(meta&&typeof runtimeSource==='string'&&runtimeSource.trim()){
         const result=await processImageBackground(resolveRasterImageFillSource(element.fill,assets)??runtimeSource,meta.settings,signal);
-        next={...element,fill:{...element.fill,source:result.dataUrl}} as typeof element;changed=true;
+        next={...element,fill:{...element.fill,source:result.dataUrl}} as unknown as typeof element;changed=true;
       }
     }
     elements.push(next);

@@ -418,8 +418,10 @@ export function applyBackgroundRemovedAssetToImageFill(template:DesignTemplate,a
 export function resetImageFillBackgroundRemoval(template:DesignTemplate,artboardId:string,elementId:string):DesignTemplate {
   const artboard=template.artboards.find(item=>item.id===artboardId);
   const element=artboard?.elements.find(item=>item.id===elementId);
-  if(!element||(element.type!=='SHAPE'&&element.type!=='PATH')||element.fill.type!=='IMAGE')return template;
-  const asset=template.sharedAssets.find(item=>item.id===element.fill.assetId);
+  if(!element||(element.type!=='SHAPE'&&element.type!=='PATH'))return template;
+  const fill = element.fill;
+  if (fill.type !== 'IMAGE') return template;
+  const asset=template.sharedAssets.find(item=>item.id===fill.assetId);
   const originalAssetId=typeof asset?.metadata?.backgroundRemovalOriginalAssetId==='string'?asset.metadata.backgroundRemovalOriginalAssetId:null;
   if(!originalAssetId||!template.sharedAssets.some(item=>item.id===originalAssetId))return template;
   return {

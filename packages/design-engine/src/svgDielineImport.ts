@@ -1,4 +1,4 @@
-import type { Artboard, DesignElement, DesignGroup, DesignTemplate, PathDesignElement, PathGeometry, PathPoint, PathSegment } from '@document-tool/contracts';
+import type { DesignElement, DesignGroup, DesignTemplate, PathDesignElement, PathGeometry, PathPoint, PathSegment } from '@document-tool/contracts';
 import type { PackagingPanel, PackagingPanelEdge, PackagingPanelFace, PackagingPanelKind } from './cartonDieline.js';
 import { packagingPanelsFromArtboard } from './cartonDieline.js';
 import { createBlankArtboard } from './artboards.js';

@@ -28,8 +28,8 @@ export type DesignerContextToolbarProps = {
   onGroupSelected?: () => void;
   onUngroupSelected?: () => void;
   pathEditMode?: { active: boolean; selectedNodeIds: string[] };
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'REFERENCE_ALIGN';
-  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'REFERENCE_ALIGN') => void;
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'PARALLEL_LINE' | 'PERPENDICULAR_LINE' | 'REFERENCE_ALIGN';
+  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'PARALLEL_LINE' | 'PERPENDICULAR_LINE' | 'REFERENCE_ALIGN') => void;
   pathSelectedSegmentIds?: string[];
   setPathSelectedSegmentIds?: (m: string[]) => void;
   setPathSelectedNodeIds?: (m: string[]) => void;
@@ -60,7 +60,7 @@ export const DesignerContextToolbar: React.FC<DesignerContextToolbarProps> = ({
       <>
         <div className="dg-designer-context-toolbar__group">
           <select value={el.style.fontFamily} onChange={e => update(e_ => ({ ...e_, style: { ... (e_ as TextDesignElement).style, fontFamily: e.target.value } }))}>
-            {!DESIGN_FONT_FAMILIES.includes(el.style.fontFamily)&&<option value={el.style.fontFamily}>{el.style.fontFamily} (Current)</option>}
+            {!(DESIGN_FONT_FAMILIES as readonly string[]).includes(el.style.fontFamily)&&<option value={el.style.fontFamily}>{el.style.fontFamily} (Current)</option>}
             {DESIGN_FONT_FAMILIES.map(f=><option key={f} value={f}>{f}</option>)}
           </select>
           <input 
