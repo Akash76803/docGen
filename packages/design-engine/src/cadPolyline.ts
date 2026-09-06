@@ -42,6 +42,24 @@ export function appendCadPolylinePoint(element:PathDesignElement,point:CadPolyli
   return {...element,position:normalized.position,size:normalized.size,geometry:normalized.geometry};
 }
 
+
+/** Closes an open CAD polyline by welding its last vertex back to the first vertex. */
+export function closeCadPolyline(element:PathDesignElement):PathDesignElement{
+  if(element.geometry.closed||element.geometry.points.length<3)return element;
+  const first=element.geometry.points[0]!;
+  const last=element.geometry.points[element.geometry.points.length-1]!;
+  const hasClosing=element.geometry.segments.some(segment=>segment.fromPointId===last.id&&segment.toPointId===first.id);
+  return {...element,geometry:{...element.geometry,closed:true,segments:hasClosing?element.geometry.segments:[...element.geometry.segments,{id:crypto.randomUUID(),type:'LINE' as const,fromPointId:last.id,toPointId:first.id}]},metadata:{...element.metadata,cadClosed:true}};
+}
+
+/** Returns true when a world-space point is close enough to the first vertex to close the polyline. */
+export function cadPolylineCanCloseAtPoint(element:PathDesignElement,point:CadPolylinePoint,toleranceMm=.05):boolean{
+  if(element.geometry.closed||element.geometry.points.length<3)return false;
+  const first=element.geometry.points[0];if(!first)return false;
+  const firstWorld={xMm:element.position.xMm+first.x,yMm:element.position.yMm+first.y};
+  return Math.hypot(firstWorld.xMm-point.xMm,firstWorld.yMm-point.yMm)<=Math.max(.001,toleranceMm);
+}
+
 export function createCadPolylineMetadata(startTargetId?:string):Record<string,unknown>{
   return {
     cadGeometryKind:'POLYLINE',

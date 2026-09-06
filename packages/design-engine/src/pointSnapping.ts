@@ -91,6 +91,34 @@ function within(point:{x:number;y:number},candidate:{x:number;y:number},toleranc
   return distance<=toleranceMm?distance:undefined;
 }
 
+function pageBorderEnabled(artboard:Artboard):boolean{
+  const raw=(artboard.metadata?.pageBorder??{}) as {enabled?:boolean};
+  return raw.enabled??true;
+}
+
+function pageBorderSegments(artboard:Artboard):Array<{a:{x:number;y:number};b:{x:number;y:number};detailId:string}>{
+  const w=artboard.widthMm,h=artboard.heightMm;
+  return[
+    {a:{x:0,y:0},b:{x:w,y:0},detailId:'PAGE_TOP'},
+    {a:{x:w,y:0},b:{x:w,y:h},detailId:'PAGE_RIGHT'},
+    {a:{x:w,y:h},b:{x:0,y:h},detailId:'PAGE_BOTTOM'},
+    {a:{x:0,y:h},b:{x:0,y:0},detailId:'PAGE_LEFT'},
+  ];
+}
+
+function segmentIntersection(a:{x:number;y:number},b:{x:number;y:number},c:{x:number;y:number},d:{x:number;y:number}):{x:number;y:number}|undefined{
+  const rx=b.x-a.x,ry=b.y-a.y,sx=d.x-c.x,sy=d.y-c.y,den=rx*sy-ry*sx;
+  if(Math.abs(den)<1e-10)return undefined;
+  const qx=c.x-a.x,qy=c.y-a.y,t=(qx*sy-qy*sx)/den,u=(qx*ry-qy*rx)/den;
+  if(t<-1e-9||t>1+1e-9||u<-1e-9||u>1+1e-9)return undefined;
+  return{x:a.x+rx*Math.max(0,Math.min(1,t)),y:a.y+ry*Math.max(0,Math.min(1,t))};
+}
+
+function nearestOnSegment(point:{x:number;y:number},a:{x:number;y:number},b:{x:number;y:number}):{x:number;y:number}{
+  const dx=b.x-a.x,dy=b.y-a.y,len2=dx*dx+dy*dy,t=len2<1e-12?0:Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.y-a.y)*dy)/len2));
+  return{x:a.x+dx*t,y:a.y+dy*t};
+}
+
 /**
  * Resolves one exact point snap for drawing/path-node editing only.
  * Callers must convert their desired screen-pixel radius into mm using the
@@ -121,6 +149,17 @@ export function resolvePointSnap(artboard:Artboard,point:{x:number;y:number},opt
   }
 
   let best:PointSnapResult|undefined;
+  const usePageBorder=pageBorderEnabled(artboard);
+
+  if(snapToVertices&&usePageBorder){
+    const corners=[
+      {x:0,y:0,id:'PAGE_CORNER_TOP_LEFT'},
+      {x:artboard.widthMm,y:0,id:'PAGE_CORNER_TOP_RIGHT'},
+      {x:artboard.widthMm,y:artboard.heightMm,id:'PAGE_CORNER_BOTTOM_RIGHT'},
+      {x:0,y:artboard.heightMm,id:'PAGE_CORNER_BOTTOM_LEFT'},
+    ];
+    for(const corner of corners){const distance=within(point,corner,toleranceMm);if(distance!==undefined)best=better(best,{point:{x:corner.x,y:corner.y},kind:'VERTEX',label:'Page corner',distanceMm:distance,detailId:corner.id});}
+  }
 
   if(snapToVertices){
     for(const element of vectorElements){
@@ -146,10 +185,14 @@ export function resolvePointSnap(artboard:Artboard,point:{x:number;y:number},opt
         best=better(best,{point:hit,kind:'INTERSECTION',distanceMm:distance,elementId:element.id});
       }
     }
+    if(usePageBorder){
+      for(const edge of pageBorderSegments(artboard)){const hit=segmentIntersection(options.lineStart,point,edge.a,edge.b);if(!hit)continue;const distance=within(point,hit,toleranceMm);if(distance===undefined)continue;best=better(best,{point:hit,kind:'INTERSECTION',label:'Page border intersection',distanceMm:distance,detailId:edge.detailId});}
+    }
     probe.remove();
   }
 
   if(snapToBoundaries){
+    if(usePageBorder){for(const edge of pageBorderSegments(artboard)){const hit=nearestOnSegment(point,edge.a,edge.b),distance=within(point,hit,toleranceMm);if(distance!==undefined)best=better(best,{point:hit,kind:'BOUNDARY',label:'Page border',distanceMm:distance,detailId:edge.detailId});}}
     const pointer=new paper.Point(point.x,point.y);
     for(const element of vectorElements){
       const path=paths.get(element.id);if(!path)continue;

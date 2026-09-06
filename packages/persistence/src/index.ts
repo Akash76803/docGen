@@ -6,3 +6,5 @@ export * from './design-template-repository.js';
 
 export * from './asset-library-repository.js';
 export * from './artboard-preset-repository.js';
+
+export * from './indexeddb-card-repository.js';

@@ -259,3 +259,67 @@ Status: SOURCE VERIFIED / MANUAL UI PENDING
 - Font files are stored as user-library `OTHER` assets with `fontAsset` metadata, not bundled as third-party proprietary fonts.
 - Normal text, rich text, Shape/PATH labels and the context toolbar use the expanded font workflow.
 - See `UPDATE_PHASE_TEXT6B_FONT2_PROFESSIONAL_FONT_MANAGER.md`.
+
+## TEXT6D — Bevel & Emboss / Global Light
+- Status: Implemented
+- Bevel styles: Inner / Outer / Emboss / Pillow / Stroke Emboss
+- Techniques: Smooth / Chisel Hard / Chisel Soft
+- Depth %, Size, Soften, Up/Down
+- Shared Global Light Angle / Altitude stored in template metadata and synchronized across opted-in text effects
+- Highlight/Shadow color, opacity, blend metadata
+- Gloss Contour presets
+- Canvas + export lighting synthesis updated
+- Update note: `UPDATE_PHASE_TEXT6D_BEVEL_EMBOSS_GLOBAL_LIGHT.md`
+
+- TEXT6D Fix1: corrected Color/Gradient/Pattern Overlay blend composition by including the base text fill as the bottom blend layer in canvas and export.
+
+## TEXT6E — Contour, Satin & Texture Effects
+- Status: Completed
+- Deliverable: `Document-Generator-Phase-TEXT6E-Contour-Satin-Texture-Effects.zip`
+- Next: TEXT7 — Premium Material Preset Library
+
+## VECTOR-UX1 — Professional Path Selection & Editing UX
+Status: Completed
+- 14px-equivalent zoom-aware segment hit corridor
+- orange hover preselection + stronger selected-segment feedback
+- explicit `Edit Path · E` affordance
+- Ctrl/Cmd segment multi-select; Shift+click add-node preserved
+- straight-path intersection materialization when entering Edit Path
+- persistent intersection nodes rendered as larger green first-class markers
+- targeted transpile + intersection runtime harness PASS
+- Vitest not claimed: dependency install timed out before test runner became available
+
+- VECTOR-UX1 Fix1 — Any-tool Double-Click + Drag Temporary Pan — Completed
+
+## VECTOR-UX2 — Soft Path Deformation / Proportional Node Editing
+Status: Completed
+Deliverable: `Document-Generator-Phase-VECTOR-UX2-Soft-Path-Deformation.zip`
+Summary: Soft Edit for PATH nodes with topology-aware influence radius, Smooth/Gaussian/Linear falloff, strength, Preserve Ends, handle-preserving deformation, and legacy direct-drag fallback.
+
+## VECTOR-UX2 Fix2 — Polyline Closure + Face Fill Hardening (2026-09-06)
+Status: Completed
+- Reliable first-node closure for CAD Polyline with explicit last→first segment.
+- Closed Polyline becomes eligible for fill/closed-shape operations.
+- Fill Bucket AUTO_SECTION placement preserves existing filled source boundaries instead of painting over them.
+- Targeted transpile + runtime helper harness PASS; full Vitest not claimed in extracted environment.
+Deliverable: `Document-Generator-Phase-VECTOR-UX2-Fix2-Polyline-Closure-Face-Fill.zip`
+
+## VECTOR-UX2 Fix3 — Default Page Border + Settings
+Status: Completed
+Deliverable: Document-Generator-Phase-VECTOR-UX2-Fix3-Default-Page-Border-Settings.zip
+Scope: default editor-only artboard border, page-level color/width/style/position controls, optional export border, reset/default persistence through artboard metadata.
+Testing: CardDesigner/CardExportCanvas/test-source transpile PASS; wiring marker checks PASS; Vitest runner unavailable in extracted environment.
+
+## VECTOR-UX2 Fix4 — Page Border Snap / Topology Boundary
+Status: Completed
+Deliverable: `Document-Generator-Phase-VECTOR-UX2-Fix4-Page-Border-Snap-Topology.zip`
+Scope: enabled page border participates in corner, boundary and exact intersection OSNAP; Fill Bucket can use artboard edges as virtual planar boundaries without creating/selecting/editing a real page-border element.
+Testing: pointSnapping/joinedLineRegion/CardDesigner/Fix4-test targeted transpile PASS; page-border intersection runtime harness PASS; Vitest unavailable in extracted environment.
+
+- VECTOR-UX2 Fix5 — Saved Template Open / Quota Resilience
+
+- VECTOR-UX2 Fix6 — IndexedDB Storage + Canvas Draw Reliability — Completed — `UPDATE_PHASE_VECTOR_UX2_FIX6_STORAGE_DRAW_RELIABILITY.md`
+
+- VECTOR-UX2 Fix8 — Drawing Capture Priority: capture-phase routing for LINE/POLYLINE/PEN and sibling CAD drawing tools so overlays cannot swallow drawing clicks.
+
+- **VECTOR-UX2 Fix10** — Parallel / Perpendicular Reference Guides — Completed. Explicit segment-reference tools with locked guide direction, offset/right-angle indicators, segment-specific Polyline reference behavior, and OSNAP-preserving commits.

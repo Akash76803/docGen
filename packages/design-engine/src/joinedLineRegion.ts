@@ -2,6 +2,7 @@ import type {DesignElement,PathGeometry,PathPoint} from '@document-tool/contract
 import {localToWorld,shapeToPathGeometry} from './pathUtils.js';
 
 export type JoinedLineRegion={geometry:PathGeometry;position:{xMm:number;yMm:number};size:{widthMm:number;heightMm:number};sourceElementIds:string[];areaMm2:number};
+export type JoinedLineRegionBoundary={widthMm:number;heightMm:number;enabled?:boolean};
 
 const JOIN_EPS_MM=.05;
 const INTERSECTION_EPS=1e-7;
@@ -20,8 +21,9 @@ function intersection(a:WorldPoint,b:WorldPoint,c:WorldPoint,d:WorldPoint):{t:nu
 function projection(point:WorldPoint,a:WorldPoint,b:WorldPoint):{t:number;distance:number}{const dx=b.x-a.x,dy=b.y-a.y,len2=dx*dx+dy*dy,t=len2<1e-12?0:Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.y-a.y)*dy)/len2)),p={x:a.x+dx*t,y:a.y+dy*t};return{t,distance:Math.hypot(point.x-p.x,point.y-p.y)};}
 function addSplit(primitive:Primitive,t:number){if(!primitive.splits.some(value=>Math.abs(value-t)<=INTERSECTION_EPS))primitive.splits.push(t);}
 
-function collectPrimitives(elements:readonly DesignElement[]):Primitive[]{
+function collectPrimitives(elements:readonly DesignElement[],boundary?:JoinedLineRegionBoundary):Primitive[]{
  const primitives:Primitive[]=[];
+ if(boundary?.enabled!==false&&Number.isFinite(boundary?.widthMm)&&Number.isFinite(boundary?.heightMm)&&boundary!.widthMm>0&&boundary!.heightMm>0){const w=boundary!.widthMm,h=boundary!.heightMm;for(const [a,b] of [[{x:0,y:0},{x:w,y:0}],[{x:w,y:0},{x:w,y:h}],[{x:w,y:h},{x:0,y:h}],[{x:0,y:h},{x:0,y:0}]] as const)primitives.push({a,b,elementId:'__PAGE_BORDER__',splits:[0,1]});}
  for(const element of elements){
   if((element.type!=='PATH'&&element.type!=='SHAPE')||!element.visible||element.runtimeHidden||['XLINE','RAY'].includes(String(element.metadata?.cadGeometryKind))||element.metadata?.faceGeneration==='AUTO_SECTION')continue;
   const geometry=element.type==='PATH'?element.geometry:shapeToPathGeometry(element.shape,element.size),byId=new Map(geometry.points.map(point=>[point.id,point] as const));
@@ -39,8 +41,8 @@ function collectPrimitives(elements:readonly DesignElement[]):Primitive[]{
 }
 
 /** Finds the smallest planar face containing the click across LINE/polyline and closed shape boundaries. */
-export function findJoinedLineRegionAtPoint(elements:readonly DesignElement[],point:WorldPoint):JoinedLineRegion|undefined{
- const primitives=collectPrimitives(elements);
+export function findJoinedLineRegionAtPoint(elements:readonly DesignElement[],point:WorldPoint,boundary?:JoinedLineRegionBoundary):JoinedLineRegion|undefined{
+ const primitives=collectPrimitives(elements,boundary);
  for(let i=0;i<primitives.length;i++)for(let j=i+1;j<primitives.length;j++){
   const first=primitives[i]!,second=primitives[j]!;const hit=intersection(first.a,first.b,second.a,second.b);
   if(hit){addSplit(first,hit.t);addSplit(second,hit.u);continue;}
@@ -66,6 +68,6 @@ export function findJoinedLineRegionAtPoint(elements:readonly DesignElement[],po
  const selectedPoints=selected.ids.map(id=>nodes[id]!),minX=Math.min(...selectedPoints.map(p=>p.x)),minY=Math.min(...selectedPoints.map(p=>p.y)),maxX=Math.max(...selectedPoints.map(p=>p.x)),maxY=Math.max(...selectedPoints.map(p=>p.y));
  const pathPoints:PathPoint[]=selectedPoints.map(p=>({id:crypto.randomUUID(),x:p.x-minX,y:p.y-minY,mode:'CORNER'}));
  const segments=pathPoints.map((pathPoint,index)=>({id:crypto.randomUUID(),type:'LINE' as const,fromPointId:pathPoint.id,toPointId:pathPoints[(index+1)%pathPoints.length]!.id}));
- const sourceElementIds=new Set<string>();for(let index=0;index<selected.ids.length;index++){const a=selected.ids[index]!,b=selected.ids[(index+1)%selected.ids.length]!,key=a<b?`${a}:${b}`:`${b}:${a}`;for(const sourceId of edgeByPair.get(key)?.elementIds??[])sourceElementIds.add(sourceId);}
+ const sourceElementIds=new Set<string>();for(let index=0;index<selected.ids.length;index++){const a=selected.ids[index]!,b=selected.ids[(index+1)%selected.ids.length]!,key=a<b?`${a}:${b}`:`${b}:${a}`;for(const sourceId of edgeByPair.get(key)?.elementIds??[])if(sourceId!=='__PAGE_BORDER__')sourceElementIds.add(sourceId);}
  return{geometry:{points:pathPoints,segments,closed:true},position:{xMm:minX,yMm:minY},size:{widthMm:maxX-minX,heightMm:maxY-minY},sourceElementIds:[...sourceElementIds],areaMm2:selected.areaMm2};
 }

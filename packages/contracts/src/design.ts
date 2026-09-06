@@ -188,7 +188,7 @@ export interface TextStyleRun {
 }
 
 
-export type TextLayerEffectType = 'STROKE'|'COLOR_OVERLAY'|'GRADIENT_OVERLAY'|'PATTERN_OVERLAY'|'INNER_SHADOW'|'INNER_GLOW'|'OUTER_GLOW'|'DROP_SHADOW'|'BEVEL_EMBOSS';
+export type TextLayerEffectType = 'STROKE'|'COLOR_OVERLAY'|'GRADIENT_OVERLAY'|'PATTERN_OVERLAY'|'INNER_SHADOW'|'INNER_GLOW'|'OUTER_GLOW'|'DROP_SHADOW'|'BEVEL_EMBOSS'|'SATIN';
 export type TextLayerEffectBlendMode = 'NORMAL'|'MULTIPLY'|'SCREEN'|'OVERLAY'|'SOFT_LIGHT';
 export interface TextLayerEffect {
   id:string;
@@ -214,11 +214,29 @@ export interface TextLayerEffect {
     patternOffsetX?:number;
     patternOffsetY?:number;
     depthMm?:number;
+    depthPct?:number;
     sizeMm?:number;
     softenMm?:number;
     direction?:'UP'|'DOWN';
+    bevelStyle?:'INNER_BEVEL'|'OUTER_BEVEL'|'EMBOSS'|'PILLOW_EMBOSS'|'STROKE_EMBOSS';
+    bevelTechnique?:'SMOOTH'|'CHISEL_HARD'|'CHISEL_SOFT';
+    useGlobalLight?:boolean;
+    altitudeDeg?:number;
     highlightColor?:string;
+    highlightOpacity?:number;
+    highlightBlendMode?:TextLayerEffectBlendMode;
     shadowColor?:string;
+    shadowOpacity?:number;
+    shadowBlendMode?:TextLayerEffectBlendMode;
+    glossContour?:'LINEAR'|'CONE'|'CONE_INVERTED'|'RING'|'GAUSSIAN'|'DOUBLE_RING'|'ROUNDED_STEPS';
+    contourStrength?:number;
+    satinInvert?:boolean;
+    noise?:number;
+    choke?:number;
+    texturePattern?:DesignPatternFill;
+    textureDepth?:number;
+    textureInvert?:boolean;
+    textureLinked?:boolean;
   };
 }
 

@@ -830,3 +830,183 @@ CAD LINE endpoint double-click Extend-to-Boundary and shape-drawing reference pa
 10. Remove the uploaded font. Confirm existing text keeps the family name and the Font Manager shows a missing-font warning/replacement control instead of crashing or blanking Card Designer.
 11. Open Assets → My Assets and verify uploaded font files do not appear as broken image thumbnails.
 12. Attempt an unsupported file and a font over 5 MB; verify a clear status message and no library corruption.
+
+## TEXT6D — Bevel & Emboss / Global Light
+1. Add/select a text element and open Text Styling > Layer Effects Engine.
+2. Add Bevel & Emboss and verify styles: Inner Bevel, Outer Bevel, Emboss, Pillow Emboss, Stroke Emboss.
+3. Verify techniques: Smooth, Chisel Hard, Chisel Soft.
+4. Change Depth %, Size and Soften; canvas must update without losing the base fill/stroke.
+5. Toggle Direction Up/Down; highlight and shadow direction must invert.
+6. With Use Global Light enabled, change Angle and Altitude. Select a second text element with Bevel & Emboss + Use Global Light and confirm it receives the same values.
+7. Disable Use Global Light on one effect and verify its angle/altitude can diverge from the shared light.
+8. Change Highlight/Shadow color and opacity; verify visual response.
+9. Change Gloss Contour presets and confirm a visible intensity/edge-profile difference.
+10. Save/reload, duplicate/copy-paste the text and verify settings persist.
+11. Export PNG/JPEG/PDF and compare bevel direction and highlight/shadow balance with canvas.
+
+## TEXT6D Fix1 — Blend Mode Rendering
+1. Add a TEXT element with a medium gray or orange solid base fill.
+2. Add Color Overlay with a contrasting color and 100% opacity.
+3. Change Blend from Normal → Multiply → Screen → Overlay → Soft Light. Expected: each mode visibly changes the glyph color/compositing.
+4. Repeat with Gradient Overlay and Pattern Overlay. Expected: overlay blends with the base text fill instead of behaving like a simple replacement.
+5. Reduce overlay opacity to 30–50%. Expected: base fill becomes increasingly visible while blend behavior remains active.
+6. Export PNG/JPEG/PDF through the existing export path. Expected: appearance should track the canvas closely.
+7. Regression: Stroke, Drop Shadow, Bevel & Emboss, rich text and custom uploaded fonts should remain available.
+8. Known limitation: Drop Shadow/Glow/Bevel Blend selectors are not yet true independent blend layers; do not use these as acceptance criteria for Fix1.
+
+## TEXT6E — Contour, Satin & Texture Effects
+1. Add text and open Text Styling → Layer Effects.
+2. Add Satin; change color, angle, distance and size. Expected: internal glossy shading changes visibly.
+3. Toggle Satin Invert. Expected: shading direction reverses.
+4. Change Satin contour between Linear, Ring, Double Ring, Rounded Steps. Expected: visible intensity/shape response changes where renderer approximation applies.
+5. Add Bevel & Emboss and change Contour Strength. Expected: highlight strength changes.
+6. Set Texture Depth above 0, switch Hatch/Dot/Checker and toggle Invert Texture. Expected: surface micro-texture changes while text remains editable.
+7. Change Glow/Shadow Noise and Choke. Expected: values persist and remain available after save/reload; advanced rendering hardening can refine exact noise/choke appearance later.
+8. Save/reload and duplicate styled text. Expected: Satin/Contour/Texture settings persist.
+9. Export PNG/PDF/JPEG and compare with canvas. Expected: Satin and practical texture/bevel synthesis are preserved without blank-text regression.
+10. Regression: verify TEXT6D Global Light and TEXT6D Fix1 Color/Gradient/Pattern blend modes still work.
+
+## VECTOR-UX1 — Professional Path Selection & Editing UX
+1. Draw a thin curved PATH, select it, click `Edit Path · E`; expected: Edit Path opens without needing pixel-perfect double-click.
+2. Hover 5–7 px away from a thin segment at 100% zoom; expected: segment turns orange and cursor remains selectable.
+3. Click the hovered segment; expected: only that segment gets the strong selected highlight and nodes remain independently selectable.
+4. Ctrl/Cmd+click a second segment; expected: both segments remain selected. Ctrl/Cmd+click either again removes only that segment.
+5. Shift+click an empty point on a segment; expected: a new node is inserted instead of toggling segment selection.
+6. Draw two straight PATHs crossing each other, then enter Edit Path on either; expected: topology refresh materializes the crossing and the intersection node is shown green.
+7. Drag an endpoint toward another path/intersection; expected: existing OSNAP green feedback still appears and release uses exact snap when within tolerance.
+8. At 200% and 50% zoom repeat segment hover/select; expected: hit target remains usable rather than becoming visually tiny or huge.
+9. Verify SCISSORS and TRIMMER on the same PATH; expected: their existing cursor/interval behavior remains unchanged.
+10. Save/reload after intersection materialization; expected: intersection-node metadata and segmented geometry persist.
+
+## VECTOR-UX1 Fix1 — Any-tool Double-Click + Drag Temporary Pan
+1. Activate Select, Pen, Line, Arc, Shape, Edit Path, Trimmer and Scissors one at a time.
+2. On the canvas, double-click and keep the second press held, then drag horizontally and vertically.
+   - Expected: after a small ~4 px drag threshold, temporary Pan activates and the viewport scrolls in both axes.
+   - Expected: the original tool remains active after mouse release.
+   - Expected: no element move, node insert, trim/cut, or drawing commit occurs from the pan gesture.
+3. Repeat while the second press starts over an existing element/path (not over an HTML control).
+   - Expected: drag pans the canvas instead of moving/editing the element.
+4. Double-click an editable PATH without dragging.
+   - Expected: existing PATH double-click action still enters Edit Path.
+5. Double-click normal text without dragging.
+   - Expected: existing text edit behavior still fires.
+6. Repeat at 200%+ zoom and pan up/down until top and bottom areas can both be reached.
+7. Verify Space+drag, middle-mouse pan, and explicit Pan tool still work unchanged.
+8. Double-click controls (buttons/inputs/selects/textareas).
+   - Expected: temporary pan is not armed over UI controls.
+
+## VECTOR-UX2 — Soft Path Deformation / Proportional Node Editing
+
+1. Draw or select a curved PATH with at least 8 nodes and enter **Edit Path**.
+2. Confirm the floating **Soft Edit** controls are visible and enabled by default.
+3. Drag one middle node upward/downward.
+   - Expected: dragged node follows the pointer fully.
+   - Expected: nearby nodes move in the same direction with progressively smaller displacement.
+   - Expected: the curve remains visually smooth without a sharp single-node kink.
+4. Change **Radius** to a smaller value and drag again.
+   - Expected: fewer neighboring nodes move.
+5. Increase **Radius** and drag again.
+   - Expected: the deformation flows across a longer portion of the path.
+6. Compare **Smooth**, **Gaussian**, and **Linear** falloff.
+   - Expected: each produces a visibly different influence profile while keeping the dragged node at full movement.
+7. Set **Strength** to 40–60%.
+   - Expected: neighboring-node movement becomes weaker, while the directly dragged node still follows the pointer.
+8. On an open path, enable **Preserve Ends** and drag a middle node with a large radius.
+   - Expected: unselected start/end nodes remain fixed.
+9. Disable **Preserve Ends** and repeat.
+   - Expected: endpoints may participate when inside the influence radius.
+10. Disable **Soft Edit**.
+    - Expected: legacy single-/multi-node drag behavior is restored.
+11. Multi-select two nodes and drag one selected node with Soft Edit enabled.
+    - Expected: selected nodes move at full strength and neighboring nodes are influenced by the nearest selected anchor.
+12. Verify node handles move with their owning nodes during soft deformation.
+13. Verify Undo/Redo treats one soft drag as one history transaction.
+14. Verify snapping still applies to the directly dragged anchor; soft-influenced neighbors follow the resolved delta.
+15. Regression: Edit Path segment selection, TRIMMER, SCISSORS, intersection markers, symmetry mode, and any-tool double-drag pan remain operational.
+
+## VECTOR-UX2 Fix1 — Touchpad Native Pan
+
+1. At 100% zoom, place pointer over canvas and use two-finger vertical scroll on a laptop touchpad. Expected: canvas pans vertically; zoom value does not change.
+2. Use two-finger horizontal scroll. Expected: canvas pans horizontally.
+3. Hold Shift and use a vertical two-finger scroll. Expected: movement is converted to horizontal pan.
+4. Hold Ctrl (Windows/Linux) or Cmd (macOS) and scroll/pinch. Expected: canvas zooms around the pointer instead of panning.
+5. At 200%+ zoom, pan from top to bottom and left to right using touchpad only. Expected: all reachable canvas extents remain accessible.
+6. Repeat with Select, Pen, Line, Arc, Shape, Edit Path, Trimmer, and Scissors active. Expected: touchpad pan does not switch the active tool or commit a drawing action.
+7. Verify Space+drag, middle-mouse drag, Pan tool, and double-click+drag pan still work.
+8. Verify mouse wheel without Ctrl/Cmd pans vertically; Ctrl/Cmd+wheel zooms.
+
+## VECTOR-UX2 Fix2 — Polyline Closure + Face Fill Hardening
+- Draw a Polyline with 3+ vertices; click within the first-node snap corridor. Expected: the final segment welds last→first, the path becomes closed, and Polyline mode finishes.
+- Select the closed Polyline and apply Fill Bucket/normal fill. Expected: no "boundary is open" warning.
+- Recreate the certificate curved-band scenario with existing gray/yellow filled PATHs and an unfilled Polyline boundary. Click a white enclosed compartment with Fill Bucket. Expected: the new face fill does not cover the existing filled bands.
+- Click an already-generated AUTO_SECTION again and change its fill. Expected: only that section changes.
+- Save/reload. Expected: `closed=true`, closing segment, AUTO_SECTION topology v2, and source-fill-preserving layer order remain intact.
+
+## VECTOR-UX2 Fix3 — Page Border
+1. Open an existing design with no page-border metadata: neutral 1px solid border is visible.
+2. Create a new artboard: border is visible by default.
+3. Page Properties > Page Border: change color, width, style, position; canvas updates immediately.
+4. Disable Show Page Border: editor border disappears without deleting/moving any element.
+5. Reset to Default: neutral solid 1px Inside border returns, export remains OFF.
+6. Export PNG/PDF/JPEG with Print / Export Border OFF: no page border in output.
+7. Enable Print / Export Border: selected page border appears in output and retains color/style/width.
+8. Save/reload: page-border settings persist.
+
+## VECTOR-UX2 Fix4 — Page Border Snap / Topology Boundary
+1. Keep **Show Page Border** ON. Activate Line/Polyline/Pen and hover each page corner. Expected: `Page corner` snap is available.
+2. Hover the middle of each page edge. Expected: nearest `Page border` boundary snap appears.
+3. Start a line inside the page and move across an artboard edge. Expected: exact `Page border intersection` snap locks at the crossing point.
+4. Create a region using two/three user-drawn edges plus one or more page edges, then use Fill Bucket inside it. Expected: the smallest closed compartment is generated as an AUTO_SECTION.
+5. Verify the page border itself cannot be selected, moved, trimmed, split, deleted, or shown in Layers.
+6. Turn **Show Page Border** OFF. Expected: page-edge snapping/topology participation is disabled; existing design geometry remains unchanged.
+7. Re-enable the border and repeat at 50%, 100%, and 200%+ zoom. Expected: snap tolerance remains usable and exact geometry coordinates stay on x=0/x=pageWidth/y=0/y=pageHeight.
+8. Regression: existing element-to-element OSNAP, Polyline closure, Fill Bucket source-fill preservation, touchpad pan, Edit Path, TRIMMER and SCISSORS continue to work.
+
+## VECTOR-UX2 Fix5 — Saved Template Open / Quota Resilience
+1. Save at least two templates, edit template A, then click template B in Assets & Templates. Expected: template B opens and canvas/artboard selection resets correctly.
+2. Simulate localStorage quota failure for active-template persistence, then click template B. Expected: template B still opens; a non-blocking warning says the active preference was not saved.
+3. Click the currently-open saved template while there are no unsaved changes. Expected: its persisted copy reloads successfully.
+4. Make unsaved changes, click a saved template, cancel the discard confirmation. Expected: current design remains unchanged.
+5. Make unsaved changes, click a saved template, confirm discard. Expected: selected saved template opens, dirty state becomes false.
+6. Reload after a quota-blocked active-id write. Expected: the editor may restore the previously persisted active template, but the prior click itself must have opened the requested template without failure.
+
+## VECTOR-UX2 Fix6 — IndexedDB storage + draw reliability
+1. With an existing large localStorage workspace, launch Card Designer. Existing templates/assets must appear after migration.
+2. Save the active design, reload the app, and reopen it. No `local storage is full` error should be emitted by Card Designer template/asset persistence.
+3. Enable Pan, then choose Rectangle and drag on the artboard without manually turning Pan off. Rectangle must draw.
+4. Repeat step 3 for Circle, Line, Polyline, Pen and Arc.
+5. Verify Space+drag, middle mouse and double-click+hold+drag temporary pan still work.
+6. Add several edits, Undo/Redo, save, reload and verify fidelity.
+7. If IndexedDB save is forced to fail, the current in-memory canvas must remain editable and unsaved changes must remain visible.
+
+## VECTOR-UX2 Fix8 — Drawing Capture Priority
+1. Select LINE on a blank artboard. Click point A, then point B. A line must commit. Click point C: chained second segment must commit. Press Enter to finish.
+2. Select POLYLINE. Click 4 separated vertices. Each click must append a visible segment. Press Enter or double-click to finish.
+3. Repeat LINE and POLYLINE after selecting/moving an existing element, after opening Packaging Panels, and after touchpad pan at 200% zoom.
+4. With LINE active, click Length/Angle HUD inputs and type values. Inputs must receive focus; artboard must not add a point from the input click.
+5. Verify Rectangle, Circle, Pen, Arc, Split, XLINE, Ray and Angle Line still begin from canvas clicks.
+6. Verify Space+drag, middle mouse, touchpad two-finger pan, and double-click-hold-drag temporary pan still work.
+
+## VECTOR-UX2 Fix9 — Double-Click Nearest Intersection Commit
+1. Draw two crossing reference lines.
+2. Start LINE from a point away from the crossing and aim toward the crossing.
+3. Double-click near the crossing (not necessarily pixel-perfect).
+   - Expected: final LINE endpoint lands exactly on the nearest valid intersection and the line chain finishes.
+4. Start a POLYLINE with 2+ vertices and aim the active segment toward an existing intersection.
+5. Double-click near that intersection.
+   - Expected: the final polyline endpoint is corrected to the exact nearest intersection and Polyline finishes.
+6. Repeat at 50%, 100%, and 200% zoom.
+7. Repeat with OSNAP enabled and with page-border topology enabled.
+8. Confirm double-click+hold+drag still performs temporary pan when the gesture moves beyond the pan threshold.
+
+## VECTOR-UX2 Fix10 — Parallel / Perpendicular Reference Guides
+1. Draw an angled LINE. Select **Parallel Line**, hover that line and confirm orange reference preselection.
+2. Click the reference; confirm it locks and an infinite blue parallel guide appears.
+3. Pick a start point away from the reference and an endpoint. Confirm the new line has exactly the same angle as the reference.
+4. Confirm the guide label shows `∥ Parallel` and a live Offset value.
+5. Select **Perpendicular Line**, hover/click the same reference, then draw. Confirm the created line is exactly 90° to the reference and the right-angle marker is visible.
+6. Draw a multi-segment Polyline with differently angled segments. Hover each segment with Parallel/Perpendicular tools; confirm only the nearest hovered segment is used as reference.
+7. Draw from an endpoint/intersection and confirm existing OSNAP still resolves exact start/end coordinates.
+8. Keep the tool active and draw multiple lines from the same locked reference; confirm reference stays locked until Escape/tool change.
+9. Test at 50%, 100%, 200%, and 400% zoom; reference highlight/guide markers should remain usable.
+10. With normal LINE/POLYLINE and **Par/Perp** inference enabled, confirm existing automatic Parallel/Perpendicular tracking still appears and is not regressed.

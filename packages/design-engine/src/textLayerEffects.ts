@@ -10,8 +10,9 @@ export function defaultTextLayerEffect(type:TextLayerEffectType,id:string):TextL
   if(type==='INNER_SHADOW')return{id,type,enabled:true,opacity:.45,blendMode:'MULTIPLY',settings:{color:'#111827',offsetXmm:.2,offsetYmm:.2,blurMm:.4,spread:0}};
   if(type==='INNER_GLOW')return{id,type,enabled:true,opacity:.5,blendMode:'SCREEN',settings:{color:'#ffffff',blurMm:.8,spread:0}};
   if(type==='OUTER_GLOW')return{id,type,enabled:true,opacity:.65,blendMode:'SCREEN',settings:{color:'#60a5fa',blurMm:1.5,spread:0}};
-  if(type==='DROP_SHADOW')return{id,type,enabled:true,opacity:.4,blendMode:'MULTIPLY',settings:{color:'#111827',offsetXmm:.5,offsetYmm:.5,angleDeg:45,distanceMm:.71,blurMm:.6,spread:0}};
-  return{id,type:'BEVEL_EMBOSS',enabled:true,opacity:1,blendMode:'NORMAL',settings:{depthMm:.35,sizeMm:.35,softenMm:.1,direction:'UP',highlightColor:'#ffffff',shadowColor:'#111827'}};
+  if(type==='DROP_SHADOW')return{id,type,enabled:true,opacity:.4,blendMode:'MULTIPLY',settings:{color:'#111827',offsetXmm:.5,offsetYmm:.5,angleDeg:45,distanceMm:.71,blurMm:.6,spread:0,noise:0,choke:0}};
+  if(type==='SATIN')return{id,type,enabled:true,opacity:.5,blendMode:'MULTIPLY',settings:{color:'#111827',angleDeg:19,distanceMm:.8,sizeMm:1.2,satinInvert:false,glossContour:'GAUSSIAN'}};
+  return{id,type:'BEVEL_EMBOSS',enabled:true,opacity:1,blendMode:'NORMAL',settings:{depthMm:.35,depthPct:100,sizeMm:.35,softenMm:.1,direction:'UP',bevelStyle:'INNER_BEVEL',bevelTechnique:'SMOOTH',useGlobalLight:true,angleDeg:120,altitudeDeg:30,highlightColor:'#ffffff',highlightOpacity:.75,highlightBlendMode:'SCREEN',shadowColor:'#111827',shadowOpacity:.75,shadowBlendMode:'MULTIPLY',glossContour:'LINEAR',contourStrength:1,textureDepth:0,textureInvert:false,textureLinked:true}};
 }
 
 export function normalizeTextLayerEffects(effects:TextLayerEffect[]|undefined):TextLayerEffect[]{
