@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, BetweenHorizontalStart, GitMerge, BoxSelect, MousePointer2, Eraser, PaintBucket, MoveHorizontal } from 'lucide-react';
+import { Type, Square, ImagePlus, QrCode, Barcode, PenTool, Spline, Scissors, GitMerge, BoxSelect, MousePointer2, Eraser, PaintBucket, MoveHorizontal } from 'lucide-react';
+
+// Custom Trim tool icon — circle with X inside (matches TRIMMER_CURSOR style)
+const TrimToolIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M7 7L13 13M13 7L7 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
 import { DesignShapeKind } from '@document-tool/contracts';
 
 const shapeLabel = (s: DesignShapeKind) => s.toLowerCase().split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -14,9 +22,9 @@ export type ElementLibraryPanelProps = {
   onAddQr?: () => void;
   onAddBarcode?: () => void;
   availableShapes: DesignShapeKind[];
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'PARALLEL_LINE' | 'PERPENDICULAR_LINE' | 'REFERENCE_ALIGN';
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'REFERENCE_ALIGN';
   drawShapeType?: DesignShapeKind | null;
-  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'PARALLEL_LINE' | 'PERPENDICULAR_LINE' | 'REFERENCE_ALIGN') => void;
+  onSetInteractionMode?: (mode: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'REFERENCE_ALIGN') => void;
   fillBucketType?: 'SOLID' | 'NONE';
   fillBucketColor?: string;
   onFillBucketTypeChange?: (type:'SOLID'|'NONE')=>void;
@@ -87,14 +95,12 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
     { id: 'xline', label: 'Construction Line', tooltip: 'CAD XLINE — infinite editor reference line; excluded from export by default', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('XLINE'), active: interactionMode === 'XLINE' },
     { id: 'ray', label: 'Ray', tooltip: 'CAD RAY — origin-based one-direction construction reference; excluded from export by default', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('RAY'), active: interactionMode === 'RAY' },
     { id: 'angle-line', label: 'Angle Line', tooltip: 'CAD Angle Line — pick start point, then enter exact Length and Angle', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ANGLE_LINE'), active: interactionMode === 'ANGLE_LINE' },
-    { id: 'parallel-line', label: 'Parallel Line', tooltip: 'Choose an existing straight segment, then draw a new line exactly parallel to it', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('PARALLEL_LINE'), active: interactionMode === 'PARALLEL_LINE' },
-    { id: 'perpendicular-line', label: 'Perpendicular Line', tooltip: 'Choose an existing straight segment, then draw a new line exactly 90° to it', icon: <MoveHorizontal size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('PERPENDICULAR_LINE'), active: interactionMode === 'PERPENDICULAR_LINE' },
     { id: 'cad-arc', label: 'CAD Arc', tooltip: 'Three-point circular ARC — Start, Through, End', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ARC'), active: interactionMode === 'ARC' },
     { id: 'pen', label: 'Pen Tool', tooltip: 'Draw custom paths', icon: <PenTool size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('PEN'), active: interactionMode === 'PEN' },
     { id: 'edit-path', label: 'Edit Path', tooltip: 'Edit path nodes and curves', icon: <Spline size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('EDIT_PATH'), active: interactionMode === 'EDIT_PATH', disabled: !canEditPath },
     { id: 'scissors', label: 'Scissors', tooltip: 'Scissors — cut an existing path at a point; it does not divide a closed shape into faces.', icon: <Scissors size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('SCISSORS'), active: interactionMode === 'SCISSORS', disabled: !canScissors },
     { id: 'split', label: 'Split', tooltip: "Split — draw a snapped divider across a closed shape to create separate, independently editable parts.", icon: <SplitToolIcon />, action: () => onSetInteractionMode?.('SPLIT'), active: interactionMode === 'SPLIT' },
-    { id: 'trimmer', label: 'Erase Segment', tooltip: 'Erase Segment — remove a path interval between intersections or chosen points; this does not split a filled region.', icon: <BetweenHorizontalStart size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
+    { id: 'trimmer', label: 'Trim', tooltip: 'Trim (T) — hover a segment between two intersections, it highlights red; click to erase that arc. Works on overlapping circles, arcs, and any path.', icon: <TrimToolIcon />, action: () => onSetInteractionMode?.('TRIMMER'), active: interactionMode === 'TRIMMER', disabled: !canTrim },
     { id: 'eraser', label: 'Freeform Eraser', tooltip: 'Draw a freeform selection around unlocked elements to erase them', icon: <Eraser size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('ERASER'), active: interactionMode === 'ERASER' },
     { id: 'fill-bucket', label: 'Fill Bucket', tooltip: 'Fill a closed shape or section', icon: <PaintBucket size={20} strokeWidth={1.5} />, action: () => onSetInteractionMode?.('FILL_BUCKET'), active: interactionMode === 'FILL_BUCKET' },
     { id: 'join-path', label: 'Join Path', tooltip: 'Join two open paths', icon: <GitMerge size={20} strokeWidth={1.5} />, action: () => onJoin?.(), disabled: !canJoin },
@@ -174,7 +180,7 @@ export const ElementLibraryPanel: React.FC<ElementLibraryPanelProps> = ({
                 onClick={el.action} 
                 onDoubleClick={el.action}
                 disabled={el.disabled}
-                title={el.disabled ? (el.id === 'edit-path' || el.id === 'scissors' || el.id === 'trimmer' ? 'Select exactly 1 path to use this tool' : el.id === 'join-path' ? 'Select exactly 2 open paths to join' : el.id === 'close-path' ? 'Select exactly 1 open path to close' : el.tooltip) : el.tooltip}
+                title={el.disabled ? (el.id === 'edit-path' || el.id === 'scissors' ? 'Select exactly 1 path to use this tool' : el.id === 'trimmer' ? 'Add a PATH or SHAPE to the canvas first' : el.id === 'join-path' ? 'Select exactly 2 open paths to join' : el.id === 'close-path' ? 'Select exactly 1 open path to close' : el.tooltip) : el.tooltip}
               >
                 {el.icon}
                 <span>{el.label}</span>

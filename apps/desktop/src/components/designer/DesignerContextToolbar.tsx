@@ -28,8 +28,8 @@ export type DesignerContextToolbarProps = {
   onGroupSelected?: () => void;
   onUngroupSelected?: () => void;
   pathEditMode?: { active: boolean; selectedNodeIds: string[] };
-  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'PARALLEL_LINE' | 'PERPENDICULAR_LINE' | 'REFERENCE_ALIGN';
-  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'PARALLEL_LINE' | 'PERPENDICULAR_LINE' | 'REFERENCE_ALIGN') => void;
+  interactionMode?: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'REFERENCE_ALIGN';
+  setInteractionMode?: (m: 'SELECT' | 'EDIT_PATH' | 'SCISSORS' | 'PEN' | 'TRIMMER' | 'SPLIT' | 'ERASER' | 'FILL_BUCKET' | 'DRAW_SHAPE' | 'FLEXIBLE_LINE' | 'MIRROR_LINE' | 'XLINE' | 'RAY' | 'ANGLE_LINE' | 'ARC' | 'REFERENCE_ALIGN') => void;
   pathSelectedSegmentIds?: string[];
   setPathSelectedSegmentIds?: (m: string[]) => void;
   setPathSelectedNodeIds?: (m: string[]) => void;

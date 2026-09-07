@@ -49,7 +49,7 @@ function ExportTextPathPaint({style,id}:{style:TextDesignElement['style'];id:str
 function exportTextPathFill(style:TextDesignElement['style'],id:string){const overlay=exportTopTextOverlay(style);if(overlay?.type==='COLOR_OVERLAY')return exportTextColorOpacity(overlay.settings.color??'#7c3aed',overlay.opacity??1);if(overlay?.type==='GRADIENT_OVERLAY'&&overlay.settings.gradient)return`url(#export-text-${overlay.settings.gradient.type==='RADIAL'?'radial':'linear'}-${id})`;if(overlay?.type==='PATTERN_OVERLAY'&&overlay.settings.pattern)return`url(#export-text-pattern-${id})`;const fill=style.fill;if(fill?.type==='LINEAR_GRADIENT')return`url(#export-text-linear-${id})`;if(fill?.type==='RADIAL_GRADIENT')return`url(#export-text-radial-${id})`;return normalizeExportColor(fill?.type==='SOLID'?fill.color:style.color)}
 function exportTextFillStyle(style:any):React.CSSProperties{const overlay=exportTextOverlayCss(style as TextDesignElement['style']);if(overlay)return overlay;const fill=style.fill;if(!fill||fill.type==='SOLID')return{color:normalizeExportColor(fill?.color??style.color)};if(fill.type==='LINEAR_GRADIENT'){const stops=fill.gradient.stops.map((stop:any)=>`${normalizeExportColor(stop.color)} ${stop.offset}%`).join(',');return{color:'transparent',backgroundImage:`linear-gradient(${fill.gradient.angleDeg}deg,${stops})`,backgroundClip:'text',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'};}if(fill.type==='RADIAL_GRADIENT'){const stops=fill.gradient.stops.map((stop:any)=>`${normalizeExportColor(stop.color)} ${stop.offset}%`).join(',');return{color:'transparent',backgroundImage:`radial-gradient(circle at ${fill.gradient.centerX}% ${fill.gradient.centerY}%,${stops})`,backgroundClip:'text',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'};}return{color:normalizeExportColor(style.color)};}
 function exportTextColorOpacity(color:string,opacity:number){const value=normalizeExportColor(color);const hex=value.replace('#','');if(/^[0-9a-f]{6}$/i.test(hex)){const n=parseInt(hex,16);return `rgba(${n>>16},${n>>8&255},${n&255},${Math.max(0,Math.min(1,opacity))})`}return value}
-// @ts-ignore -- exportLayerEffectStroke kept as reference; currently superseded by exportActiveStrokeEffects
+// @ts-ignore
 function exportLayerEffectStroke(style:TextDesignElement['style'],mmToPx:number){const effect=[...(style.layerEffects??[])].reverse().find(item=>item.enabled&&item.type==='STROKE'&&(item.settings.widthMm??0)>0);if(!effect)return undefined;return `${Math.max(.25,(effect.settings.widthMm??0)*mmToPx)}px ${exportTextColorOpacity(effect.settings.color??'#111827',effect.opacity??1)}`}
 
 function exportActiveStrokeEffects(style:TextDesignElement['style']){return (style.layerEffects??[]).filter(effect=>effect.enabled&&effect.type==='STROKE'&&(effect.settings.widthMm??0)>0)}
@@ -64,17 +64,12 @@ function normalizeStroke(stroke: DesignStroke | undefined, mmToPx: number): stri
   return `${stroke.widthMm * mmToPx}px ${style} ${normalizeExportColor(stroke.color)}`;
 }
 
-
-type ExportPageBorderSettings={enabled:boolean;color:string;widthPx:number;style:'SOLID'|'DASHED'|'DOTTED';position:'INSIDE'|'CENTER'|'OUTSIDE';exportEnabled:boolean};
-function exportPageBorderSettings(artboard:Artboard):ExportPageBorderSettings{const raw=(artboard.metadata?.pageBorder??{}) as Partial<ExportPageBorderSettings>;return{enabled:raw.enabled??true,color:typeof raw.color==='string'?raw.color:'#64748b',widthPx:Number.isFinite(raw.widthPx)?Math.max(.25,Math.min(12,Number(raw.widthPx))):1,style:raw.style==='DASHED'||raw.style==='DOTTED'?raw.style:'SOLID',position:raw.position==='CENTER'||raw.position==='OUTSIDE'?raw.position:'INSIDE',exportEnabled:raw.exportEnabled??false};}
-
 export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artboard, assets: DesignTemplate['sharedAssets'] }) {
   const MM_TO_CSS_PX = 96 / 25.4;
   const clean=artboard.id.replace(/[^a-zA-Z0-9_-]/g,'');
   const ids={linear:`export-artboard-gradient-${clean}`,radial:`export-artboard-radial-${clean}`,pattern:`export-artboard-pattern-${clean}`,image:`export-artboard-image-${clean}`};
   const backgroundPaint=exportVectorFillPaint(artboard.background,ids);
   const backgroundOpacity=exportVectorFillOpacity(artboard.background);
-  const pageBorder=exportPageBorderSettings(artboard);
 
   const canvasStyle: React.CSSProperties = {
     width: `${artboard.widthMm * MM_TO_CSS_PX}px`,
@@ -93,7 +88,6 @@ export function IsolatedCardExportCanvas({ artboard, assets }: { artboard: Artbo
       {[...artboard.elements].sort((a,b)=>a.zIndex-b.zIndex||a.id.localeCompare(b.id)).filter(e => !e.runtimeHidden && e.metadata?.cadExport !== false && e.metadata?.cadConstruction !== true).map(e => (
         <IsolatedExportElement key={e.id} element={e} assets={assets} mmToPx={MM_TO_CSS_PX} artboard={artboard} />
       ))}
-      {pageBorder.enabled&&pageBorder.exportEnabled&&(()=>{const w=pageBorder.widthPx,offset=pageBorder.position==='INSIDE'?w/2:pageBorder.position==='OUTSIDE'?-w/2:0;return <div data-export-page-border style={{position:'absolute',left:offset,top:offset,right:offset,bottom:offset,border:`${w}px ${pageBorder.style==='DASHED'?'dashed':pageBorder.style==='DOTTED'?'dotted':'solid'} ${normalizeExportColor(pageBorder.color)}`,boxSizing:'border-box',pointerEvents:'none',zIndex:2147483000}}/>;})()}
     </div>
   );
 }

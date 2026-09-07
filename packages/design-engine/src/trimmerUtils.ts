@@ -230,6 +230,83 @@ export function trimSegmentInterval(
   return middleSegment ? deleteSegmentFromGeometry(currentGeo, middleSegment.id) : clonePathGeometry(geometry);
 }
 
+
+/**
+ * Resolves the complete trim route between the two nearest real intersection
+ * boundaries around a hovered point. Unlike findTrimInterval(), this can span
+ * multiple canonical segments (for example an overlapping circle arc crossing
+ * Bezier segment boundaries). Outer tails on open paths are intentionally not
+ * returned.
+ */
+export function findBoundedTrimRoute(
+  geometry: PathGeometry,
+  intervalsBySegment: ReadonlyMap<string, readonly TrimInterval[]>,
+  hoveredSegmentId: string,
+  hoveredT: number
+): TrimInterval[] {
+  type Atom = TrimInterval & { beforeIntersection:boolean; afterIntersection:boolean };
+  const atoms: Atom[] = [];
+  for (const segment of geometry.segments) {
+    const intervals = intervalsBySegment.get(segment.id) ?? [];
+    const cuts = [...new Set(intervals.flatMap(interval => [interval.tStart, interval.tEnd])
+      .filter(t => t > 0.001 && t < 0.999)
+      .map(t => Math.max(0, Math.min(1, t))))].sort((a,b)=>a-b);
+    const bounds = [0, ...cuts, 1];
+    for (let index=0; index<bounds.length-1; index++) {
+      const tStart=bounds[index]!, tEnd=bounds[index+1]!;
+      if (tEnd-tStart <= 1e-8) continue;
+      atoms.push({
+        segmentId: segment.id, tStart, tEnd,
+        beforeIntersection: tStart > 0.001 && tStart < 0.999,
+        afterIntersection: tEnd > 0.001 && tEnd < 0.999,
+      });
+    }
+  }
+  if (!atoms.length) return [];
+  const t=Math.max(0,Math.min(1,hoveredT));
+  const hoveredIndex=atoms.findIndex(atom=>atom.segmentId===hoveredSegmentId&&t>=atom.tStart-1e-6&&t<=atom.tEnd+1e-6);
+  if(hoveredIndex<0)return[];
+
+  const route: Atom[]=[atoms[hoveredIndex]!];
+  let cursor=hoveredIndex;
+  let guarded=0;
+  while(!route[0]!.beforeIntersection){
+    if(++guarded>atoms.length)return[];
+    if(cursor===0){if(!geometry.closed)return[];cursor=atoms.length;}
+    cursor--;
+    const previous=atoms[cursor]!;
+    if(route.some(atom=>atom===previous))return[];
+    route.unshift(previous);
+  }
+  cursor=hoveredIndex; guarded=0;
+  while(!route[route.length-1]!.afterIntersection){
+    if(++guarded>atoms.length)return[];
+    cursor++;
+    if(cursor>=atoms.length){if(!geometry.closed)return[];cursor=0;}
+    const next=atoms[cursor]!;
+    if(route.some(atom=>atom===next))return[];
+    route.push(next);
+  }
+  return route.map(({segmentId,tStart,tEnd})=>({segmentId,tStart,tEnd}));
+}
+
+/** Deletes a bounded trim route, including routes spanning multiple segments. */
+export function trimSegmentIntervals(geometry: PathGeometry, intervals: readonly TrimInterval[]): PathGeometry {
+  let next=clonePathGeometry(geometry);
+  // Full canonical segments first; boundary partials afterwards. Each route segment
+  // is unique in the normal topology traversal, so edits cannot invalidate ids of
+  // unrelated route segments.
+  const ordered=[...intervals].sort((a,b)=>{
+    const af=a.tStart<=0.001&&a.tEnd>=0.999?0:1;
+    const bf=b.tStart<=0.001&&b.tEnd>=0.999?0:1;
+    return af-bf;
+  });
+  for(const interval of ordered){
+    next=trimSegmentInterval(next,interval.segmentId,interval.tStart,interval.tEnd);
+  }
+  return next;
+}
+
 function deleteSegmentFromGeometry(geometry: PathGeometry, segmentId: string): PathGeometry {
   const cloned = clonePathGeometry(geometry);
   const removed = cloned.segments.some(s => s.id === segmentId);

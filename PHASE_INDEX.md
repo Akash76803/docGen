@@ -323,3 +323,8 @@ Testing: pointSnapping/joinedLineRegion/CardDesigner/Fix4-test targeted transpil
 - VECTOR-UX2 Fix8 — Drawing Capture Priority: capture-phase routing for LINE/POLYLINE/PEN and sibling CAD drawing tools so overlays cannot swallow drawing clicks.
 
 - **VECTOR-UX2 Fix10** — Parallel / Perpendicular Reference Guides — Completed. Explicit segment-reference tools with locked guide direction, offset/right-angle indicators, segment-specific Polyline reference behavior, and OSNAP-preserving commits.
+
+- **VECTOR-UX2 Fix11** — Professional CAD Trim UX — Completed. Cached smart-trim intervals, exact live sub-curve preview, one-click interval trim, explicit Shift+click manual A/B workflow, dedicated active Trim cursor, and zoom-consistent preview styling.
+- **VECTOR-UX2 Fix12** — Dedicated Trim Tool Activation — Completed. Utility panel now exposes a first-class **Trim** tile beside Scissors, with dedicated icon, `T` shortcut labelling, active state, search aliases, and consistent TRIM status/hints. Fix11 geometry behavior is unchanged.
+- **VECTOR-UX2 Fix13** — Trim X Cursor + Bounded Hover Delete — Completed. Simple X cursor; only two-intersection bounded intervals become direct trim candidates; thick solid red hover preview; one-click removal.
+- **VECTOR-UX2 Fix14** — Trim Shared Junction Topology — Completed. Trim boundaries materialize exact shared junction nodes across touching PATH/SHAPE geometry; touched SHAPEs convert to PATH; junction drag propagates across participants; Split click on a shared junction detaches it into independent coincident nodes.

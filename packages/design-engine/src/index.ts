@@ -57,6 +57,7 @@ export * from './cadRay.js';
 export * from './cadArc.js';
 
 export * from './joinedLineRegion.js';
+export * from './intersectionTopology.js';
 
 export * from './endpointWeld.js';
 
@@ -71,3 +72,5 @@ export * from './imageBackgroundRemoval.js';
 export * from './richText.js';
 
 export * from './textLayerEffects.js';
+
+export * from './sharedJunctionTopology.js';
