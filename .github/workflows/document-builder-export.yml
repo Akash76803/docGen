@@ -1,0 +1,135 @@
+name: Document Builder Export
+
+on:
+  push:
+    branches:
+      - chore/document-builder-export
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout frozen source
+        uses: actions/checkout@v4
+
+      - name: Assemble Document Builder source extraction
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/document-builder"
+          mkdir -p "$OUT/apps/desktop/src/pages" "$OUT/docs"
+
+          # Root workspace/build files required by the extracted packages.
+          for f in package.json package-lock.json tsconfig.json tsconfig.base.json .nvmrc .gitignore; do
+            if [ -f "$f" ]; then cp "$f" "$OUT/"; fi
+          done
+
+          # Document-generation engines and their tests/configuration.
+          for p in \
+            contracts core calculation-engine \
+            datasource-sdk datasource-csv datasource-excel \
+            grouping-engine mapping-engine persistence \
+            renderer-sdk renderer-pdf renderer-docx renderer-image \
+            template-engine validation; do
+            if [ -d "packages/$p" ]; then
+              mkdir -p "$OUT/packages"
+              cp -R "packages/$p" "$OUT/packages/$p"
+            fi
+          done
+
+          # Keep the existing design engine as a reference only; the new app should
+          # selectively extract document-safe primitives rather than depend on all CAD/packaging logic.
+          mkdir -p "$OUT/reference"
+          if [ -d packages/design-engine ]; then
+            cp -R packages/design-engine "$OUT/reference/design-engine"
+          fi
+
+          # Desktop runtime/build shell.
+          for f in index.html package.json tsconfig.json vite.config.ts; do
+            if [ -f "apps/desktop/$f" ]; then cp "apps/desktop/$f" "$OUT/apps/desktop/$f"; fi
+          done
+          if [ -d apps/desktop/src-tauri ]; then cp -R apps/desktop/src-tauri "$OUT/apps/desktop/src-tauri"; fi
+
+          # Existing document-focused pages and shared UI/runtime dependencies.
+          for f in main.tsx index.css; do
+            if [ -f "apps/desktop/src/$f" ]; then cp "apps/desktop/src/$f" "$OUT/apps/desktop/src/$f"; fi
+          done
+          for d in app components lib services styles utils; do
+            if [ -d "apps/desktop/src/$d" ]; then cp -R "apps/desktop/src/$d" "$OUT/apps/desktop/src/$d"; fi
+          done
+          for f in \
+            Templates.tsx Generate.tsx Home.tsx Settings.tsx \
+            CardExportCanvas.tsx artboard-ui-helpers.ts cardExportPathBounds.ts \
+            field-picker-helpers.ts; do
+            if [ -f "apps/desktop/src/pages/$f" ]; then
+              cp "apps/desktop/src/pages/$f" "$OUT/apps/desktop/src/pages/$f"
+            fi
+          done
+
+          # Preserve relevant tests as migration/reference evidence without copying the whole CAD suite.
+          if [ -d packages/template-engine/test ]; then true; fi
+          mkdir -p "$OUT/reference/desktop-tests"
+          if [ -d apps/desktop/test ]; then
+            find apps/desktop/test -maxdepth 1 -type f \
+              \( -iname '*template*' -o -iname '*generate*' -o -iname '*binding*' -o -iname '*field*' -o -iname '*export*' -o -iname '*rich-text*' -o -iname '*data*' \) \
+              -exec cp {} "$OUT/reference/desktop-tests/" \;
+          fi
+
+          cat > "$OUT/docs/EXTRACTION_BASELINE.md" <<'EOF'
+          # Document Builder Extraction Baseline
+
+          Source repository: Akash76803/docGen
+          Frozen source commit: fac3e5867e92fd97a5c0b11bbf701bc78aebd1b7
+          Source version: 1.0.0-rc.2
+
+          This archive is a source extraction for the separate PDF/DOC Document Builder.
+
+          Included as application/runtime candidates:
+          - contracts/core
+          - template-engine
+          - calculation-engine
+          - datasource SDK/CSV/Excel
+          - grouping/mapping
+          - persistence
+          - renderer SDK/PDF/DOCX/image
+          - validation
+          - desktop template/generation pages and shared runtime folders
+
+          The existing design-engine is included under reference/design-engine only so document-safe
+          primitives can be selectively migrated. CAD, dieline, trimming, face-splitting and advanced
+          vector tooling should not become dependencies of the new product.
+
+          Important: this DB-0 archive is an extraction baseline, not yet a certified clean build.
+          The next step is dependency cleanup plus a fresh document-focused desktop router/editor shell.
+          EOF
+
+          cat > "$OUT/docs/MIGRATION_SCOPE.md" <<'EOF'
+          # Migration Scope
+
+          ## Keep
+          Text/rich text, images, basic shapes, tables, QR/barcode, field binding, formulas,
+          conditional visibility, Excel/CSV, template persistence, PDF/image export, bulk generation.
+
+          ## Review
+          Persistence schema, grouping behavior, DOCX renderer completeness, shared UI components.
+
+          ## Do not migrate into V1
+          CAD line/polyline/XLINE/ray/arc, trimmer, scissors, split/fill-bucket, advanced OSNAP,
+          node/Bezier editing, Boolean geometry, dieline generator, panel mapping, packaging preflight,
+          and other packaging/CAD-specialized UI.
+          EOF
+
+          cd "$RUNNER_TEMP"
+          zip -qr document-builder-from-docGen-main-fac3e586.zip document-builder
+          ls -lh document-builder-from-docGen-main-fac3e586.zip
+
+      - name: Upload Document Builder ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-builder-from-docGen-main-fac3e586
+          path: ${{ runner.temp }}/document-builder-from-docGen-main-fac3e586.zip
+          if-no-files-found: error
+          retention-days: 7
